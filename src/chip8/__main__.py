@@ -34,3 +34,6 @@ def main() -> int:
     controller.show_main_window()
 
     return application.exec()
+
+if __name__ == "__main__":
+    raise SystemExit(main())
