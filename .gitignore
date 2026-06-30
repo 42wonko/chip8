@@ -1,0 +1,71 @@
+###############################################################################
+# CHIP-8 Emulator
+#
+# Git ignore file
+###############################################################################
+
+#
+# Python
+#
+__pycache__/
+*.py[cod]
+*$py.class
+
+#
+# Virtual environments
+#
+.venv/
+venv/
+env/
+
+#
+# Distribution / packaging
+#
+build/
+dist/
+*.egg-info/
+
+#
+# Unit testing
+#
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+#
+# Type checkers
+#
+.mypy_cache/
+
+#
+# Ruff
+#
+.ruff_cache/
+
+#
+# IDEs
+#
+.idea/
+.vscode/
+
+#
+# Documentation
+#
+doc/generated/
+
+#
+# Qt
+#
+*.qrc.depends
+
+#
+# Logs
+#
+*.log
+
+#
+# OS generated files
+#
+.DS_Store
+Thumbs.db
