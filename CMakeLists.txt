@@ -60,7 +60,7 @@ endif()
 # Custom targets
 ###############################################################################
 add_custom_target(
-    run COMMAND "${CMAKE_COMMAND}" -E env PYTHONPATH="${PROJECT_SOURCE_DIR}/src" "${Python3_EXECUTABLE}" -m chip8 WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" VERBATIM)
+    run COMMAND "${CMAKE_COMMAND}" -E env PYTHONPATH=${PROJECT_SOURCE_DIR}/src "${Python3_EXECUTABLE}" -m chip8 WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" VERBATIM)
 
 if(CHIP8_BUILD_DOCS)
     add_custom_target(
