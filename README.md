@@ -45,6 +45,16 @@ consoles
 
 <a name="dependencies"></a>
 ## Dependencies
+For the initial skeleton, I'll keep the dependencies to the bare minimum:
+- PyQt6>=6.7
+
+For the testing phase, add separate dependencies containing:
+- pytest
+- pytest-qt
+- ruff
+- black
+- mypy
+
 
 <a name="op-codes"></a>
 ## Op-code Description
