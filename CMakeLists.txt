@@ -19,8 +19,8 @@ project(
 # Options
 ###############################################################################
 option(CHIP8_BUILD_DOCS "Build Doxygen documentation" ON)
-option(CHIP8_RUN_MYPY "Enable mypy target" ON)
-option(CHIP8_RUN_RUFF "Enable Ruff target" ON)
+option(CHIP8_ENABLE_MYPY "Enable mypy target" ON)
+option(CHIP8_ENABLE_RUFF "Enable Ruff target" ON)
 
 ###############################################################################
 # Python
@@ -32,10 +32,7 @@ message(STATUS "Python version    : ${Python3_VERSION}")
 ###############################################################################
 # PyQt6
 ###############################################################################
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import PyQt6"
-    RESULT_VARIABLE PYQT_RESULT
-)
+execute_process( COMMAND "${Python3_EXECUTABLE}" -c "import PyQt6" RESULT_VARIABLE PYQT_RESULT)
 
 if(NOT PYQT_RESULT EQUAL 0)
     message(FATAL_ERROR "PyQt6 is not installed.")
@@ -45,52 +42,85 @@ endif()
 # Doxygen
 ###############################################################################
 if(CHIP8_BUILD_DOCS)
-    find_package(Doxygen REQUIRED)
-    find_program(GRAPHVIZ_DOT dot)
-
-    if(NOT GRAPHVIZ_DOT)
-        message(FATAL_ERROR "Graphviz 'dot' executable not found.")
+    find_package(Doxygen QUIET)
+    if(DOXYGEN_FOUND)
+        find_program(GRAPHVIZ_DOT dot)
+        if(GRAPHVIZ_DOT AND EXISTS "${PROJECT_SOURCE_DIR}/doc/Doxyfile.in")
+            configure_file( "${PROJECT_SOURCE_DIR}/doc/Doxyfile.in" "${PROJECT_BINARY_DIR}/Doxyfile" @ONLY)
+            add_custom_target( docs COMMAND ${DOXYGEN_EXECUTABLE} "${PROJECT_BINARY_DIR}/Doxyfile" WORKING_DIRECTORY "${PROJECT_BINARY_DIR}" COMMENT "Generating Doxygen documentation")
+        else()
+            message(STATUS "Documentation disabled (missing dot or Doxyfile.in).")
+        endif()
+    else()
+        message(STATUS "Doxygen not found.")
     endif()
-endif()
-
-###############################################################################
-# Configure Doxygen
-###############################################################################
-if(CHIP8_BUILD_DOCS)
-    configure_file( ${PROJECT_SOURCE_DIR}/doc/Doxyfile.in ${PROJECT_BINARY_DIR}/Doxyfile @ONLY)
 endif()
 
 ###############################################################################
 # Custom targets
 ###############################################################################
 add_custom_target(
-    run COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/src/main.py WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-)
+    run COMMAND "${CMAKE_COMMAND}" -E env PYTHONPATH="${PROJECT_SOURCE_DIR}/src" "${Python3_EXECUTABLE}" -m chip8 WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" VERBATIM)
 
 if(CHIP8_BUILD_DOCS)
     add_custom_target(
-        docs COMMAND ${DOXYGEN_EXECUTABLE} ${PROJECT_BINARY_DIR}/Doxyfile WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        docs COMMAND "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile" WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     )
 endif()
 
 ###############################################################################
 # Ruff
 ###############################################################################
-if(CHIP8_RUN_RUFF)
-    add_custom_target( ruff COMMAND ${Python3_EXECUTABLE} -m ruff check src)
+if(CHIP8_ENABLE_RUFF)
+    add_custom_target( ruff COMMAND "${Python3_EXECUTABLE}" -m ruff check src)
 endif()
 
 ###############################################################################
 # mypy
 ###############################################################################
-if(CHIP8_RUN_MYPY)
-    add_custom_target( mypy COMMAND ${Python3_EXECUTABLE} -m mypy src)
+if(CHIP8_ENABLE_MYPY)
+    add_custom_target( mypy COMMAND "${Python3_EXECUTABLE}" -m mypy src)
 endif()
 
 ###############################################################################
 # Tests
 ###############################################################################
 add_custom_target(
-    test COMMAND ${Python3_EXECUTABLE} -m pytest
+    test COMMAND "${Python3_EXECUTABLE}" -m pytest
+)
+
+###############################################################################
+# Clean Python cache files
+###############################################################################
+
+add_custom_target(
+    clean_python
+    COMMAND ${CMAKE_COMMAND} -E echo "Removing Python cache files..."
+    COMMAND find "${PROJECT_SOURCE_DIR}" -type d -name "__pycache__" -exec rm -rf {} +
+    COMMAND find "${PROJECT_SOURCE_DIR}" -type f -name "*.pyc" -delete
+    COMMAND find "${PROJECT_SOURCE_DIR}" -type f -name "*.pyo" -delete
+    COMMAND find "${PROJECT_SOURCE_DIR}" -type d -name ".mypy_cache" -exec rm -rf {} +
+    COMMAND find "${PROJECT_SOURCE_DIR}" -type d -name ".ruff_cache" -exec rm -rf {} +
+    VERBATIM
+)
+
+###############################################################################
+# Help
+###############################################################################
+add_custom_target(
+    info 
+    COMMAND "${CMAKE_COMMAND}" -E echo ""
+    COMMAND "${CMAKE_COMMAND}" -E echo "CHIP-8 Emulator - Available targets"
+    COMMAND "${CMAKE_COMMAND}" -E echo "=================================="
+    COMMAND "${CMAKE_COMMAND}" -E echo ""
+    COMMAND "${CMAKE_COMMAND}" -E echo "run          - Run the emulator"
+    COMMAND "${CMAKE_COMMAND}" -E echo "format       - Format Python sources using Ruff"
+    COMMAND "${CMAKE_COMMAND}" -E echo "lint         - Run Ruff linter"
+    COMMAND "${CMAKE_COMMAND}" -E echo "typecheck    - Run mypy"
+    COMMAND "${CMAKE_COMMAND}" -E echo "all_checks   - Run format, lint and mypy"
+    COMMAND "${CMAKE_COMMAND}" -E echo "docs         - Generate Doxygen documentation"
+    COMMAND "${CMAKE_COMMAND}" -E echo "info         - Show this help"
+    COMMAND "${CMAKE_COMMAND}" -E echo "clean_python - Remove Python cache files"
+    VERBATIM
 )
 
