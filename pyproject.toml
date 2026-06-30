@@ -1,0 +1,103 @@
+###############################################################################
+#
+#  CHIP-8 Emulator
+#
+#  pyproject.toml
+#
+#  Project configuration.
+#
+###############################################################################
+
+[project]
+name = "chip8"
+version = "0.1.0"
+description = "A CHIP-8 emulator and debugger and disassembler written in Python."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+
+authors = [
+    { name = "Michael Dlubatz" }
+]
+
+dependencies = [
+    "PyQt6>=6.9"
+]
+
+keywords = [
+    "chip8",
+    "emulator",
+    "debugger",
+    "disassembler",
+    "superchip"
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+    "Topic :: System :: Emulators"
+]
+
+dev = [
+    "pytest>=8",
+    "mypy>=1.16",
+    "ruff>=0.12"
+]
+
+[project.urls]
+Homepage = "https://github.com/42wonko/chip8"
+Repository = "https://github.com/42wonko/chip8"
+Issues = "https://github.com/42wonko/chip8/issues"
+Documentation = "https://github.com/42wonko/chip8/tree/main/doc"
+
+###############################################################################
+# Build system
+###############################################################################
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+###############################################################################
+# PyTest
+###############################################################################
+
+[tool.pytest.ini_options]
+testpaths = [ "tests" ]
+python_files = [ "test_*.py" ]
+
+###############################################################################
+# Ruff
+###############################################################################
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "W",
+    "I",
+    "N"
+]
+
+###############################################################################
+# mypy
+###############################################################################
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+strict_equality = true
