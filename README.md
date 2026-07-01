@@ -49,7 +49,7 @@ For the initial skeleton, I'll keep the dependencies to the bare minimum:
 - PyQt6>=6.7
 
 For the testing phase, add separate dependencies containing:
-- pytest
+- pytest>=8.0
 - pytest-qt
 - ruff
 - black
