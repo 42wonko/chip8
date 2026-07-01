@@ -30,7 +30,7 @@ message(STATUS "Python executable : ${Python3_EXECUTABLE}")
 message(STATUS "Python version    : ${Python3_VERSION}")
 
 ###############################################################################
-# PyQt6
+# Find PyQt6
 ###############################################################################
 execute_process( COMMAND "${Python3_EXECUTABLE}" -c "import PyQt6" RESULT_VARIABLE PYQT_RESULT)
 
@@ -39,7 +39,7 @@ if(NOT PYQT_RESULT EQUAL 0)
 endif()
 
 ###############################################################################
-# Doxygen
+# Find Doxygen
 ###############################################################################
 if(CHIP8_BUILD_DOCS)
     find_package(Doxygen QUIET)
@@ -59,35 +59,30 @@ endif()
 ###############################################################################
 # Custom targets
 ###############################################################################
-add_custom_target(
-    run COMMAND "${CMAKE_COMMAND}" -E env PYTHONPATH=${PROJECT_SOURCE_DIR}/src "${Python3_EXECUTABLE}" -m chip8 WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" VERBATIM)
+add_custom_target( run COMMAND "${CMAKE_COMMAND}" -E env PYTHONPATH=${PROJECT_SOURCE_DIR}/src "${Python3_EXECUTABLE}" -m chip8 WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" VERBATIM)
 
-if(CHIP8_BUILD_DOCS)
-    add_custom_target(
-        docs COMMAND "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile" WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-    )
-endif()
 
 ###############################################################################
 # Ruff
 ###############################################################################
 if(CHIP8_ENABLE_RUFF)
-    add_custom_target( ruff COMMAND "${Python3_EXECUTABLE}" -m ruff check src)
+    find_program(RUFF_EXECUTABLE ruff REQUIRED)
+    add_custom_target( lint COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PROJECT_SOURCE_DIR}/src "${RUFF_EXECUTABLE}" check src tests WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 endif()
 
 ###############################################################################
 # mypy
 ###############################################################################
 if(CHIP8_ENABLE_MYPY)
-    add_custom_target( mypy COMMAND "${Python3_EXECUTABLE}" -m mypy src)
+    find_program(MYPY_EXECUTABLE mypy REQUIRED)
+    add_custom_target( typecheck COMMAND "${MYPY_EXECUTABLE}" src WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 endif()
 
 ###############################################################################
 # Tests
 ###############################################################################
-add_custom_target(
-    test COMMAND "${Python3_EXECUTABLE}" -m pytest
-)
+find_program(PYTEST_EXECUTABLE pytest REQUIRED)
+add_custom_target( test COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PROJECT_SOURCE_DIR}/src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "${PYTEST_EXECUTABLE}" tests WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" COMMENT "Running pytest test suite..." VERBATIM)
 
 ###############################################################################
 # Clean Python cache files
@@ -113,6 +108,7 @@ add_custom_target(
     COMMAND "${CMAKE_COMMAND}" -E echo "CHIP-8 Emulator - Available targets"
     COMMAND "${CMAKE_COMMAND}" -E echo "=================================="
     COMMAND "${CMAKE_COMMAND}" -E echo ""
+    COMMAND "${CMAKE_COMMAND}" -E echo "test         - Run the pytest test suite"
     COMMAND "${CMAKE_COMMAND}" -E echo "run          - Run the emulator"
     COMMAND "${CMAKE_COMMAND}" -E echo "format       - Format Python sources using Ruff"
     COMMAND "${CMAKE_COMMAND}" -E echo "lint         - Run Ruff linter"
@@ -123,4 +119,5 @@ add_custom_target(
     COMMAND "${CMAKE_COMMAND}" -E echo "clean_python - Remove Python cache files"
     VERBATIM
 )
+
 
