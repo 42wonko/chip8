@@ -15,18 +15,12 @@ The widget is purely a rendering component and contains no emulator logic.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QRect
-from PyQt6.QtCore import QSize
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
-from PyQt6.QtGui import QImage
-from PyQt6.QtGui import QPaintEvent
-from PyQt6.QtGui import QPainter
+from PyQt6.QtCore import QRect, QSize, Qt
+from PyQt6.QtGui import QColor, QImage, QPainter, QPaintEvent
 from PyQt6.QtWidgets import QWidget
 
-from emulator.constants import DISPLAY_HEIGHT
-from emulator.constants import DISPLAY_WIDTH
-from emulator.types import Framebuffer
+from emulator.chip8types import Framebuffer
+from emulator.constants import DISPLAY_HEIGHT, DISPLAY_WIDTH
 
 
 class DisplayWidget(QWidget):

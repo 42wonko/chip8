@@ -30,8 +30,10 @@ MIT License
 """
 
 from __future__ import annotations
+
 from pathlib import Path
 from typing import TYPE_CHECKING
+
 from PyQt6 import uic
 from PyQt6.QtWidgets import QMainWindow
 
