@@ -68,10 +68,12 @@ build-backend = "setuptools.build_meta"
 ###############################################################################
 # PyTest
 ###############################################################################
-
 [tool.pytest.ini_options]
 testpaths = [ "tests" ]
 python_files = [ "test_*.py" ]
+python_functions = [ "test_*" ]
+python_classes = [ "Test*" ]
+addopts = [ "-v", "--strict-markers" ]
 
 ###############################################################################
 # Ruff
@@ -81,13 +83,8 @@ line-length = 88
 target-version = "py313"
 
 [tool.ruff.lint]
-select = [
-    "E",
-    "F",
-    "W",
-    "I",
-    "N"
-]
+select = [ "E", "F", "W", "I", "N" ]
+ignore = [ "N802", "E501" ]
 
 ###############################################################################
 # mypy
@@ -101,3 +98,5 @@ disallow_incomplete_defs = true
 check_untyped_defs = true
 no_implicit_optional = true
 strict_equality = true
+explicit_package_bases = true
+mypy_path = ["src"]
