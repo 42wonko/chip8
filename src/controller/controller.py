@@ -29,6 +29,7 @@ MIT License
 """
 
 from __future__ import annotations
+
 from gui.mainwindow import MainWindow
 
 

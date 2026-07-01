@@ -15,8 +15,11 @@ MIT License
 """
 
 from __future__ import annotations
+
 import sys
+
 from PyQt6.QtWidgets import QApplication
+
 from controller.controller import Chip8Controller
 
 
