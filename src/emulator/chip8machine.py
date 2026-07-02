@@ -35,7 +35,7 @@ class Chip8Machine:
     def __init__(self) -> None:
         """
         @brief Construct the virtual machine.
-        @detail All members are private to prevent other classes from accidentally
+        @detai All members are private to prevent other classes from accidentally
         replacing any of the hardware components. By decorating them with @property
         we can still use them, though.
         """
@@ -148,5 +148,36 @@ class Chip8Machine:
         @brief Execute one instruction.
         """
         instruction = self.fetch_instruction()
-        raise NotImplementedError( f"{instruction.opcode:04X}")
+        self._execute_instruction(instruction)
 
+
+    ###########################################################################
+    # private helpers
+    ###########################################################################
+    def _execute_instruction(self, instruction: Instruction) -> None:
+        """
+        @brief Execute one decoded CHIP-8 instruction.
+
+        @param instruction
+            Decoded instruction.
+        """
+
+        match instruction.opcode:
+
+            #######################################################################
+            # 00E0 - CLS
+            #######################################################################
+            case 0x00E0:
+                self._framebuffer.clear()
+
+            #######################################################################
+            # 00EE - RET
+            #######################################################################
+            case 0x00EE:
+                self._registers.pc = self._stack.pop()
+
+            #######################################################################
+            # Unsupported opcode
+            #######################################################################
+            case _:
+                raise NotImplementedError( f"Opcode {instruction.opcode:04X} is not implemented.")
