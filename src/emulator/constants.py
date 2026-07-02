@@ -25,11 +25,29 @@ DISPLAY_HEIGHT: int = 32            # Display height in pixels.
 ###############################################################################
 # Fonts
 ###############################################################################
+FONTSET: list[int] = [
+    0xF0, 0x90, 0x90, 0x90, 0xF0,  # 0
+    0x20, 0x60, 0x20, 0x20, 0x70,  # 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0,  # 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0,  # 3
+    0x90, 0x90, 0xF0, 0x10, 0x10,  # 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0,  # 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0,  # 6
+    0xF0, 0x10, 0x20, 0x40, 0x40,  # 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0,  # 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0,  # 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90,  # A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0,  # B
+    0xF0, 0x80, 0x80, 0x80, 0xF0,  # C
+    0xE0, 0x90, 0x90, 0x90, 0xE0,  # D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0,  # E
+    0xF0, 0x80, 0xF0, 0x80, 0x80   # F
+]
+FONT_SIZE: int = len(FONTSET) 
 FONT_START: int = 0x050             # Start address for CHIP-8 fonts.
 FONT_ADDRESS: int = 0x000           # Location of the built-in font.
 FONT_CHARACTER_COUNT: int = 16      # we have 16 HEX characters 0-9,a-f
 FONT_CHARACTER_SIZE: int = 5        # each character is encodes in 5 bytes
-FONT_SIZE: int = FONT_CHARACTER_COUNT * FONT_CHARACTER_SIZE # total number of bytes for the font
 
 ###############################################################################
 # Memory
@@ -48,6 +66,7 @@ KEY_COUNT: int = 16                 # Number of hexadecimal keys.
 # Timers
 ###############################################################################
 TIMER_FREQUENCY: int = 60           # 60Hz
+CPU_FREQUENCY: int   = 500          # Main clock is 500Hz
 
 ###############################################################################
 # Instruction size
