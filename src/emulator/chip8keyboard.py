@@ -71,6 +71,20 @@ class Chip8Keyboard:
         return self._keys[key]
 
 
+    def first_pressed(self) -> int | None:
+        """
+        @brief Return the first pressed key.
+
+        @return
+            Key number or None if no key is currently pressed.
+        """
+        for key in range(KEY_COUNT):
+            if self._keys[key]:
+                return key
+
+        return None
+
+
     def reset(self) -> None:
         """
         @brief Release all keys.
