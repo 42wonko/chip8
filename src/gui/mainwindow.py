@@ -73,7 +73,7 @@ class MainWindow(QMainWindow):
         """
 
         self._connect_signals()
-        self.statusBar.showMessage("Ready")
+        self.statusbar.showMessage("Ready")  # type: ignore[attr-defined]
 
 
     def _connect_signals(self) -> None:
