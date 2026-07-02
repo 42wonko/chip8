@@ -122,5 +122,7 @@ class Chip8Framebuffer:
         @return
             Read-only view of the framebuffer.
         """
-        return self._pixels.view()
+        view = self._pixels.view()
+        view.flags.writeable = False
+        return view
 
