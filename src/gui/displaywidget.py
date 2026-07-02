@@ -99,7 +99,7 @@ class DisplayWidget(QWidget):
         return QSize( self._display_width * 10, self._display_height * 10)
 
 
-    def paintEvent( self, event: QPaintEvent) -> None:
+    def paintEvent( self, event: QPaintEvent | None) -> None:
         """
         @brief Paint the display.
 
@@ -113,6 +113,14 @@ class DisplayWidget(QWidget):
         painter.fillRect( self.rect(), self._background_color)
         target = self._calculate_target_rect()
         painter.drawImage( target, self._image)
+
+    def refresh(self) -> None:
+        """
+        @brief Rebuild image from framebuffer and repaint.
+        """
+
+        self._update_image()
+        self.update()
 
 
     def _calculate_scale(self) -> int:
@@ -158,3 +166,5 @@ class DisplayWidget(QWidget):
             for x in range(self._display_width):
                 color = ( self._foreground_color if self._framebuffer[y, x] else self._background_color)
                 self._image.setPixelColor( x, y, color)
+
+
