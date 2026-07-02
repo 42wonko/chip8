@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from emulator.constants import (
     ADDRESS_MASK,
+    BYTE_MASK,
     PROGRAM_START,
     REGISTER_COUNT,
     STACK_POINTER_MASK,
@@ -68,7 +69,7 @@ class Chip8Registers:
             Register value.
         """
         self._validate_register(index)
-        self._v[index] = value
+        self._v[index] = value & BYTE_MASK
 
 
     ###########################################################################
