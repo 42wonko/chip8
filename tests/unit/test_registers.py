@@ -9,6 +9,7 @@ import unittest
 from emulator.chip8registers import Chip8Registers
 from emulator.constants import (
     ADDRESS_MASK,
+    BYTE_MASK,
     PROGRAM_START,
     REGISTER_COUNT,
     STACK_POINTER_MASK,
@@ -56,10 +57,10 @@ class TestChip8Registers(unittest.TestCase):
         with self.assertRaises(IndexError):
             registers[REGISTER_COUNT] = 0
 
-    def test_register_value_out_of_range(self) -> None:
+    def test_register_value_wraps(self) -> None:
         registers = Chip8Registers()
-        with self.assertRaises(ValueError):
-            registers[0] = 256
+        registers[0] = 300
+        self.assertEqual(registers[0], 300 & BYTE_MASK)
 
     ###########################################################################
     # Special registers
