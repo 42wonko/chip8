@@ -39,7 +39,6 @@ from controller.keyboardmap import KeyboardMap
 from emulator.chip8machine import Chip8Machine
 from emulator.constants import CPU_FREQUENCY, TIMER_FREQUENCY
 from emulator.stepresult import StepResult
-
 from gui.keyboarddialog import KeyboardDialog
 from gui.mainwindow import MainWindow
 from gui.memorytablemodel import MemoryTableModel
