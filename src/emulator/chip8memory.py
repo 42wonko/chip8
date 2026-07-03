@@ -83,10 +83,7 @@ class Chip8Memory:
         end: int = PROGRAM_START + len(data)
         if end > MEMORY_SIZE:
             raise ValueError("ROM image exceeds available memory.")
-
-        self.reset()
         self._memory[PROGRAM_START:end] = data
-
 
     def size(self) -> int:
         """
