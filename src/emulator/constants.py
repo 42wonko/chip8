@@ -43,7 +43,7 @@ FONTSET: list[int] = [
     0xF0, 0x80, 0xF0, 0x80, 0xF0,  # E
     0xF0, 0x80, 0xF0, 0x80, 0x80   # F
 ]
-FONT_SIZE: int = len(FONTSET) 
+FONT_SIZE: int = len(FONTSET)
 FONT_START: int = 0x050             # Start address for CHIP-8 fonts.
 FONT_ADDRESS: int = 0x000           # Location of the built-in font.
 FONT_CHARACTER_COUNT: int = 16      # we have 16 HEX characters 0-9,a-f

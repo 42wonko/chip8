@@ -35,13 +35,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
-from PyQt6.QtWidgets import QMainWindow, QStatusBar
+from PyQt6.QtGui import QFontDatabase, QKeyEvent
+from PyQt6.QtWidgets import QHeaderView, QMainWindow, QStatusBar
 
 from gui.displaywidget import DisplayWidget
 
 if TYPE_CHECKING:
     from controller.controller import Chip8Controller
-
+    from gui.memorytablemodel import MemoryTableModel
 
 class MainWindow(QMainWindow):
     """
@@ -58,14 +59,9 @@ class MainWindow(QMainWindow):
         @param controller
             Application controller.
         """
-
         super().__init__()
         self._controller = controller
-        ui_file = (
-            Path(__file__).parent
-            / "ui"
-            / "mainwindow.ui"
-        )
+        ui_file = ( Path(__file__).parent / "ui" / "mainwindow.ui")
         uic.loadUi(str(ui_file), self)
         self._initialize()
 
@@ -89,6 +85,7 @@ class MainWindow(QMainWindow):
         """
         cast(QStatusBar, self.statusbar).showMessage(message) # type: ignore[attr-defined]
 
+
     def set_rom_title(self, rom: Path | None) -> None:
         """
         @brief Update the window title.
@@ -96,13 +93,30 @@ class MainWindow(QMainWindow):
         @param rom
             Currently loaded ROM or None.
         """
-
         title = "CHIP-8 Emulator"
-
         if rom is not None:
             title += f" - {rom.name}"
-
         self.setWindowTitle(title)
+
+    def set_memory_model( self, model: MemoryTableModel) -> None:
+        """
+        @brief Attach the memory model to the memory table.
+        """
+        self.memoryTableView.setModel(model)
+        header = self.memoryTableView.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
+        self.memoryTableView.verticalHeader().setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
+        font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        self.memoryTableView.setFont(font)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        self._controller.key_down(event.key())
+
+
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+        self._controller.key_up(event.key())
+
 
     ###########################################################################
     # Private helpers
@@ -134,11 +148,12 @@ class MainWindow(QMainWindow):
         constructor concise.
         """
 
-        self.loadButton.clicked.connect(self._controller.load_rom)      # type: ignore[attr-defined]
+        self.loadButton.clicked.connect(self._controller.load_rom)                  # type: ignore[attr-defined]
 
-        self.runButton.clicked.connect(self._controller.run)            # type: ignore[attr-defined]
-        self.continueButton.clicked.connect(self._controller.run)       # type: ignore[attr-defined]
+        self.runButton.clicked.connect(self._controller.run)                        # type: ignore[attr-defined]
+        self.continueButton.clicked.connect(self._controller.run)                   # type: ignore[attr-defined]
 
-        self.stopExecutionButton.clicked.connect(self._controller.stop) #type: ignore[attr-defined]
-        self.resetButton.clicked.connect(self._controller.reset)        # type: ignore[attr-defined]
-        self.singleStepButton.clicked.connect(self._controller.step)    # type: ignore[attr-defined]
+        self.stopExecutionButton.clicked.connect(self._controller.stop)             # type: ignore[attr-defined]
+        self.resetButton.clicked.connect(self._controller.reset)                    # type: ignore[attr-defined]
+        self.singleStepButton.clicked.connect(self._controller.step)                # type: ignore[attr-defined]
+        self.keyboardButton.clicked.connect( self._controller.configure_keyboard)   # type: ignore[attr-defined]

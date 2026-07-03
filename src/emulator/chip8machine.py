@@ -26,8 +26,9 @@ from emulator.chip8memory import Chip8Memory
 from emulator.chip8registers import Chip8Registers
 from emulator.chip8stack import Chip8Stack
 from emulator.chip8timers import Chip8Timers
-from emulator.constants import FONT_CHARACTER_SIZE, FONT_START, PROGRAM_START, FONTSET
+from emulator.constants import FONT_CHARACTER_SIZE, FONT_START, FONTSET, FONT_SIZE, PROGRAM_START
 from emulator.instruction import Instruction
+from emulator.stepresult import StepResult
 
 
 class Chip8Machine:
@@ -47,7 +48,7 @@ class Chip8Machine:
         self._timers        = Chip8Timers()
         self._keyboard      = Chip8Keyboard()
         self._framebuffer   = Chip8Framebuffer()
-
+        self.reset()
 
     ###########################################################################
     # Hardware access
@@ -116,7 +117,6 @@ class Chip8Machine:
         for offset, byte in enumerate(FONTSET):                 # init the builtin font
             self._memory.write_byte(FONT_START + offset, byte)
 
-
     def load_rom(self, data: bytes) -> None:
         """
         @brief Load a ROM image.
@@ -124,6 +124,7 @@ class Chip8Machine:
         @param data
             ROM contents.
         """
+        self.reset()
         self._memory.load_rom(data)
         self._registers.pc = PROGRAM_START
 
@@ -153,18 +154,20 @@ class Chip8Machine:
         opcode = (msb << 8) | lsb
         return Instruction.decode( address, opcode)
 
-    def execute_cycle(self) -> None:
+    def execute_cycle(self) -> StepResult:
         """
         @brief Execute one instruction.
         """
+        result = StepResult()
         instruction = self.fetch_instruction()
-        self._execute_instruction(instruction)
+        self._execute_instruction(instruction, result)
+        return result
 
 
     ###########################################################################
     # private helpers
     ###########################################################################
-    def _execute_instruction(self, instruction: Instruction) -> None:
+    def _execute_instruction(self, instruction: Instruction, result: StepResult) -> None:
         """
         @brief Execute one decoded CHIP-8 instruction.
 
@@ -180,6 +183,7 @@ class Chip8Machine:
                 match instruction.opcode:
                     case 0x00E0:                                        # 00E0 - CLS
                         self._framebuffer.clear()
+                        result.display_changed = True
 
                     case 0x00EE:                                        # 00EE - RET
                         self._registers.pc = self._stack.pop()
@@ -289,6 +293,7 @@ class Chip8Machine:
                                 collision = True
 
                 self._registers[0xF] = 1 if collision else 0
+                result.display_changed = True
 #
             #######################################################################
             # EX00 family
@@ -332,6 +337,7 @@ class Chip8Machine:
                         self._memory.write_byte(self._registers.i + 0, value // 100)
                         self._memory.write_byte(self._registers.i + 1, (value // 10) % 10)
                         self._memory.write_byte(self._registers.i + 2, value % 10)
+                        result.memory_range = (self.registers.i, self.registers.i + 2)
 
                     case 0x55:                                          # Store v0 to vX at the memory pointed to by I, I is not channged
                         for register in range(instruction.x + 1):
@@ -340,6 +346,7 @@ class Chip8Machine:
                     case 0x65:                                          # read the bytes from memory pointed to by I into the registers v0 to vX, I is unchanged
                         for register in range(instruction.x + 1):
                             self._registers[register] = self._memory.read_byte( self._registers.i + register)
+                        result.memory_range = (self.registers.i, self.registers.i + register)
 
                     case _:
                         raise NotImplementedError(f"{instruction.opcode:04X}")
