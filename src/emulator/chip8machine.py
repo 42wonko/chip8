@@ -26,7 +26,12 @@ from emulator.chip8memory import Chip8Memory
 from emulator.chip8registers import Chip8Registers
 from emulator.chip8stack import Chip8Stack
 from emulator.chip8timers import Chip8Timers
-from emulator.constants import FONT_CHARACTER_SIZE, FONT_START, FONTSET, FONT_SIZE, PROGRAM_START
+from emulator.constants import (
+    FONT_CHARACTER_SIZE,
+    FONT_START,
+    FONTSET,
+    PROGRAM_START,
+)
 from emulator.instruction import Instruction
 from emulator.stepresult import StepResult
 
@@ -239,9 +244,9 @@ class Chip8Machine:
                     case 0x4:                                           # 8XY4 - ADD Vx, Vy with Carry
                         vx = self._registers[instruction.x]
                         vy = self._registers[instruction.y]
-                        result = vx + vy
-                        self._registers[0xF] = 1 if result > 0xFF else 0
-                        self._registers[instruction.x] = result
+                        sum = vx + vy
+                        self._registers[0xF] = 1 if sum > 0xFF else 0
+                        self._registers[instruction.x] = sum
 
                     case 0x5:                                           # 8XY5 - SUB Vx, Vy
                         vx = self._registers[instruction.x]

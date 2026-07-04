@@ -35,10 +35,12 @@ from pathlib import Path
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QFileDialog
 
+from controller.codeanalysis import CodeAnalysis
 from controller.keyboardmap import KeyboardMap
 from emulator.chip8machine import Chip8Machine
 from emulator.constants import CPU_FREQUENCY, TIMER_FREQUENCY
 from emulator.stepresult import StepResult
+from gui.codetablemodel import CodeTableModel
 from gui.keyboarddialog import KeyboardDialog
 from gui.mainwindow import MainWindow
 from gui.memorytablemodel import MemoryTableModel
@@ -75,6 +77,12 @@ class Chip8Controller:
         self._memory_model = MemoryTableModel()
         self._main_window.set_memory_model(self._memory_model)
         self._memory_model.set_memory(self._machine.memory)
+
+        self._code_analysis = CodeAnalysis(self._machine.memory)
+        self._code_model = CodeTableModel()
+        self._main_window.set_code_model(self._code_model)
+        self._code_model.set_analysis(self._code_analysis)
+
 
     ###########################################################################
     # Read-only properties

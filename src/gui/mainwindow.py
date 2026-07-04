@@ -42,6 +42,7 @@ from gui.displaywidget import DisplayWidget
 
 if TYPE_CHECKING:
     from controller.controller import Chip8Controller
+    from gui.codetablemodel import CodeTableModel
     from gui.memorytablemodel import MemoryTableModel
 
 class MainWindow(QMainWindow):
@@ -98,6 +99,7 @@ class MainWindow(QMainWindow):
             title += f" - {rom.name}"
         self.setWindowTitle(title)
 
+
     def set_memory_model( self, model: MemoryTableModel) -> None:
         """
         @brief Attach the memory model to the memory table.
@@ -109,6 +111,20 @@ class MainWindow(QMainWindow):
         self.memoryTableView.verticalHeader().setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
         font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
         self.memoryTableView.setFont(font)
+
+
+    def set_code_model(self, model: CodeTableModel) -> None:
+        """
+        @brief Attach the code model to the code table.
+        """
+        self.codeTableView.setModel(model)
+        header = self.codeTableView.horizontalHeader()
+        header.setStretchLastSection(True)
+        header.setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
+        self.codeTableView.verticalHeader().setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
+        font = QFontDatabase.systemFont( QFontDatabase.SystemFont.FixedFont)
+        self.codeTableView.setFont(font)
+
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         self._controller.key_down(event.key())
