@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import QHeaderView, QMainWindow, QStatusBar
+from PyQt6.QtWidgets import QHeaderView, QMainWindow, QStatusBar, QAbstractItemView
 
 from gui.displaywidget import DisplayWidget
 
@@ -118,10 +118,11 @@ class MainWindow(QMainWindow):
         @brief Attach the code model to the code table.
         """
         self.codeTableView.setModel(model)
+        self.codeTableView.verticalHeader().hide()
         header = self.codeTableView.horizontalHeader()
         header.setStretchLastSection(True)
         header.setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
-        self.codeTableView.verticalHeader().setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
+        self.codeTableView.verticalHeader().setSectionResizeMode( QHeaderView.ResizeMode.Fixed)
         font = QFontDatabase.systemFont( QFontDatabase.SystemFont.FixedFont)
         self.codeTableView.setFont(font)
 
@@ -133,6 +134,21 @@ class MainWindow(QMainWindow):
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
         self._controller.key_up(event.key())
 
+    def scroll_code_to_row(self, row: int) -> None:
+        """
+        @brief Scroll the code view to the specified row.
+
+        @param row
+            Row index to make visible.
+        """
+        model = self.codeTableView.model()
+        if model is None:
+            return
+        index = model.index(row, 0)
+        if not index.isValid():
+            return
+        self.codeTableView.scrollTo( index, QAbstractItemView.ScrollHint.PositionAtCenter)
+        self.codeTableView.setCurrentIndex(index)
 
     ###########################################################################
     # Private helpers

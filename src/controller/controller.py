@@ -82,7 +82,8 @@ class Chip8Controller:
         self._code_model = CodeTableModel()
         self._main_window.set_code_model(self._code_model)
         self._code_model.set_analysis(self._code_analysis)
-
+        self._code_analysis.rebuild()
+        self._code_model.refresh()
 
     ###########################################################################
     # Read-only properties
@@ -135,12 +136,9 @@ class Chip8Controller:
 
         path = Path(filename)
         data = path.read_bytes()
-
         self._current_rom = path
         self._current_rom_data = data
-
         self.reset()
-
         self._main_window.set_rom_title(path)
         self._main_window.show_status_message(f"Loaded {path.name}")
 
@@ -199,6 +197,12 @@ class Chip8Controller:
         rom = self._current_rom_data    # hack to make mypy happy
         if rom is not None:
             self._machine.load_rom(rom)
+            self._code_analysis.rebuild()
+            self._code_model.refresh()
+            row = self._code_analysis.find_row(0x200)
+            if row is not None:
+                self._main_window.scroll_code_to_row(row)
+
         self.update_gui()
         self._main_window.show_status_message("Yo  dude! We just re-spawned!.")
 
