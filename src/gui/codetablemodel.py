@@ -62,9 +62,10 @@ class CodeTableModel(QAbstractTableModel):
         """
         @brief Refresh the complete model.
 
-        This method informs Qt that the underlying analysis has changed.
+        Notify Qt that the underlying Code Analysis has been rebuilt.
+        The complete model is reset. Future versions may provide
+        more fine-grained update operations.
         """
-
         self.beginResetModel()
         self.endResetModel()
 

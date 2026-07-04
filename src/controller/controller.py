@@ -38,7 +38,7 @@ from PyQt6.QtWidgets import QFileDialog
 from controller.codeanalysis import CodeAnalysis
 from controller.keyboardmap import KeyboardMap
 from emulator.chip8machine import Chip8Machine
-from emulator.constants import CPU_FREQUENCY, TIMER_FREQUENCY
+from emulator.constants import CPU_FREQUENCY, TIMER_FREQUENCY, PROGRAM_START
 from emulator.stepresult import StepResult
 from gui.codetablemodel import CodeTableModel
 from gui.keyboarddialog import KeyboardDialog
@@ -199,7 +199,7 @@ class Chip8Controller:
             self._machine.load_rom(rom)
             self._code_analysis.rebuild()
             self._code_model.refresh()
-            row = self._code_analysis.find_row(0x200)
+            row = self._code_analysis.find_row(PROGRAM_START)
             if row is not None:
                 self._main_window.scroll_code_to_row(row)
 
