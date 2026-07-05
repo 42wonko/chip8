@@ -14,10 +14,13 @@ MIT License
 """
 
 from __future__ import annotations
-from typing import Any
-from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt
-from controller.codeanalysis import CodeAnalysis
+
 from enum import IntEnum
+from typing import Any
+
+from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt
+
+from controller.codeanalysis import CodeAnalysis
 
 
 class CodeTableModel(QAbstractTableModel):

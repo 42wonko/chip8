@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import QHeaderView, QMainWindow, QStatusBar, QAbstractItemView
+from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QMainWindow, QStatusBar
 
 from gui.displaywidget import DisplayWidget
 

@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from emulator.chip8memory import Chip8Memory
+from emulator.constants import PROGRAM_START
 
 
 class CodeStatus(StrEnum):
@@ -37,6 +38,8 @@ class CodeStatus(StrEnum):
 class CodeRow:
     """
     @brief One row displayed by the Code View.
+
+    Derived from the number of raw bytes represented by this row.
     """
 
     address: int
@@ -66,20 +69,43 @@ class CodeAnalysis:
         self._memory = memory
         self._rows: list[CodeRow] = []
 
+        # Address range occupied by the currently loaded ROM.
+        # An empty range indicates that no ROM is loaded.
+        self._rom_start = PROGRAM_START
+        self._rom_end = PROGRAM_START
+
+    def set_rom_range(self, start: int, end: int) -> None:
+        """
+        @brief Set the address range occupied by the loaded ROM.
+
+        @param start
+            First ROM address.
+
+        @param end
+            First address beyond the ROM.
+        """
+        if start > end:
+            raise ValueError("Invalid ROM range.")
+        self._rom_start = start
+        self._rom_end = end
+
+
     def rebuild(self) -> None:
         """
         @brief Rebuild the complete analysis.
-
         """
-        self._rows.clear()
+        rows: list[CodeRow] = []
 
-        #
-        # TODO:
-        # Only display the program region once ROM loading is integrated.
-        #
         for address in range(self._memory.size()):
             value = self._memory[address]
-            self._rows.append( CodeRow( address=address, raw_bytes=bytes((value,)), interpretation=f"{value:02X}", status=CodeStatus.UNKNOWN))
+
+            if self._rom_start <= address < self._rom_end:
+                status = CodeStatus.UNKNOWN
+            else:
+                status = CodeStatus.DATA
+            rows.append( CodeRow( address=address, raw_bytes=bytes((value,)), interpretation=f"{value:02X}", status=status,))
+        self._rows = rows
+
 
     def row_count(self) -> int:
         """
