@@ -40,11 +40,132 @@ class Instruction:
     nn: int
     nnn: int
 
+
     def __str__(self) -> str:
         """
-        @brief provides a string representation of the instruction.
+        @brief Return the CHIP-8 assembly representation.
+
+        @return
+            Assembly language representation of the instruction.
         """
-        raise NotImplementedError
+        match self.family:
+            case 0x0:        # 0nnn
+                match self.opcode:
+                    case 0x00E0:
+                        return "CLS"
+
+                    case 0x00EE:
+                        return "RET"
+                    case _:
+                        return f"SYS {self.nnn:03X}"
+            case 0x1:                                           # 1nnn
+                return f"JP {self.nnn:03X}"
+            case 0x2:                                           # 2nnn
+                return f"CALL {self.nnn:03X}"
+            case 0x3:                                           # 3xkk
+                return f"SE V{self.x:X}, {self.nn:02X}"
+            case 0x4:                                           # 4xkk
+                return f"SNE V{self.x:X}, {self.nn:02X}"
+            case 0x5:                                           # 5xy0
+                return f"SE V{self.x:X}, V{self.y:X}"
+            case 0x6:                                           # 6xkk
+                return f"LD V{self.x:X}, {self.nn:02X}"
+            case 0x7:                                           # 7xkk
+                return f"ADD V{self.x:X}, {self.nn:02X}"
+            case 0x8:                                           # 8xy*
+                match self.n:
+
+                    case 0x0:
+                        return f"LD V{self.x:X}, V{self.y:X}"
+
+                    case 0x1:
+                        return f"OR V{self.x:X}, V{self.y:X}"
+
+                    case 0x2:
+                        return f"AND V{self.x:X}, V{self.y:X}"
+
+                    case 0x3:
+                        return f"XOR V{self.x:X}, V{self.y:X}"
+
+                    case 0x4:
+                        return f"ADD V{self.x:X}, V{self.y:X}"
+
+                    case 0x5:
+                        return f"SUB V{self.x:X}, V{self.y:X}"
+
+                    case 0x6:
+                        return f"SHR V{self.x:X}"
+
+                    case 0x7:
+                        return f"SUBN V{self.x:X}, V{self.y:X}"
+
+                    case 0xE:
+                        return f"SHL V{self.x:X}"
+
+                    case _:
+                        return f"DATA {self.opcode:04X}"
+
+            case 0x9:
+                return f"SNE V{self.x:X}, V{self.y:X}"          # 9xy0
+
+            case 0xA:                                           # Annn
+                return f"LD I, {self.nnn:03X}"
+
+            case 0xB:                                           # Bnnn
+                return f"JP V0, {self.nnn:03X}"
+
+            case 0xC:                                           # Cxkk
+                return f"RND V{self.x:X}, {self.nn:02X}"
+
+            case 0xD:                                           # Dxyn
+                return f"DRW V{self.x:X}, V{self.y:X}, {self.n:X}"
+
+            case 0xE:                                           # Ex**
+                match self.nn:
+
+                    case 0x9E:
+                        return f"SKP V{self.x:X}"
+
+                    case 0xA1:
+                        return f"SKNP V{self.x:X}"
+
+                    case _:
+                        return f"DATA {self.opcode:04X}"
+
+            case 0xF:                                           # Fx**
+                match self.nn:
+
+                    case 0x07:
+                        return f"LD V{self.x:X}, DT"
+
+                    case 0x0A:
+                        return f"LD V{self.x:X}, K"
+
+                    case 0x15:
+                        return f"LD DT, V{self.x:X}"
+
+                    case 0x18:
+                        return f"LD ST, V{self.x:X}"
+
+                    case 0x1E:
+                        return f"ADD I, V{self.x:X}"
+
+                    case 0x29:
+                        return f"LD F, V{self.x:X}"
+
+                    case 0x33:
+                        return f"LD B, V{self.x:X}"
+
+                    case 0x55:
+                        return f"LD [I], V{self.x:X}"
+
+                    case 0x65:
+                        return f"LD V{self.x:X}, [I]"
+
+                    case _:
+                        return f"DATA {self.opcode:04X}"
+            case _:                                             # Unknown opcode family.
+                return f"DATA {self.opcode:04X}"
 
 
     @property

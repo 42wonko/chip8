@@ -17,11 +17,13 @@ MIT License
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from enum import StrEnum
 
 from emulator.chip8memory import Chip8Memory
 from emulator.constants import PROGRAM_START
+from emulator.instruction import Instruction 
 
 
 class CodeStatus(StrEnum):
@@ -92,7 +94,7 @@ class CodeAnalysis:
         #     Start address.
         # Value:
         #     Decoded instruction.
-        self._instructions: dict[int, object] = {}
+        self._instructions: dict[int, Instruction] = {}
 
         # Address range occupied by the currently loaded ROM.
         # An empty range indicates that no ROM is loaded.
@@ -158,30 +160,116 @@ class CodeAnalysis:
             return None
         return (self._memory[address] << 8) | self._memory[address + 1]
 
+    def _decode_instruction(self, address: int) -> Instruction | None:
+        """
+        @brief Decode the instruction at the specified address.
+
+        @param address
+            Instruction address.
+
+        @return
+            The decoded instruction or None if the instruction extends
+            beyond memory.
+        """
+        opcode = self._get_word(address)
+        if opcode is None:
+            return None
+        return Instruction.decode(address, opcode)
+
 
     def _analyze(self) -> None:
         """
-        @brief Perform code analysis.
+        @brief Perform control-flow analysis.
+
+        @details
+        Starting at the program entry point, performs a conservative
+        worklist-based traversal to discover executable instructions.
         """
         self._instructions.clear()
+
+        worklist: deque[WorkItem] = deque()
+        visited: set[WorkItem] = set()
+        worklist.append(WorkItem(PROGRAM_START))
+        while worklist:
+            work = worklist.pop()
+            if work in visited:
+                continue
+            visited.add(work)
+            address = work.address
+            if not (self._rom_start <= address < self._rom_end):
+                continue
+            instruction = self._decode_instruction(address)
+            if instruction is None:
+                continue
+            self._instructions[address] = instruction
+            self._status[address] = CodeStatus.CODE                         # Mark the occupied bytes as executable.
+            if address + 1 < self._rom_end:
+                self._status[address + 1] = CodeStatus.CODE
+            worklist.extend(self._successors(instruction))
+
+
+    def _successors(self, instruction: Instruction) -> list[WorkItem]:
+        """
+        @brief Determine successor analysis states.
+
+        @details
+        Phase 3.2 performs only conservative fall-through analysis.
+
+        Instructions that alter the control flow terminate the current
+        analysis path. Later phases will extend this method while leaving
+        the worklist traversal unchanged.
+
+        @param instruction
+            Decoded instruction.
+
+        @return
+            Successor work items.
+        """
+        match instruction.opcode:       # Instructions identified by their complete opcode.
+            case 0x00EE:  # RET
+                return []
+        match instruction.family:       # Instructions identified by opcode family.
+            case 0x1:                   # JP addr
+                return []
+
+            case 0x2:                   # CALL addr
+                return []
+
+            case 0x3:                   # SE Vx, byte
+                return []
+
+            case 0x4:                   # SNE Vx, byte
+                return []
+
+            case 0x5:                   # SE Vx, Vy
+                return []
+
+            case 0x9:                   # SNE Vx, Vy
+                return []
+
+            case 0xE:                   # SKP / SKNP
+                return []
+
+            case _:
+                return [WorkItem(instruction.address + 2)]
+
 
     def _build_rows(self) -> None:
         """
         @brief Build the immutable CodeRow list.
         """
         rows: list[CodeRow] = []
-
         address = 0
-
         while address < self._memory.size():
             instruction = self._instructions.get(address)
             if instruction is not None:
-                rows.append( CodeRow( address=address, raw_bytes=bytes((self._memory[address],)), interpretation="", status=CodeStatus.CODE,))
-                address += 1
+                rows.append( CodeRow( address=address, raw_bytes=bytes( ( self._memory[address], self._memory[address + 1],)), interpretation=str(instruction), status=CodeStatus.CODE,))
+                address += 2
                 continue
             rows.append( CodeRow( address=address, raw_bytes=bytes((self._memory[address],)), interpretation=f"{self._memory[address]:02X}", status=self._status[address],))
             address += 1
         self._rows = rows
+
 
     def row_count(self) -> int:
         """

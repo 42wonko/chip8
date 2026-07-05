@@ -27,11 +27,10 @@ class TestInstruction(unittest.TestCase):
 
     def test_mnemonic_representation(self) -> None:
         """
-        @brief Test exceptions while decoding.
+        @brief Test the assembly representation of an instruction.
         """
-        instruction = Instruction.decode( 0x0200, 0x6A05)
-        with self.assertRaises(NotImplementedError):
-            str(instruction)
+        instruction = Instruction.decode(0x0200, 0x6A05)
+        self.assertEqual(str(instruction), "LD VA, 05")
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
