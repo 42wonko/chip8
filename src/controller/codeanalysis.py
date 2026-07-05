@@ -55,6 +55,22 @@ class CodeRow:
         return len(self.raw_bytes)
 
 
+@dataclass(frozen=True, slots=True)
+class WorkItem:
+    """
+    @brief Analysis work item.
+
+    @details
+    Represents one analysis state to be processed by the worklist
+    algorithm.
+
+    The call stack is intentionally omitted for now but the type is kept
+    separate from a plain address so future analysis phases can extend it
+    without changing the traversal algorithm.
+    """
+    address: int
+
+
 class CodeAnalysis:
     """
     @brief Maintains the interpreted Code View.
@@ -68,6 +84,15 @@ class CodeAnalysis:
         """
         self._memory = memory
         self._rows: list[CodeRow] = []
+
+        self._status: list[CodeStatus] = []         # Classification for every memory byte.
+
+        # Instructions discovered by analysis.
+        # Key:
+        #     Start address.
+        # Value:
+        #     Decoded instruction.
+        self._instructions: dict[int, object] = {}
 
         # Address range occupied by the currently loaded ROM.
         # An empty range indicates that no ROM is loaded.
@@ -94,18 +119,69 @@ class CodeAnalysis:
         """
         @brief Rebuild the complete analysis.
         """
-        rows: list[CodeRow] = []
+        self._instructions.clear()
+        self._initialize_status()
+        self._analyze()
+        self._build_rows()
+
+
+    def _initialize_status(self) -> None:
+        """
+        @brief Initialize the byte classification.
+
+        Bytes inside the ROM are initially UNKNOWN.
+        Everything else is DATA.
+        """
+        self._status = []
 
         for address in range(self._memory.size()):
-            value = self._memory[address]
-
             if self._rom_start <= address < self._rom_end:
-                status = CodeStatus.UNKNOWN
+                self._status.append(CodeStatus.UNKNOWN)
             else:
-                status = CodeStatus.DATA
-            rows.append( CodeRow( address=address, raw_bytes=bytes((value,)), interpretation=f"{value:02X}", status=status,))
-        self._rows = rows
+                self._status.append(CodeStatus.DATA)
 
+
+    def _get_word(self, address: int) -> int | None:
+        """
+        @brief Read a 16-bit word from memory.
+
+        @param address
+            Address of the first byte.
+
+        @return
+            The 16-bit big-endian value or None if the word extends beyond
+            memory.
+        """
+        if address < 0:
+            return None
+        if address + 1 >= self._memory.size():
+            return None
+        return (self._memory[address] << 8) | self._memory[address + 1]
+
+
+    def _analyze(self) -> None:
+        """
+        @brief Perform code analysis.
+        """
+        self._instructions.clear()
+
+    def _build_rows(self) -> None:
+        """
+        @brief Build the immutable CodeRow list.
+        """
+        rows: list[CodeRow] = []
+
+        address = 0
+
+        while address < self._memory.size():
+            instruction = self._instructions.get(address)
+            if instruction is not None:
+                rows.append( CodeRow( address=address, raw_bytes=bytes((self._memory[address],)), interpretation="", status=CodeStatus.CODE,))
+                address += 1
+                continue
+            rows.append( CodeRow( address=address, raw_bytes=bytes((self._memory[address],)), interpretation=f"{self._memory[address]:02X}", status=self._status[address],))
+            address += 1
+        self._rows = rows
 
     def row_count(self) -> int:
         """
