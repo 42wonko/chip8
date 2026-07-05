@@ -38,7 +38,7 @@ from PyQt6.QtWidgets import QFileDialog
 from controller.codeanalysis import CodeAnalysis
 from controller.keyboardmap import KeyboardMap
 from emulator.chip8machine import Chip8Machine
-from emulator.constants import CPU_FREQUENCY, TIMER_FREQUENCY, PROGRAM_START
+from emulator.constants import CPU_FREQUENCY, PROGRAM_START, TIMER_FREQUENCY
 from emulator.stepresult import StepResult
 from gui.codetablemodel import CodeTableModel
 from gui.keyboarddialog import KeyboardDialog
@@ -136,6 +136,8 @@ class Chip8Controller:
 
         path = Path(filename)
         data = path.read_bytes()
+
+
         self._current_rom = path
         self._current_rom_data = data
         self.reset()
@@ -197,6 +199,7 @@ class Chip8Controller:
         rom = self._current_rom_data    # hack to make mypy happy
         if rom is not None:
             self._machine.load_rom(rom)
+            self._code_analysis.set_rom_range( PROGRAM_START, PROGRAM_START + len(rom))
             self._code_analysis.rebuild()
             self._code_model.refresh()
             row = self._code_analysis.find_row(PROGRAM_START)
