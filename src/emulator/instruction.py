@@ -66,15 +66,16 @@ class Instruction:
                 return f"SE V{self.x:X}, {self.nn:02X}"
             case 0x4:                                           # 4xkk
                 return f"SNE V{self.x:X}, {self.nn:02X}"
-            case 0x5:                                           # 5xy0
-                return f"SE V{self.x:X}, V{self.y:X}"
+            case 0x5:
+                if self.n == 0:
+                    return f"SE V{self.x:X}, V{self.y:X}"
+                return f"DATA {self.opcode:04X}"
             case 0x6:                                           # 6xkk
                 return f"LD V{self.x:X}, {self.nn:02X}"
             case 0x7:                                           # 7xkk
                 return f"ADD V{self.x:X}, {self.nn:02X}"
             case 0x8:                                           # 8xy*
                 match self.n:
-
                     case 0x0:
                         return f"LD V{self.x:X}, V{self.y:X}"
 
@@ -106,7 +107,9 @@ class Instruction:
                         return f"DATA {self.opcode:04X}"
 
             case 0x9:
-                return f"SNE V{self.x:X}, V{self.y:X}"          # 9xy0
+                if self.n == 0:
+                    return f"SNE V{self.x:X}, V{self.y:X}"
+                return f"DATA {self.opcode:04X}"
 
             case 0xA:                                           # Annn
                 return f"LD I, {self.nnn:03X}"
