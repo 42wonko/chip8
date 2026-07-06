@@ -280,6 +280,9 @@ class Chip8Machine:
             case 0xA000:                                                # ANNN - LD I, addr
                 self._registers.i = instruction.nnn
 
+            case 0xB000:
+                self._registers.pc = instruction.nnn + self._registers[0]    # BNNN - JP V0, nnn
+
             case 0xC000:                                                # set vx to a random value masked (bitwise AND) with NN
                 self._registers[instruction.x] = random.randint(0, 0xFF) & instruction.nn
 
