@@ -63,14 +63,22 @@ class WorkItem:
     @brief Analysis work item.
 
     @details
-    Represents one analysis state to be processed by the worklist
-    algorithm.
+    Represents one analysis state processed by the worklist algorithm.
 
-    The call stack is intentionally omitted for now but the type is kept
-    separate from a plain address so future analysis phases can extend it
-    without changing the traversal algorithm.
+    Besides the current instruction address, the analysis state carries
+    the simulated call stack. This allows future phases to distinguish
+    identical program addresses reached with different return paths.
     """
+
     address: int
+
+    #
+    # Simulated return stack.
+    #
+    # The tuple is immutable so WorkItem remains hashable and can be
+    # stored in the visited set.
+    #
+    call_stack: tuple[int, ...] = ()
 
 
 class CodeAnalysis:
@@ -205,19 +213,18 @@ class CodeAnalysis:
             self._status[address] = CodeStatus.CODE                         # Mark the occupied bytes as executable.
             if address + 1 < self._rom_end:
                 self._status[address + 1] = CodeStatus.CODE
-            worklist.extend(self._successors(instruction))
+            worklist.extend(self._successors(work, instruction))
 
-
-    def _successors(self, instruction: Instruction) -> list[WorkItem]:
+    def _successors(
+        self,
+        work: WorkItem,
+        instruction: Instruction,
+    ) -> list[WorkItem]:
         """
         @brief Determine successor analysis states.
 
-        @details
-        Phase 3.2 performs only conservative fall-through analysis.
-
-        Instructions that alter the control flow terminate the current
-        analysis path. Later phases will extend this method while leaving
-        the worklist traversal unchanged.
+        @param work
+            Current analysis state.
 
         @param instruction
             Decoded instruction.
@@ -225,33 +232,118 @@ class CodeAnalysis:
         @return
             Successor work items.
         """
-        match instruction.opcode:       # Instructions identified by their complete opcode.
-            case 0x00EE:  # RET
-                return []
-        match instruction.family:       # Instructions identified by opcode family.
-            case 0x1:                   # JP addr
+        #
+        # Instructions identified by their complete opcode.
+        #
+        match instruction.opcode:
+            case 0x00EE:      # RET
+                if not work.call_stack:
+                    #
+                    # Returning without a matching CALL terminates the
+                    # current analysis path.
+                    #
+                    return []
+
+                return [
+                    WorkItem(
+                        work.call_stack[-1],
+                        work.call_stack[:-1],
+                    )
+                ]
+
+        #
+        # Instructions identified by opcode family.
+        #
+        match instruction.family:
+            case 0x1:         # JP addr
+                return [
+                    WorkItem(
+                        instruction.nnn,
+                        work.call_stack,
+                    )
+                ]
+
+            case 0x2:         # CALL addr
+                return [
+                    WorkItem(
+                        instruction.nnn,
+                        work.call_stack + (instruction.address + 2,),
+                    )
+                ]
+
+            case 0x3:         # SE Vx, byte
+                return [
+                    WorkItem(
+                        instruction.address + 2,
+                        work.call_stack,
+                    ),
+                    WorkItem(
+                        instruction.address + 4,
+                        work.call_stack,
+                    ),
+                ]
+
+            case 0x4:         # SNE Vx, byte
+                return [
+                    WorkItem(
+                        instruction.address + 2,
+                        work.call_stack,
+                    ),
+                    WorkItem(
+                        instruction.address + 4,
+                        work.call_stack,
+                    ),
+                ]
+
+            case 0x5:         # SE Vx, Vy
+                return [
+                    WorkItem(
+                        instruction.address + 2,
+                        work.call_stack,
+                    ),
+                    WorkItem(
+                        instruction.address + 4,
+                        work.call_stack,
+                    ),
+                ]
+
+            case 0x9:         # SNE Vx, Vy
+                return [
+                    WorkItem(
+                        instruction.address + 2,
+                        work.call_stack,
+                    ),
+                    WorkItem(
+                        instruction.address + 4,
+                        work.call_stack,
+                    ),
+                ]
+
+            case 0xB:         # JP V0, addr
+                #
+                # Conservative for now.
+                #
                 return []
 
-            case 0x2:                   # CALL addr
-                return []
-
-            case 0x3:                   # SE Vx, byte
-                return []
-
-            case 0x4:                   # SNE Vx, byte
-                return []
-
-            case 0x5:                   # SE Vx, Vy
-                return []
-
-            case 0x9:                   # SNE Vx, Vy
-                return []
-
-            case 0xE:                   # SKP / SKNP
-                return []
+            case 0xE:         # SKP / SKNP
+                return [
+                    WorkItem(
+                        instruction.address + 2,
+                        work.call_stack,
+                    ),
+                    WorkItem(
+                        instruction.address + 4,
+                        work.call_stack,
+                    ),
+                ]
 
             case _:
-                return [WorkItem(instruction.address + 2)]
+                return [
+                    WorkItem(
+                        instruction.address + 2,
+                        work.call_stack,
+                    )
+                ]
 
 
     def _build_rows(self) -> None:
