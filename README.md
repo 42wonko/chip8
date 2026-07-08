@@ -43,16 +43,31 @@ consoles
 <a name="features"></a>
 ## Supported Features
 
+This version tries to emulate the original COSMAC design as close as possible without
+implementing any later extensions. 
+
+- **Display** The original 64x32 pixel monochrome display
+- **Leyboard** Supports the 4x4 Chip8 keyboard. Keys can be re-mapped easily.
+- **Realtime Register Display** The contents of all Chip8 registers (V0-VF, PC, I, SP,
+delay timer, sound timer) are displayd in realtime, i.e. after executing one instruction, 
+the GUI and the internal state of the machine are in sync.
+- **Debugging** The emulator allows for interrupting, single stepping through the program
+and resuming realtime execution. A rudimetary disassembler is available. It shows the 
+program as assembler listing and the current instruction high lighted.
+
+
 <a name="dependencies"></a>
 ## Dependencies
-For the initial skeleton, I'll keep the dependencies to the bare minimum:
+For the complete development envirionment:
+- cmake
+- Doxygen
+- Python>=3.12
 - PyQt6>=6.7
 
 For the testing phase, add separate dependencies containing:
 - pytest>=8.0
 - pytest-qt
 - ruff
-- black
 - mypy
 
 
