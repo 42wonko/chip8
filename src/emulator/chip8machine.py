@@ -354,7 +354,7 @@ class Chip8Machine:
                     case 0x65:                                          # read the bytes from memory pointed to by I into the registers v0 to vX, I is unchanged
                         for register in range(instruction.x + 1):
                             self._registers[register] = self._memory.read_byte( self._registers.i + register)
-                        result.memory_range = (self.registers.i, self.registers.i + register)
+                        result.memory_range = (self.registers.i, self.registers.i + instruction.x)
 
                     case _:
                         raise NotImplementedError(f"{instruction.opcode:04X}")
