@@ -23,7 +23,7 @@ from enum import StrEnum
 
 from emulator.chip8memory import Chip8Memory
 from emulator.constants import PROGRAM_START
-from emulator.instruction import Instruction 
+from emulator.instruction import Instruction
 
 
 class CodeStatus(StrEnum):
@@ -213,13 +213,17 @@ class CodeAnalysis:
             self._status[address] = CodeStatus.CODE                         # Mark the occupied bytes as executable.
             if address + 1 < self._rom_end:
                 self._status[address + 1] = CodeStatus.CODE
-            worklist.extend(self._successors(work, instruction))
+            successors = self._successors(work, instruction)
+            if successors is None:
+                self._status[address] = CodeStatus.DATA
+                continue
+            self._status[address] = CodeStatus.CODE
+            for successor in successors:
+                if successor not in visited:
+                    worklist.append(successor)
 
-    def _successors(
-        self,
-        work: WorkItem,
-        instruction: Instruction,
-    ) -> list[WorkItem]:
+
+    def _successors( self, work: WorkItem, instruction: Instruction,) -> list[WorkItem] | None:
         """
         @brief Determine successor analysis states.
 
@@ -230,7 +234,9 @@ class CodeAnalysis:
             Decoded instruction.
 
         @return
-            Successor work items.
+            List of successor work items for valid CHIP-8 instructions,
+            an empty list for instructions with no statically known
+            successors, or None for invalid instruction encodings.
         """
         #
         # Instructions identified by their complete opcode.
@@ -296,6 +302,8 @@ class CodeAnalysis:
                 ]
 
             case 0x5:         # SE Vx, Vy
+                if instruction.n != 0:
+                    return None
                 return [
                     WorkItem(
                         instruction.address + 2,
@@ -307,7 +315,14 @@ class CodeAnalysis:
                     ),
                 ]
 
+            case 0x8:         # SE Vx, Vy
+                if instruction.n in (8,9,0xA,0xB,0xC,0xD,0xF):
+                    return None
+                return [ WorkItem( instruction.address + 2, work.call_stack,) ]
+
             case 0x9:         # SNE Vx, Vy
+                if instruction.n != 0:
+                    return None
                 return [
                     WorkItem(
                         instruction.address + 2,
@@ -355,7 +370,7 @@ class CodeAnalysis:
         while address < self._memory.size():
             instruction = self._instructions.get(address)
             if instruction is not None:
-                rows.append( CodeRow( address=address, raw_bytes=bytes( ( self._memory[address], self._memory[address + 1],)), interpretation=str(instruction), status=CodeStatus.CODE,))
+                rows.append( CodeRow( address=address, raw_bytes=bytes( ( self._memory[address], self._memory[address + 1],)), interpretation=str(instruction), status=self._status[address]))
                 address += 2
                 continue
             rows.append( CodeRow( address=address, raw_bytes=bytes((self._memory[address],)), interpretation=f"{self._memory[address]:02X}", status=self._status[address],))
