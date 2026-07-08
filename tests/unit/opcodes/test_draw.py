@@ -134,6 +134,31 @@ class TestDrawInstructions(unittest.TestCase):
             for x in range(64):
                 self.assertFalse(machine.framebuffer.get_pixel(x, y))
 
+    def test_draw_preserves_index_register(self) -> None:
+        machine = Chip8Machine()
+        machine.registers.i = 0x300
+        machine.memory.write_byte(0x300, 0xFF)
+        machine.registers[1] = 10
+        machine.registers[2] = 10
+
+        write_opcode(machine, 0xD121)
+        machine.execute_cycle()
+
+        self.assertEqual(machine.registers.i, 0x300)
+
+    def test_draw_preserves_coordinate_registers(self) -> None:
+        machine = Chip8Machine()
+        machine.registers.i = 0x300
+        machine.memory.write_byte(0x300, 0x80)
+        machine.registers[1] = 12
+        machine.registers[2] = 7
+
+        write_opcode(machine, 0xD121)
+        machine.execute_cycle()
+
+        self.assertEqual(machine.registers[1], 12)
+        self.assertEqual(machine.registers[2], 7)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

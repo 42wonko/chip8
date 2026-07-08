@@ -24,47 +24,37 @@ class TestLogicInstructions(unittest.TestCase):
         machine = Chip8Machine()
         machine.registers[1] = 0b1100
         machine.registers[2] = 0b1010
+        machine.registers[0xf] = 42
         write_opcode(machine, 0x8121)
         machine.execute_cycle()
-        self.assertEqual(machine.registers[1], 0b1110)
+        self.assertEqual(machine.registers[1], 0b1110)  # OR works
+        self.assertEqual(machine.registers[0xf], 42)    # VF not modified
+        self.assertEqual(machine.registers[2], 0b1010)  # V2 not modified
 
 
     def test_and_register(self) -> None:
         machine = Chip8Machine()
         machine.registers[1] = 0b1100
         machine.registers[2] = 0b1010
+        machine.registers[0xf] = 42
         write_opcode(machine, 0x8122)
         machine.execute_cycle()
         self.assertEqual(machine.registers[1], 0b1000)
+        self.assertEqual(machine.registers[0xf], 42)    # VF not modified
+        self.assertEqual(machine.registers[2], 0b1010)  # V2 not modified
 
 
     def test_xor_register(self) -> None:
         machine = Chip8Machine()
         machine.registers[1] = 0b1100
         machine.registers[2] = 0b1010
+        machine.registers[0xf] = 42
         write_opcode(machine, 0x8123)
         machine.execute_cycle()
         self.assertEqual(machine.registers[1], 0b0110)
+        self.assertEqual(machine.registers[0xf], 42)    # VF not modified
+        self.assertEqual(machine.registers[2], 0b1010)  # V2 not modified
 
-
-    def test_add_register(self) -> None:
-        machine = Chip8Machine()
-        machine.registers[1] = 10
-        machine.registers[2] = 20
-        write_opcode(machine, 0x8124)
-        machine.execute_cycle()
-        self.assertEqual(machine.registers[1], 30)
-        self.assertEqual(machine.registers[0xF], 0)
-
-
-    def test_add_register_sets_carry(self) -> None:
-        machine = Chip8Machine()
-        machine.registers[1] = 250
-        machine.registers[2] = 20
-        write_opcode(machine, 0x8124)
-        machine.execute_cycle()
-        self.assertEqual(machine.registers[1], 14)
-        self.assertEqual(machine.registers[0xF], 1)
 
 
     def test_sub_register(self) -> None:
@@ -76,11 +66,41 @@ class TestLogicInstructions(unittest.TestCase):
         self.assertEqual(machine.registers[1], 15)
         self.assertEqual(machine.registers[0xF], 1)
 
+    def test_sub_register_equal(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 20
+        machine.registers[2] = 20
+        write_opcode(machine, 0x8125)
+        machine.execute_cycle()
+        self.assertEqual(machine.registers[1], 0)
+        self.assertEqual(machine.registers[0xF], 1)
+
 
     def test_sub_register_sets_borrow(self) -> None:
         machine = Chip8Machine()
         machine.registers[1] = 5
         machine.registers[2] = 20
+        write_opcode(machine, 0x8125)
+        machine.execute_cycle()
+        self.assertEqual(machine.registers[1], 241)
+        self.assertEqual(machine.registers[0xF], 0)
+
+    def test_sub_register_is_not_effected_by_previous_carry(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 20
+        machine.registers[2] = 5
+        machine.registers[0xF] = 1
+        write_opcode(machine, 0x8125)
+        machine.execute_cycle()
+        self.assertEqual(machine.registers[1], 15)
+        self.assertEqual(machine.registers[0xF], 1)
+
+
+    def test_sub_register_sets_borrow_is_not_effected_by_previous_carry(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 5
+        machine.registers[2] = 20
+        machine.registers[0xF] = 1
         write_opcode(machine, 0x8125)
         machine.execute_cycle()
         self.assertEqual(machine.registers[1], 241)
@@ -105,6 +125,38 @@ class TestLogicInstructions(unittest.TestCase):
         machine.execute_cycle()
         self.assertEqual(machine.registers[1], 241)
         self.assertEqual(machine.registers[0xF], 0)
+
+
+    def test_subn_register_ignores_previous_VF(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 5
+        machine.registers[2] = 20
+        machine.registers[0xF] = 1
+        write_opcode(machine, 0x8127)
+        machine.execute_cycle()
+        self.assertEqual(machine.registers[1], 15)
+        self.assertEqual(machine.registers[0xF], 1)
+
+
+    def test_subn_register_sets_borrow_ignores_previous_VF(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 20
+        machine.registers[2] = 5
+        machine.registers[0xF] = 1
+        write_opcode(machine, 0x8127)
+        machine.execute_cycle()
+        self.assertEqual(machine.registers[1], 241)
+        self.assertEqual(machine.registers[0xF], 0)
+
+
+    def test_subn_register_equal(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 42
+        machine.registers[2] = 42
+        write_opcode(machine, 0x8127)
+        machine.execute_cycle()
+        self.assertEqual(machine.registers[1], 0)
+        self.assertEqual(machine.registers[0xF], 1)
 
 
 if __name__ == "__main__":

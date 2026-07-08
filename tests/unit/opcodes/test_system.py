@@ -7,6 +7,7 @@
 import unittest
 
 from emulator.chip8machine import Chip8Machine
+from emulator.instruction import Instruction
 from tests.helpers import write_opcode
 
 
@@ -19,11 +20,24 @@ class TestSystemInstructions(unittest.TestCase):
     ###########################################################################
 
     def test_cls(self) -> None:
+        """
+        @brief Test if CLD actually clears the screen.
+        """
         machine = Chip8Machine()
         machine.framebuffer.set_pixel(10, 5, True)
         write_opcode(machine, 0x00E0)
-        machine.execute_cycle()
+        result = machine.execute_cycle()
         self.assertFalse(machine.framebuffer.get_pixel(10, 5))
+        self.assertTrue(result.display_changed)
+
+
+    def test_instruction_str_cls(self) -> None:
+        """
+        @brief test if mnemonic is correct.
+        """
+        instruction = Instruction.decode(0x200, 0x00E0)
+        self.assertEqual(str(instruction), "CLS")
+
 
     ###########################################################################
     # 00EE - RET
@@ -46,6 +60,7 @@ class TestSystemInstructions(unittest.TestCase):
         write_opcode(machine, 0xFFFF)
         with self.assertRaisesRegex( NotImplementedError, r"FFFF",):
             machine.execute_cycle()
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

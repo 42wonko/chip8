@@ -1,7 +1,6 @@
 import unittest
 
-from controller.codeanalysis import CodeAnalysis
-from controller.codeanalysis import CodeStatus
+from controller.codeanalysis import CodeAnalysis, CodeStatus
 from emulator.chip8memory import Chip8Memory
 from emulator.constants import PROGRAM_START
 
@@ -10,7 +9,7 @@ class TestCodeAnalysis(unittest.TestCase):
     """
     @brief Unit tests for CodeAnalysis.
     """
-    
+
     def load_rom(self, *bytes_: int) -> None:
         """
         @brief Load a synthetic ROM into memory.
@@ -124,7 +123,7 @@ class TestCodeAnalysis(unittest.TestCase):
         row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 8))        # RET is also discovered.
         self.assertEqual(row.interpretation, "RET")
         self.assertEqual(row.status, CodeStatus.CODE)
-    
+
 
     def test_call_terminates_analysis(self) -> None:
         """
@@ -251,6 +250,23 @@ class TestCodeAnalysis(unittest.TestCase):
             row = self.analysis.row(self.analysis.find_row(address))
             self.assertEqual(row.status, CodeStatus.CODE)
 
+    def test_analysis_invalid_5xy1_has_no_successors(self) -> None:
+        """
+        """
+        self.load_rom(
+            0x00, 0xE0,     # CLS, we need one valid instruction a the beginning
+            0x51, 0x21,     # SE V1, V2 (but low nibbe != 0 -> Invalid)
+            0x00, 0xE0
+        )
+        self.analysis.rebuild()
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START))
+        self.assertEqual(row.status, CodeStatus.CODE)
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 2))
+        self.assertEqual(row.status, CodeStatus.DATA)
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 4))
+        self.assertEqual(row.status, CodeStatus.UNKNOWN)
+
+
     def test_sne_register_explores_both_paths(self) -> None:
         """
         @brief Verify that SE Vx, Vy explores both successor paths.
@@ -260,9 +276,7 @@ class TestCodeAnalysis(unittest.TestCase):
             0x60, 0x01,
             0x61, 0x02,
         )
-
         self.analysis.rebuild()
-
         for address in (
             PROGRAM_START,
             PROGRAM_START + 2,
@@ -270,6 +284,25 @@ class TestCodeAnalysis(unittest.TestCase):
         ):
             row = self.analysis.row(self.analysis.find_row(address))
             self.assertEqual(row.status, CodeStatus.CODE)
+
+    def test_sne_ivalid_variants_are_data(self) -> None:
+        """
+        @brief Verify that ivalid variants of this op-code are categorized as DATA instead of CODE.
+        """
+        self.load_rom(
+            0x00, 0xE0,     # CLS
+            0x90, 0x11,     # SNE V=, V1 but last nibble is invalid
+            0x60, 0x01,
+            0x61, 0x02
+        )
+        self.analysis.rebuild()
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START))
+        self.assertEqual(row.status, CodeStatus.CODE)
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 2))
+        self.assertEqual(row.status, CodeStatus.DATA)
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 4))
+        self.assertEqual(row.status, CodeStatus.UNKNOWN)
+
 
     def test_skp_register_explores_both_paths(self) -> None:
         """
@@ -310,5 +343,25 @@ class TestCodeAnalysis(unittest.TestCase):
         ):
             row = self.analysis.row(self.analysis.find_row(address))
             self.assertEqual(row.status, CodeStatus.CODE)
+
+
+    def test_analysis_invalid_8xy8_has_no_successors(self) -> None:
+        """
+        """
+        self.load_rom(
+            0x00, 0xE0,     # CLS
+            0x81, 0x28,     # Invalid 8XY8
+            0x00, 0xE0,
+        )
+        self.analysis.rebuild()
+
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START))
+        self.assertEqual(row.status, CodeStatus.CODE)
+
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 2))
+        self.assertEqual(row.status, CodeStatus.DATA)
+
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 4))
+        self.assertEqual(row.status, CodeStatus.UNKNOWN)
 
 

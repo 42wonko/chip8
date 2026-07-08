@@ -78,12 +78,14 @@ class TestKeyboardInstructions(unittest.TestCase):
         machine.registers[1] = 0x11
         machine.registers[2] = 0x22
         machine.registers[3] = 0x33
+        machine.registers.i = 0x345
         machine.keyboard.press(5)
         write_opcode(machine, 0xF20A)
         machine.execute_cycle()
         self.assertEqual(machine.registers[1], 0x11)
         self.assertEqual(machine.registers[2], 5)
         self.assertEqual(machine.registers[3], 0x33)
+        self.assertEqual(machine.registers.i, 0x345)
 
 
     def test_wait_key_retries_until_key_is_pressed(self) -> None:

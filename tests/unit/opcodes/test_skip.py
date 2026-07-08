@@ -76,6 +76,8 @@ class TestSkipInstructions(unittest.TestCase):
         write_opcode(machine, 0x9120)
         machine.execute_cycle()
         self.assertEqual(machine.registers.pc, 0x204)
+        self.assertEqual(machine.registers[1],0x55)
+        self.assertEqual(machine.registers[2],0x66)
 
 
     def test_sne_register_no_skip(self) -> None:
@@ -85,6 +87,85 @@ class TestSkipInstructions(unittest.TestCase):
         write_opcode(machine, 0x9120)
         machine.execute_cycle()
         self.assertEqual(machine.registers.pc, 0x202)
+        self.assertEqual(machine.registers[1],0x55)
+        self.assertEqual(machine.registers[2],0x55)
+
+
+    ###########################################################################
+    # EX9E - SKP Vx
+    ###########################################################################
+    def test_skip_if_key_pressed(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 5
+        machine.keyboard.press(5)
+
+        write_opcode(machine, 0xE19E)
+        machine.execute_cycle()
+
+        self.assertEqual(machine.registers.pc, 0x204)
+
+
+    def test_skip_if_key_not_pressed(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 5
+
+        write_opcode(machine, 0xE19E)
+        machine.execute_cycle()
+
+        self.assertEqual(machine.registers.pc, 0x202)
+
+
+    def test_skip_if_key_pressed_preserves_registers(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 5
+        machine.registers.i = 0x345
+        machine.registers[0xF] = 0x42
+        machine.keyboard.press(5)
+
+        write_opcode(machine, 0xE19E)
+        machine.execute_cycle()
+
+        self.assertEqual(machine.registers[1], 5)
+        self.assertEqual(machine.registers.i, 0x345)
+        self.assertEqual(machine.registers[0xF], 0x42)
+
+
+    ###########################################################################
+    # EXA1 - SKNP Vx
+    ###########################################################################
+    def test_skip_if_key_not_pressed_instruction(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 5
+
+        write_opcode(machine, 0xE1A1)
+        machine.execute_cycle()
+
+        self.assertEqual(machine.registers.pc, 0x204)
+
+
+    def test_do_not_skip_if_key_pressed_instruction(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 5
+        machine.keyboard.press(5)
+
+        write_opcode(machine, 0xE1A1)
+        machine.execute_cycle()
+
+        self.assertEqual(machine.registers.pc, 0x202)
+
+
+    def test_skip_if_key_not_pressed_preserves_registers(self) -> None:
+        machine = Chip8Machine()
+        machine.registers[1] = 5
+        machine.registers.i = 0x345
+        machine.registers[0xF] = 0x42
+
+        write_opcode(machine, 0xE1A1)
+        machine.execute_cycle()
+
+        self.assertEqual(machine.registers[1], 5)
+        self.assertEqual(machine.registers.i, 0x345)
+        self.assertEqual(machine.registers[0xF], 0x42)
 
 
     ###########################################################################

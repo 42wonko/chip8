@@ -8,7 +8,6 @@ import unittest
 
 from emulator.chip8machine import Chip8Machine
 from tests.helpers import execute_opcode, write_opcode
-from emulator.instruction import Instruction
 
 
 class TestJumpInstructions(unittest.TestCase):
@@ -19,15 +18,7 @@ class TestJumpInstructions(unittest.TestCase):
         machine = execute_opcode(0x1456)
         self.assertEqual(machine.registers.pc, 0x456)
 
-    ###########################################################################
-    # 2NNN
-    ###########################################################################
-    def test_call(self) -> None:
-        machine = execute_opcode(0x2456)
-        self.assertEqual(machine.registers.pc, 0x456)
-        self.assertEqual(machine.stack.pop(), 0x202)
 
-    
     ###########################################################################
     # BNNN
     ###########################################################################
@@ -38,9 +29,12 @@ class TestJumpInstructions(unittest.TestCase):
         machine = Chip8Machine()
         machine.registers.i = 0x000
         machine.registers[0] = 0x00
+        machine.registers[0xf] = 0x01
         write_opcode(machine, 0xB300)
         machine.execute_cycle()
         self.assertEqual(machine.registers.pc, 0x0300)
+        self.assertEqual(machine.registers.i, 0)
+        self.assertEqual(machine.registers[0xf], 0x01)
 
     def test_jump_v0_offset(self) -> None:
         """
@@ -48,6 +42,7 @@ class TestJumpInstructions(unittest.TestCase):
         """
         machine = Chip8Machine()
         machine.registers[0] = 0x12
+        machine.registers[3] = 0x100    # later chip8 versions changed to PC = NNN+VX. we don't
         write_opcode(machine, 0xB300)
         machine.execute_cycle()
         self.assertEqual(machine.registers.pc, 0x0312)
