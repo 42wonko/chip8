@@ -66,7 +66,7 @@ KEY_COUNT: int = 16                 # Number of hexadecimal keys.
 # Timers
 ###############################################################################
 TIMER_FREQUENCY: int = 60           # 60Hz
-CPU_FREQUENCY: int   = 500          # Main clock is 500Hz
+DEFAULT_CPU_FREQUENCY: int   = 500          # Main clock is 500Hz
 
 ###############################################################################
 # Instruction size

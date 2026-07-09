@@ -38,7 +38,7 @@ from PyQt6.QtWidgets import QFileDialog
 from controller.codeanalysis import CodeAnalysis
 from controller.keyboardmap import KeyboardMap
 from emulator.chip8machine import Chip8Machine
-from emulator.constants import CPU_FREQUENCY, PROGRAM_START, TIMER_FREQUENCY
+from emulator.constants import DEFAULT_CPU_FREQUENCY, PROGRAM_START, TIMER_FREQUENCY
 from emulator.stepresult import StepResult
 from gui.codetablemodel import CodeTableModel
 from gui.keyboarddialog import KeyboardDialog
@@ -55,15 +55,16 @@ class Chip8Controller:
         """
         @brief Construct the controller.
         """
+        self._running = False
+        self._current_rom: Path | None = None
+        self._current_rom_data: bytes | None = None
+
+        self._cpu_frequency = DEFAULT_CPU_FREQUENCY     # has to be before mainwindow!
 
         self._main_window = MainWindow(self)
         # Will be created in a later milestone.
         self._machine = Chip8Machine()
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
-
-        self._running = False
-        self._current_rom: Path | None = None
-        self._current_rom_data: bytes | None = None
 
 
         self._cpu_timer = QTimer()
@@ -106,6 +107,13 @@ class Chip8Controller:
     @property
     def current_rom(self) -> Path | None:
         return self._current_rom
+
+    @property
+    def cpu_frequency(self) -> int:
+        """
+        @brief Current CPU clock frequency in Hz.
+        """
+        return self._cpu_frequency
 
     ###########################################################################
     # Window handling
@@ -159,6 +167,17 @@ class Chip8Controller:
     ###########################################################################
     # Emulator control
     ###########################################################################
+    def set_cpu_frequency(self, frequency: int) -> None:
+        """
+        @brief Set the CPU clock frequency.
+
+        @param frequency
+            CPU clock frequency in Hz.
+        """
+        self._cpu_frequency = max(1, frequency)
+        self._cpu_timer.setInterval(max(1, 1000 // self._cpu_frequency))
+
+
     def run(self) -> None:
         """
         @brief Start continuous execution.
@@ -166,7 +185,7 @@ class Chip8Controller:
         if self._running:
             return
         self._running = True
-        self._cpu_timer.start(1000 // CPU_FREQUENCY)
+        self._cpu_timer.start(1000 // self._cpu_frequency)
         self._hardware_timer.start(1000 // TIMER_FREQUENCY)
         self._main_window.show_status_message("Running.")
 

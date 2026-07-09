@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1026</width>
+    <width>1140</width>
     <height>998</height>
    </rect>
   </property>
@@ -939,10 +939,10 @@
            <item>
             <widget class="QSlider" name="clockFreqSlider">
              <property name="minimum">
-              <number>0</number>
+              <number>1</number>
              </property>
              <property name="maximum">
-              <number>100</number>
+              <number>1000</number>
              </property>
              <property name="singleStep">
               <number>1</number>
@@ -951,16 +951,23 @@
               <number>100</number>
              </property>
              <property name="value">
-              <number>50</number>
+              <number>500</number>
              </property>
              <property name="sliderPosition">
-              <number>50</number>
+              <number>500</number>
              </property>
              <property name="orientation">
               <enum>Qt::Orientation::Horizontal</enum>
              </property>
              <property name="tickPosition">
               <enum>QSlider::TickPosition::NoTicks</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="clockFreqLabel">
+             <property name="text">
+              <string>1000 Hz</string>
              </property>
             </widget>
            </item>
@@ -999,7 +1006,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1026</width>
+     <width>1140</width>
      <height>26</height>
     </rect>
    </property>

@@ -161,11 +161,18 @@ class MainWindow(QMainWindow):
         This method is called after the Qt Designer UI has been loaded.
         """
 
+        self.clockFreqSlider.setValue(self._controller.cpu_frequency)
+        self.clockFreqLabel.setText(f"{self._controller.cpu_frequency} Hz")
         self._connect_signals()
         self.show_status_message("Ready")
         self._register_labels = [ self.V0_Label, self.V1_Label, self.V2_Label, self.V3_Label,
         self.V4_Label, self.V5_Label, self.V6_Label, self.V7_Label, self.V8_Label, self.V9_Label,
         self.VA_Label, self.VB_Label, self.VC_Label, self.VD_Label, self.VE_Label, self.VF_Label, ]
+
+
+    def _update_clock_frequency_label(self, value: int) -> None:
+        self.clockFreqLabel.setText(f"{value} Hz")
+
 
     @property
     def register_labels(self) -> list:
@@ -184,8 +191,11 @@ class MainWindow(QMainWindow):
 
         self.runButton.clicked.connect(self._controller.run)                        # type: ignore[attr-defined]
         self.continueButton.clicked.connect(self._controller.run)                   # type: ignore[attr-defined]
-
+        self.clockFreqSlider.valueChanged.connect(self._controller.set_cpu_frequency)
+        self.clockFreqSlider.valueChanged.connect(self._update_clock_frequency_label)
         self.stopExecutionButton.clicked.connect(self._controller.stop)             # type: ignore[attr-defined]
         self.resetButton.clicked.connect(self._controller.reset)                    # type: ignore[attr-defined]
         self.singleStepButton.clicked.connect(self._controller.step)                # type: ignore[attr-defined]
         self.keyboardButton.clicked.connect( self._controller.configure_keyboard)   # type: ignore[attr-defined]
+
+
