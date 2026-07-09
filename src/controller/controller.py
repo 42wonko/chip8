@@ -44,6 +44,7 @@ from gui.codetablemodel import CodeTableModel
 from gui.keyboarddialog import KeyboardDialog
 from gui.mainwindow import MainWindow
 from gui.memorytablemodel import MemoryTableModel
+from audio.beeper import Beeper
 
 
 class Chip8Controller:
@@ -72,7 +73,8 @@ class Chip8Controller:
 
         self._hardware_timer = QTimer()
         self._hardware_timer.timeout.connect(self._timer_tick)
-
+        self._beeper = Beeper()
+        
         self._keyboard_map = KeyboardMap()
 
         self._memory_model = MemoryTableModel()
@@ -324,4 +326,9 @@ class Chip8Controller:
         @brief Update the CHIP-8 hardware timers.
         """
         self._machine.tick_timers()
+        if self._machine.timers.sound_timer > 0:
+            self._beeper.start()
+        else:
+            self._beeper.stop()
+
         self.update_gui()

@@ -66,7 +66,14 @@ KEY_COUNT: int = 16                 # Number of hexadecimal keys.
 # Timers
 ###############################################################################
 TIMER_FREQUENCY: int = 60           # 60Hz
-DEFAULT_CPU_FREQUENCY: int   = 500          # Main clock is 500Hz
+DEFAULT_CPU_FREQUENCY: int   = 500  # Main clock is 500Hz
+
+###############################################################################
+# Audio
+###############################################################################
+BEEPER_FREQUENCY = 440              #
+BEEPER_SAMPLE_RATE = 44100          #
+BEEPER_AMPLITUDE = 16000            #
 
 ###############################################################################
 # Instruction size
