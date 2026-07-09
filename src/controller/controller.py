@@ -37,6 +37,7 @@ from PyQt6.QtWidgets import QFileDialog
 
 from controller.codeanalysis import CodeAnalysis
 from controller.keyboardmap import KeyboardMap
+from controller.emulatorconfiguration import EmulatorConfiguration
 from emulator.chip8machine import Chip8Machine
 from emulator.constants import DEFAULT_CPU_FREQUENCY, PROGRAM_START, TIMER_FREQUENCY
 from emulator.stepresult import StepResult
@@ -59,34 +60,26 @@ class Chip8Controller:
         self._running = False
         self._current_rom: Path | None = None
         self._current_rom_data: bytes | None = None
-
         self._cpu_frequency = DEFAULT_CPU_FREQUENCY     # has to be before mainwindow!
-
         self._main_window = MainWindow(self)
-        # Will be created in a later milestone.
         self._machine = Chip8Machine()
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
-
-
         self._cpu_timer = QTimer()
         self._cpu_timer.timeout.connect(self._cpu_tick)
-
         self._hardware_timer = QTimer()
         self._hardware_timer.timeout.connect(self._timer_tick)
         self._beeper = Beeper()
-        
         self._keyboard_map = KeyboardMap()
-
         self._memory_model = MemoryTableModel()
         self._main_window.set_memory_model(self._memory_model)
         self._memory_model.set_memory(self._machine.memory)
-
         self._code_analysis = CodeAnalysis(self._machine.memory)
         self._code_model = CodeTableModel()
         self._main_window.set_code_model(self._code_model)
         self._code_model.set_analysis(self._code_analysis)
         self._code_analysis.rebuild()
         self._code_model.refresh()
+        self._configuration = EmulatorConfiguration()
 
     ###########################################################################
     # Read-only properties
@@ -260,6 +253,15 @@ class Chip8Controller:
         """
         dialog = KeyboardDialog(self._keyboard_map)
         dialog.exec()
+
+    def configure(self) -> None:
+        dialog = self._main_window.config_dialog
+        dialog.configuration = self._configuration
+        if not self._main_window.configure():
+            return
+        self._configuration = dialog.configuration
+        self._runtime_trace_enabled = ( self._configuration.runtime_trace)
+        self._realtime_updates_enabled = ( self._configuration.realtime_updates)
 
     ###########################################################################
     # GUI synchronization

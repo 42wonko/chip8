@@ -36,9 +36,10 @@ from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QMainWindow, QStatusBar
+from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QMainWindow, QStatusBar, QDialog
 
 from gui.displaywidget import DisplayWidget
+from gui.configdialog import ConfigDialog
 
 if TYPE_CHECKING:
     from controller.controller import Chip8Controller
@@ -65,6 +66,7 @@ class MainWindow(QMainWindow):
         ui_file = ( Path(__file__).parent / "ui" / "mainwindow.ui")
         uic.loadUi(str(ui_file), self)
         self._initialize()
+        self._config_dialog = ConfigDialog(self)
 
     ###########################################################################
     # Public interface
@@ -174,9 +176,24 @@ class MainWindow(QMainWindow):
         self.clockFreqLabel.setText(f"{value} Hz")
 
 
+    def configure(self) -> int:
+        """
+        @brief Show the configuration dialog.
+
+        @return
+            True if the user pressed OK.
+        """
+        return self._config_dialog.exec() == QDialog.DialogCode.Accepted
+
+
     @property
     def register_labels(self) -> list:
         return self._register_labels
+
+
+    @property
+    def config_dialog(self) -> ConfigDialog:
+        return self._config_dialog
 
     def _connect_signals(self) -> None:
         """
@@ -197,5 +214,5 @@ class MainWindow(QMainWindow):
         self.resetButton.clicked.connect(self._controller.reset)                    # type: ignore[attr-defined]
         self.singleStepButton.clicked.connect(self._controller.step)                # type: ignore[attr-defined]
         self.keyboardButton.clicked.connect( self._controller.configure_keyboard)   # type: ignore[attr-defined]
-
+        self.configButton.clicked.connect(self._controller.configure)               # type: ignore[attr-defined]
 

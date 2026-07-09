@@ -30,13 +30,36 @@ class Beeper:
         self._generator = SquareWaveGenerator()
         self._audio = QAudioSink(device, format)
         self._playing = False
+        self._enabled = True
+        self._volume = 100
+        self._audio.setVolume(self._volume / 100.0)
+
+
+    def set_volume(self, volume: int) -> None:
+        """
+        @brief Set the output volume.
+
+        @param volume
+            Volume in percent [0..100].
+        """
+        volume = max(0, min(100, volume))
+        self._volume = volume
+        self._audio.setVolume(volume / 100.0)
+
+
+    def enable(self, enabled: bool) -> None:
+        if self._enabled == enabled:
+            return
+        self._enabled = enabled
+        if not enabled:
+            self.stop()
 
 
     def start(self) -> None:
         """
         @brief Start the CHIP-8 beep.
         """
-        if self._playing:
+        if not self._enabled or self._playing:
             return
         self._generator.start()
         self._audio.start(self._generator)
@@ -68,3 +91,10 @@ class Beeper:
         """
         return self._playing
 
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+
+    @property
+    def volume(self) -> int:
+        return self._volume

@@ -534,13 +534,6 @@
                   </property>
                  </spacer>
                 </item>
-                <item>
-                 <widget class="QCheckBox" name="rtTraceCheckBox">
-                  <property name="text">
-                   <string>Disable RT Trace</string>
-                  </property>
-                 </widget>
-                </item>
                </layout>
               </item>
               <item>
@@ -882,7 +875,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QToolButton" name="toolButton">
+          <widget class="QToolButton" name="configButton">
            <property name="font">
             <font>
              <family>Droid Sans Japanese</family>
