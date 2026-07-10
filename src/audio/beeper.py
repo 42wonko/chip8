@@ -9,7 +9,7 @@ from __future__ import annotations
 from PyQt6.QtMultimedia import QAudioDevice, QAudioFormat, QAudioSink, QMediaDevices
 from audio.squarewavegenerator import SquareWaveGenerator
 from emulator.constants import  BEEPER_SAMPLE_RATE
-
+from controller.emulatorconfiguration import EmulatorConfiguration
 
 class Beeper:
     """
@@ -26,13 +26,13 @@ class Beeper:
         format.setSampleRate(BEEPER_SAMPLE_RATE)
         format.setChannelCount(1)
         format.setSampleFormat(QAudioFormat.SampleFormat.Int16)
+        self._configuration = EmulatorConfiguration()       # store the configuration object
         device: QAudioDevice = QMediaDevices.defaultAudioOutput()
         self._generator = SquareWaveGenerator()
         self._audio = QAudioSink(device, format)
         self._playing = False
-        self._enabled = True
-        self._volume = 100
-        self._audio.setVolume(self._volume / 100.0)
+        self.configuration = self._configuration            # configure ourselfes using the setter
+#        self._audio.setVolume(self._configuration.sound_volume / 100.0)
 
 
     def set_volume(self, volume: int) -> None:
@@ -43,14 +43,14 @@ class Beeper:
             Volume in percent [0..100].
         """
         volume = max(0, min(100, volume))
-        self._volume = volume
+        self.configuration.sound_volume = volume
         self._audio.setVolume(volume / 100.0)
 
 
     def enable(self, enabled: bool) -> None:
-        if self._enabled == enabled:
+        if self.configuration.sound_enabled == enabled:
             return
-        self._enabled = enabled
+        self.configuration.sound_enabled = enabled
         if not enabled:
             self.stop()
 
@@ -59,7 +59,7 @@ class Beeper:
         """
         @brief Start the CHIP-8 beep.
         """
-        if not self._enabled or self._playing:
+        if not self.configuration.sound_enabled or self._playing:
             return
         self._generator.start()
         self._audio.start(self._generator)
@@ -93,8 +93,27 @@ class Beeper:
 
     @property
     def enabled(self) -> bool:
-        return self._enabled
+        return self.configuration.sound_enabled
 
     @property
     def volume(self) -> int:
-        return self._volume
+        return self.configuration.sound_volumeY
+
+    @property
+    def configuration(self) -> EmulatorConfiguration:
+        """
+        @brief Return the current audio configuration.
+        """
+        return self._configuration
+
+
+    @configuration.setter
+    def configuration(self, configuration: EmulatorConfiguration) -> None:
+        """
+        @brief Apply a new audio configuration.
+        """
+        self._configuration = configuration
+        self._audio.setVolume( configuration.sound_volume / 100.0)
+        if not configuration.sound_enabled:
+            self.stop()
+

@@ -24,7 +24,6 @@ class ConfigDialog(QDialog):
         self.soundVolumeSlider.valueChanged.connect(self._update_volume_label)
         self._update_volume_label( self.soundVolumeSlider.value())
 
-
     @property
     def sound_enabled(self) -> bool:
         """
@@ -59,18 +58,25 @@ class ConfigDialog(QDialog):
         return EmulatorConfiguration(
             sound_enabled=self.enableSoundCheckBox.isChecked(),
             sound_volume=self.soundVolumeSlider.value(),
-            runtime_trace=self.rtTraceCheckBox.isChecked(),
+            disable_display_updates= self.disableDisplayUpdatesCheckBox.isChecked(),
+            enable_debugging= self.enableDebuggingCheckBox.isChecked(),
+            enable_debug_trace= self.enableDebugTraceCheckBox.isChecked(),
+            enable_chip8_program_trace= self.enableChip8PTraceCheckBox.isChecked(),
         )
 
 
     @configuration.setter
-    def configuration( self, configuration: EmulatorConfiguration) -> None:
+    def configuration( self, configuration: EmulatorConfiguration,) -> None:
         """
         @brief Initialize the dialog.
         """
-        self.enableSoundCheckBox.setChecked(configuration.sound_enabled)
-        self.soundVolumeSlider.setValue(configuration.sound_volume)
-        self.rtTraceCheckBox.setChecked(configuration.runtime_trace)
+        self.enableSoundCheckBox.setChecked( configuration.sound_enabled)
+        self.soundVolumeSlider.setValue( configuration.sound_volume)
+        self.disableDisplayUpdatesCheckBox.setChecked( configuration.disable_display_updates)
+        self.enableDebuggingCheckBox.setChecked( configuration.enable_debugging)
+        self.enableDebugTraceCheckBox.setChecked( configuration.enable_debug_trace)
+        self.enableChip8PTraceCheckBox.setChecked( configuration.enable_chip8_program_trace)
+
 
     def _update_volume_label(self, value: int) -> None:
         """

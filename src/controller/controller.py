@@ -57,6 +57,7 @@ class Chip8Controller:
         """
         @brief Construct the controller.
         """
+        self._configuration = EmulatorConfiguration()
         self._running = False
         self._current_rom: Path | None = None
         self._current_rom_data: bytes | None = None
@@ -69,6 +70,7 @@ class Chip8Controller:
         self._hardware_timer = QTimer()
         self._hardware_timer.timeout.connect(self._timer_tick)
         self._beeper = Beeper()
+        self._beeper.configuration = self._configuration
         self._keyboard_map = KeyboardMap()
         self._memory_model = MemoryTableModel()
         self._main_window.set_memory_model(self._memory_model)
@@ -79,7 +81,6 @@ class Chip8Controller:
         self._code_model.set_analysis(self._code_analysis)
         self._code_analysis.rebuild()
         self._code_model.refresh()
-        self._configuration = EmulatorConfiguration()
 
     ###########################################################################
     # Read-only properties
@@ -260,8 +261,8 @@ class Chip8Controller:
         if not self._main_window.configure():
             return
         self._configuration = dialog.configuration
-        self._runtime_trace_enabled = ( self._configuration.runtime_trace)
-        self._realtime_updates_enabled = ( self._configuration.realtime_updates)
+        self._beeper.configuration = self._configuration
+        
 
     ###########################################################################
     # GUI synchronization
@@ -273,18 +274,19 @@ class Chip8Controller:
         @details
         Called after every executed CHIP-8 instruction.
         """
-        if result is not None:
-            if result.display_changed:
-                self._update_display()
-            if result.memory_range is not None:
-                first,last = result.memory_range
-                if first == last:
-                     self._memory_model.refresh_address(first)
-                else:
-                    self._memory_model.refresh_range(first, last)
-
+        if result is not None and result.display_changed:
+            self._update_display()
+        if self._configuration.disable_display_updates:
+            return
+        if result is not None and result.memory_range is not None:
+            first, last = result.memory_range
+            if first == last:
+                self._memory_model.refresh_address(first)
+            else:
+                self._memory_model.refresh_range(first, last)
         self._update_register_view()
-
+        # later
+        # self._update_code_view(result)
 
     ###########################################################################
     # Private helpers

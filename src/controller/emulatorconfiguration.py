@@ -15,5 +15,8 @@ class EmulatorConfiguration:
 
     sound_enabled: bool = True
     sound_volume: int = 100
-    realtime_updates: bool = True
-    runtime_trace: bool = False
+    disable_display_updates: bool = False
+    enable_debugging: bool = False
+    enable_debug_trace: bool = False
+    enable_chip8_program_trace: bool = False
+

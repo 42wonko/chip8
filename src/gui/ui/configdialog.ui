@@ -62,9 +62,9 @@
     </layout>
    </item>
    <item>
-    <widget class="QCheckBox" name="rtTraceCheckBox">
+    <widget class="QCheckBox" name="disableDisplayUpdatesCheckBox">
      <property name="text">
-      <string>Disable RT Trace</string>
+      <string>Disable Dsiplay Updates</string>
      </property>
     </widget>
    </item>
@@ -77,7 +77,7 @@
       <item>
        <widget class="QCheckBox" name="enableSoundCheckBox">
         <property name="text">
-         <string>enable Sound</string>
+         <string>Enable Sound</string>
         </property>
        </widget>
       </item>
@@ -124,23 +124,23 @@
        <widget class="QLineEdit" name="filenameLineEdit"/>
       </item>
       <item row="1" column="0" colspan="2">
-       <widget class="QCheckBox" name="debugCheckBox">
+       <widget class="QCheckBox" name="enableDebuggingCheckBox">
         <property name="text">
-         <string>Debug</string>
+         <string>Enable Debugging</string>
         </property>
        </widget>
       </item>
       <item row="2" column="0" colspan="2">
-       <widget class="QCheckBox" name="traceCheckBox">
+       <widget class="QCheckBox" name="enableDebugTraceCheckBox">
         <property name="text">
-         <string>Debug trace</string>
+         <string>Enable Debug Trace</string>
         </property>
        </widget>
       </item>
       <item row="3" column="0" colspan="2">
-       <widget class="QCheckBox" name="ptraceCheckBox">
+       <widget class="QCheckBox" name="enableChip8PTraceCheckBox">
         <property name="text">
-         <string>Program trace</string>
+         <string>Enable Chip8 Program Trace</string>
         </property>
        </widget>
       </item>
