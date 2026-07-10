@@ -217,7 +217,8 @@ class Chip8Controller:
             self._code_analysis.set_rom_range( PROGRAM_START, PROGRAM_START + len(rom))
             self._code_analysis.rebuild()
             self._code_model.refresh()
-            row = self._code_analysis.find_row(PROGRAM_START)
+#            row = self._code_analysis.find_row(PROGRAM_START)
+            row = self._code_analysis.find_row( self._machine.registers.pc)
             if row is not None:
                 self._main_window.scroll_code_to_row(row)
 
@@ -285,8 +286,7 @@ class Chip8Controller:
             else:
                 self._memory_model.refresh_range(first, last)
         self._update_register_view()
-        # later
-        # self._update_code_view(result)
+        self._update_code_view()
 
     ###########################################################################
     # Private helpers
@@ -315,6 +315,15 @@ class Chip8Controller:
         self._main_window.spRegLabel.setText( f"{registers.sp:X}")
         self._main_window.tdRegLabel.setText( f"{timers.delay_timer:02X}")
         self._main_window.tsRegLabel.setText( f"{timers.sound_timer:02X}")
+
+
+    def _update_code_view(self) -> None:
+        """
+        @brief Highlight the current instruction in the debugger.
+        """
+        row = self._code_analysis.find_row(self._machine.registers.pc)
+        if row is not None:
+            self._main_window.scroll_code_to_row(row)
 
 
     def _cpu_tick(self) -> None:

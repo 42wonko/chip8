@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
+from PyQt6.QtCore import QItemSelectionModel
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
 from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QMainWindow, QStatusBar, QDialog
 
@@ -127,6 +128,8 @@ class MainWindow(QMainWindow):
         self.codeTableView.verticalHeader().setSectionResizeMode( QHeaderView.ResizeMode.Fixed)
         font = QFontDatabase.systemFont( QFontDatabase.SystemFont.FixedFont)
         self.codeTableView.setFont(font)
+        self.codeTableView.setSelectionBehavior( QAbstractItemView.SelectionBehavior.SelectRows)
+        self.codeTableView.setSelectionMode( QAbstractItemView.SelectionMode.SingleSelection)
 
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
@@ -135,6 +138,7 @@ class MainWindow(QMainWindow):
 
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
         self._controller.key_up(event.key())
+
 
     def scroll_code_to_row(self, row: int) -> None:
         """
@@ -149,8 +153,15 @@ class MainWindow(QMainWindow):
         index = model.index(row, 0)
         if not index.isValid():
             return
-        self.codeTableView.scrollTo( index, QAbstractItemView.ScrollHint.PositionAtCenter)
-        self.codeTableView.setCurrentIndex(index)
+
+        selection = self.codeTableView.selectionModel()
+        if selection is not None:
+            current = selection.currentIndex()            # Avoid unnecessary GUI updates.
+            if current.isValid() and current.row() == row:
+                return
+            selection.select( index, QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows,)
+            selection.setCurrentIndex( index, QItemSelectionModel.SelectionFlag.NoUpdate,)
+        self.codeTableView.scrollTo( index, QAbstractItemView.ScrollHint.PositionAtCenter,)
 
     ###########################################################################
     # Private helpers

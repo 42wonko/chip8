@@ -108,6 +108,8 @@ class CodeAnalysis:
         # An empty range indicates that no ROM is loaded.
         self._rom_start = PROGRAM_START
         self._rom_end = PROGRAM_START
+        self._address_to_row: dict[int, int] = {}
+
 
     def set_rom_range(self, start: int, end: int) -> None:
         """
@@ -130,6 +132,7 @@ class CodeAnalysis:
         @brief Rebuild the complete analysis.
         """
         self._instructions.clear()
+        self._address_to_row.clear()
         self._initialize_status()
         self._analyze()
         self._build_rows()
@@ -193,8 +196,6 @@ class CodeAnalysis:
         Starting at the program entry point, performs a conservative
         worklist-based traversal to discover executable instructions.
         """
-        self._instructions.clear()
-
         worklist: deque[WorkItem] = deque()
         visited: set[WorkItem] = set()
         worklist.append(WorkItem(PROGRAM_START))
@@ -366,13 +367,16 @@ class CodeAnalysis:
         @brief Build the immutable CodeRow list.
         """
         rows: list[CodeRow] = []
+        self._address_to_row.clear()
         address = 0
         while address < self._memory.size():
             instruction = self._instructions.get(address)
             if instruction is not None:
+                self._address_to_row[address] = len(rows)
                 rows.append( CodeRow( address=address, raw_bytes=bytes( ( self._memory[address], self._memory[address + 1],)), interpretation=str(instruction), status=self._status[address]))
                 address += 2
                 continue
+            self._address_to_row[address] = len(rows)
             rows.append( CodeRow( address=address, raw_bytes=bytes((self._memory[address],)), interpretation=f"{self._memory[address]:02X}", status=self._status[address],))
             address += 1
         self._rows = rows
@@ -393,12 +397,6 @@ class CodeAnalysis:
     def find_row(self, address: int) -> int | None:
         """
         @brief Find the row representing the specified address.
-
-        @return
-            Row index or None if the address is not represented.
         """
-        for row_index, row in enumerate(self._rows):
-            if row.address <= address < row.address + row.length:
-                return row_index
-
-        return None
+        return self._address_to_row.get(address)
+    
