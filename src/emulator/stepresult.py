@@ -39,3 +39,5 @@ class StepResult:
 
     display_changed: bool = False
     memory_range: tuple[int, int] | None = None
+    bnnn_target: tuple[int, int] | None = None
+

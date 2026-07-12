@@ -79,7 +79,7 @@ class MemoryTableModel(QAbstractTableModel):
         index = self.index(row, column)
         self.dataChanged.emit( index, index, [Qt.ItemDataRole.DisplayRole])
 
-    def refresh_range( self, first: int, last: int) -> None:
+    def refresh_range(self, first: int, last: int) -> None:
         """
         @brief Refresh a contiguous address range.
 
@@ -89,9 +89,24 @@ class MemoryTableModel(QAbstractTableModel):
         @param last
             Last address (inclusive).
         """
-        first_index = self.index( first // 16, first % 16)
-        last_index = self.index( last // 16, last % 16)
-        self.dataChanged.emit( first_index, last_index, [Qt.ItemDataRole.DisplayRole])
+        first_row = first // 16
+        last_row = last // 16
+
+        # Entire range fits into one row.
+        if first_row == last_row:
+            self.dataChanged.emit(
+                self.index(first_row, first % 16), self.index(last_row, last % 16), [Qt.ItemDataRole.DisplayRole])
+            return
+
+        # First partial row.
+        self.dataChanged.emit( self.index(first_row, first % 16), self.index(first_row, 15), [Qt.ItemDataRole.DisplayRole])
+
+        # Complete rows.
+        for row in range(first_row + 1, last_row):
+            self.dataChanged.emit( self.index(row, 0), self.index(row, 15), [Qt.ItemDataRole.DisplayRole])
+
+        # Last partial row.
+        self.dataChanged.emit( self.index(last_row, 0), self.index(last_row, last % 16), [Qt.ItemDataRole.DisplayRole])
 
 
     ###########################################################################

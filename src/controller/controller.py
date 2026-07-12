@@ -35,9 +35,12 @@ from pathlib import Path
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QFileDialog
 
+from audio.beeper import Beeper
 from controller.codeanalysis import CodeAnalysis
-from controller.keyboardmap import KeyboardMap
+from controller.diagnostic import DiagnosticSource, format_severity, format_source
+from controller.diagnostics import Diagnostics
 from controller.emulatorconfiguration import EmulatorConfiguration
+from controller.keyboardmap import KeyboardMap
 from emulator.chip8machine import Chip8Machine
 from emulator.constants import DEFAULT_CPU_FREQUENCY, PROGRAM_START, TIMER_FREQUENCY
 from emulator.stepresult import StepResult
@@ -45,7 +48,6 @@ from gui.codetablemodel import CodeTableModel
 from gui.keyboarddialog import KeyboardDialog
 from gui.mainwindow import MainWindow
 from gui.memorytablemodel import MemoryTableModel
-from audio.beeper import Beeper
 
 
 class Chip8Controller:
@@ -58,6 +60,8 @@ class Chip8Controller:
         @brief Construct the controller.
         """
         self._configuration = EmulatorConfiguration()
+        self._diagnostics = Diagnostics()
+        self._controller_diagnostics = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
         self._running = False
         self._current_rom: Path | None = None
         self._current_rom_data: bytes | None = None
@@ -75,11 +79,12 @@ class Chip8Controller:
         self._memory_model = MemoryTableModel()
         self._main_window.set_memory_model(self._memory_model)
         self._memory_model.set_memory(self._machine.memory)
-        self._code_analysis = CodeAnalysis(self._machine.memory)
+        self._code_analysis = CodeAnalysis(self._machine.memory, self._diagnostics.reporter(DiagnosticSource.ANALYZER))
         self._code_model = CodeTableModel()
         self._main_window.set_code_model(self._code_model)
         self._code_model.set_analysis(self._code_analysis)
         self._code_analysis.rebuild()
+        self._update_diagnostics_view()
         self._code_model.refresh()
 
     ###########################################################################
@@ -215,7 +220,9 @@ class Chip8Controller:
         if rom is not None:
             self._machine.load_rom(rom)
             self._code_analysis.set_rom_range( PROGRAM_START, PROGRAM_START + len(rom))
+            self._code_analysis.clear_runtime_observations()
             self._code_analysis.rebuild()
+            self._update_diagnostics_view()
             self._code_model.refresh()
 #            row = self._code_analysis.find_row(PROGRAM_START)
             row = self._code_analysis.find_row( self._machine.registers.pc)
@@ -233,6 +240,9 @@ class Chip8Controller:
         if self._running:
             return
         result = self._machine.execute_cycle()
+        if result.bnnn_target is not None:
+            instruction_address, target = result.bnnn_target
+            self._code_analysis.observe_bnnn_target(instruction_address, target)
         self.update_gui(result)
 
 
@@ -263,7 +273,7 @@ class Chip8Controller:
             return
         self._configuration = dialog.configuration
         self._beeper.configuration = self._configuration
-        
+
 
     ###########################################################################
     # GUI synchronization
@@ -331,6 +341,16 @@ class Chip8Controller:
         @brief Execute one CPU cycle.
         """
         result = self._machine.execute_cycle()
+
+        if result.bnnn_target is not None:
+            instruction_address, target = result.bnnn_target
+
+            if self._code_analysis.analyze_observed_bnnn_target(
+                instruction_address,
+                target
+            ):
+                self._code_model.refresh()
+
         self.update_gui(result)
 
 
@@ -343,5 +363,26 @@ class Chip8Controller:
             self._beeper.start()
         else:
             self._beeper.stop()
-
         self.update_gui()
+
+
+    def _update_diagnostics_view(self) -> None:
+        """
+        @brief Refresh the diagnostics list.
+        """
+        widget = self._main_window.diagnosticsListWidget
+        widget.clear()
+        for diagnostic in self._diagnostics:
+            address = "---"
+            if diagnostic.address is not None:
+                address = f"{diagnostic.address:03X}"
+            text = (
+                f"{format_severity(diagnostic.severity):<3} "
+                f"{format_source(diagnostic.source):<8} "
+                f"{address} "
+                f"{diagnostic.message}"
+            )
+            if diagnostic.count > 1:
+                text += f" (x{diagnostic.count})"
+            widget.addItem(text)
+

@@ -54,6 +54,7 @@ FONT_CHARACTER_SIZE: int = 5        # each character is encodes in 5 bytes
 ###############################################################################
 MEMORY_SIZE: int = 4096             # Total memory size in bytes.
 PROGRAM_START: int = 0x200          # Start address for CHIP-8 programs.
+CHIP8_STACK_SIZE = 16               # stack has room for 16 return addresses
 
 ###############################################################################
 # CPU

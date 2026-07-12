@@ -21,8 +21,9 @@ from collections import deque
 from dataclasses import dataclass
 from enum import StrEnum
 
+from controller.diagnostics import DiagnosticReporter
 from emulator.chip8memory import Chip8Memory
-from emulator.constants import PROGRAM_START
+from emulator.constants import CHIP8_STACK_SIZE, PROGRAM_START
 from emulator.instruction import Instruction
 
 
@@ -58,6 +59,20 @@ class CodeRow:
 
 
 @dataclass(frozen=True, slots=True)
+class CallFrame:
+    """
+    @brief One simulated CHIP-8 call frame.
+
+    @details
+    Represents one active subroutine invocation during static analysis.
+
+    The frame stores both the callee address and the return address.
+    """
+    callee: int
+    return_address: int
+
+
+@dataclass(frozen=True, slots=True)
 class WorkItem:
     """
     @brief Analysis work item.
@@ -69,29 +84,25 @@ class WorkItem:
     the simulated call stack. This allows future phases to distinguish
     identical program addresses reached with different return paths.
     """
-
     address: int
-
-    #
-    # Simulated return stack.
-    #
-    # The tuple is immutable so WorkItem remains hashable and can be
-    # stored in the visited set.
-    #
-    call_stack: tuple[int, ...] = ()
+    # Simulated CHIP-8 call stack.
+    # Every frame stores the active subroutine together with its return address.
+    # The tuple is immutable so WorkItem remains hashable.
+    call_stack: tuple[CallFrame, ...] = ()
 
 
 class CodeAnalysis:
     """
     @brief Maintains the interpreted Code View.
     """
-    def __init__(self, memory: Chip8Memory) -> None:
+    def __init__(self, memory: Chip8Memory, diagnostics: DiagnosticReporter) -> None:
         """
         @brief Construct the Code Analysis subsystem.
 
         @param memory
             Emulator memory.
         """
+        self._diagnostics = diagnostics             # connect ourself to the Diagnostics manager in the controller
         self._memory = memory
         self._rows: list[CodeRow] = []
 
@@ -103,6 +114,13 @@ class CodeAnalysis:
         # Value:
         #     Decoded instruction.
         self._instructions: dict[int, Instruction] = {}
+
+        # Runtime-observed targets of BNNN instructions.
+        # Key:
+        #     Address of the BNNN instruction.
+        # Value:
+        #     Set of observed jump targets.
+        self._observed_bnnn_targets: dict[int, set[int]] = {}
 
         # Address range occupied by the currently loaded ROM.
         # An empty range indicates that no ROM is loaded.
@@ -136,6 +154,40 @@ class CodeAnalysis:
         self._initialize_status()
         self._analyze()
         self._build_rows()
+
+
+    def observe_bnnn_target( self, instruction_address: int, target: int) -> bool:
+        """
+        @brief Record an observed BNNN jump target.
+
+        @param instruction_address
+            Address of the executed BNNN instruction.
+
+        @param target
+            Runtime jump target.
+
+        @return
+            True if this target was observed for the first time.
+        """
+        targets = self._observed_bnnn_targets.setdefault( instruction_address, set())
+        if target in targets:
+            return False
+        targets.add(target)
+        return True
+
+
+    def clear_runtime_observations(self) -> None:
+        """
+        @brief Forget all runtime-assisted analysis information.
+        """
+        self._observed_bnnn_targets.clear()
+
+
+    def observed_bnnn_targets( self, instruction_address: int) -> set[int]:
+        """
+        @brief Return all observed targets of one BNNN instruction.
+        """
+        return self._observed_bnnn_targets.get( instruction_address, set())
 
 
     def _initialize_status(self) -> None:
@@ -188,6 +240,25 @@ class CodeAnalysis:
         return Instruction.decode(address, opcode)
 
 
+    def analyze_observed_bnnn_target( self, instruction_address: int, target: int) -> bool:
+        """
+        @brief Analyze a newly observed BNNN jump target.
+
+        @param instruction_address
+            Address of the executed BNNN instruction.
+
+        @param target
+            Runtime jump destination.
+
+        @return
+            True if a previously unknown target was discovered.
+        """
+        if not self.observe_bnnn_target( instruction_address, target):
+            return False
+        self.rebuild()
+        return True
+
+
     def _analyze(self) -> None:
         """
         @brief Perform control-flow analysis.
@@ -195,12 +266,23 @@ class CodeAnalysis:
         @details
         Starting at the program entry point, performs a conservative
         worklist-based traversal to discover executable instructions.
+
+        Previously observed BNNN runtime targets are treated as additional
+        analysis entry points.
         """
+        self._instructions.clear()
         worklist: deque[WorkItem] = deque()
         visited: set[WorkItem] = set()
-        worklist.append(WorkItem(PROGRAM_START))
+        worklist.append(WorkItem(PROGRAM_START))                # Primary program entry point.
+
+        for targets in self._observed_bnnn_targets.values():    # Previously observed runtime targets of BNNN instructions.
+            for target in targets:
+                worklist.append(WorkItem(target))
         while worklist:
             work = worklist.pop()
+            if len(work.call_stack) > CHIP8_STACK_SIZE:
+                self._diagnostics.warning( "Maximum CHIP-8 call stack depth exceeded during static analysis." , work.address)
+                continue
             if work in visited:
                 continue
             visited.add(work)
@@ -211,7 +293,7 @@ class CodeAnalysis:
             if instruction is None:
                 continue
             self._instructions[address] = instruction
-            self._status[address] = CodeStatus.CODE                         # Mark the occupied bytes as executable.
+            self._status[address] = CodeStatus.CODE             # Mark the occupied bytes as executable.
             if address + 1 < self._rom_end:
                 self._status[address + 1] = CodeStatus.CODE
             successors = self._successors(work, instruction)
@@ -220,6 +302,8 @@ class CodeAnalysis:
                 continue
             self._status[address] = CodeStatus.CODE
             for successor in successors:
+                if len(successor.call_stack) > CHIP8_STACK_SIZE:
+                    self._diagnostics.warning("Maximum CHIP-8 stack depth exceeded.", instruction.address )
                 if successor not in visited:
                     worklist.append(successor)
 
@@ -245,18 +329,9 @@ class CodeAnalysis:
         match instruction.opcode:
             case 0x00EE:      # RET
                 if not work.call_stack:
-                    #
-                    # Returning without a matching CALL terminates the
-                    # current analysis path.
-                    #
                     return []
-
-                return [
-                    WorkItem(
-                        work.call_stack[-1],
-                        work.call_stack[:-1],
-                    )
-                ]
+                frame = work.call_stack[-1]
+                return [WorkItem(frame.return_address, work.call_stack[:-1])]
 
         #
         # Instructions identified by opcode family.
@@ -271,12 +346,10 @@ class CodeAnalysis:
                 ]
 
             case 0x2:         # CALL addr
-                return [
-                    WorkItem(
-                        instruction.nnn,
-                        work.call_stack + (instruction.address + 2,),
-                    )
-                ]
+                if any( frame.callee == instruction.nnn for frame in work.call_stack):
+                    self._diagnostics.warning( "Potential recursive CALL path detected; analysis terminated this path." , instruction.address)
+                    return []
+                return [ WorkItem( instruction.nnn, work.call_stack + ( CallFrame( callee=instruction.nnn , return_address=instruction.address + 2),)) ]
 
             case 0x3:         # SE Vx, byte
                 return [
@@ -397,6 +470,7 @@ class CodeAnalysis:
     def find_row(self, address: int) -> int | None:
         """
         @brief Find the row representing the specified address.
+        @param address Start address of the code or data row to locate.
         """
         return self._address_to_row.get(address)
-    
+

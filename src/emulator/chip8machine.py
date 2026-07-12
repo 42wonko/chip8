@@ -166,6 +166,8 @@ class Chip8Machine:
         result = StepResult()
         instruction = self.fetch_instruction()
         self._execute_instruction(instruction, result)
+        if instruction.family == 0xB:
+            result.bnnn_target = ( instruction.address, self.registers.pc)
         return result
 
 
@@ -282,6 +284,7 @@ class Chip8Machine:
 
             case 0xB000:
                 self._registers.pc = instruction.nnn + self._registers[0]    # BNNN - JP V0, nnn
+                print( f"Executing BNNN at {instruction.address:03X}, " f"V0={self.registers[0]:02X}, " f"new PC={self.registers.pc:03X}")
 
             case 0xC000:                                                # set vx to a random value masked (bitwise AND) with NN
                 self._registers[instruction.x] = random.randint(0, 0xFF) & instruction.nn
