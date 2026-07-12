@@ -9,7 +9,6 @@ import unittest
 from emulator.chip8machine import Chip8Machine
 from emulator.constants import PROGRAM_START
 from tests.helpers import execute_opcode, write_opcode
-from emulator.instruction import Instruction
 
 
 class TestInstruction(unittest.TestCase):
@@ -21,7 +20,7 @@ class TestInstruction(unittest.TestCase):
         self.assertEqual(machine.registers[1], 0xAB)
 
     ###########################################################################
-    # 8XY0 
+    # 8XY0
     ###########################################################################
     def test_ld_register_preserves_source(self) -> None:
         machine = Chip8Machine()
@@ -51,7 +50,7 @@ class TestInstruction(unittest.TestCase):
         self.assertEqual(machine.registers.pc, PROGRAM_START + 2)
 
     def test_ld_registers_unchanged(self) -> None:
-        machine = Chip8Machine();
+        machine = Chip8Machine()
         machine.registers[0] = 1
         machine.registers[1] = 1
         machine.registers[2] = 1

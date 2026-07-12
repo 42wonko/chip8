@@ -19,7 +19,7 @@ class TestRandomInstructions(TestCase):
         with patch("random.randint", return_value=0xAB):
             machine.execute_cycle()
         self.assertEqual(machine.registers[2], 0xA0)
-        
+
 
     def test_random_byte_zero_mask(self) -> None:
         machine = Chip8Machine()

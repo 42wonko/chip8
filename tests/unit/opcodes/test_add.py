@@ -7,8 +7,8 @@
 import unittest
 
 from emulator.chip8machine import Chip8Machine
-from tests.helpers import execute_opcode, write_opcode
 from emulator.instruction import Instruction
+from tests.helpers import write_opcode
 
 
 class TestInstruction(unittest.TestCase):
