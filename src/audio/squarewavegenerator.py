@@ -5,8 +5,10 @@
 """
 
 from __future__ import annotations
+
 from PyQt6.QtCore import QIODevice
-from emulator.constants import ( BEEPER_AMPLITUDE, BEEPER_FREQUENCY, BEEPER_SAMPLE_RATE)
+
+from emulator.constants import BEEPER_AMPLITUDE, BEEPER_FREQUENCY, BEEPER_SAMPLE_RATE
 
 
 class SquareWaveGenerator(QIODevice):
@@ -23,7 +25,7 @@ class SquareWaveGenerator(QIODevice):
     _CHANNEL_COUNT = 1
     _BYTES_PER_FRAME = _BYTES_PER_SAMPLE * _CHANNEL_COUNT
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: None = None) -> None:
         super().__init__(parent)
         self._period = max( 1, round(BEEPER_SAMPLE_RATE / BEEPER_FREQUENCY),)   # Samples per waveform period.
         self._position = 0                                                      # Current byte position within the virtual stream.

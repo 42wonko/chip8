@@ -5,9 +5,12 @@
 """
 
 from __future__ import annotations
+
 from pathlib import Path
+
 from PyQt6 import uic
 from PyQt6.QtWidgets import QDialog
+
 from controller.emulatorconfiguration import EmulatorConfiguration
 
 

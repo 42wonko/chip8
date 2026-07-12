@@ -7,9 +7,11 @@
 from __future__ import annotations
 
 from PyQt6.QtMultimedia import QAudioDevice, QAudioFormat, QAudioSink, QMediaDevices
+
 from audio.squarewavegenerator import SquareWaveGenerator
-from emulator.constants import  BEEPER_SAMPLE_RATE
 from controller.emulatorconfiguration import EmulatorConfiguration
+from emulator.constants import BEEPER_SAMPLE_RATE
+
 
 class Beeper:
     """

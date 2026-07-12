@@ -37,10 +37,16 @@ from typing import TYPE_CHECKING, cast
 from PyQt6 import uic
 from PyQt6.QtCore import QItemSelectionModel
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import QAbstractItemView, QHeaderView, QMainWindow, QStatusBar, QDialog
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QDialog,
+    QHeaderView,
+    QMainWindow,
+    QStatusBar,
+)
 
-from gui.displaywidget import DisplayWidget
 from gui.configdialog import ConfigDialog
+from gui.displaywidget import DisplayWidget
 
 if TYPE_CHECKING:
     from controller.controller import Chip8Controller
