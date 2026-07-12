@@ -99,7 +99,7 @@ class Beeper:
 
     @property
     def volume(self) -> int:
-        return self.configuration.sound_volumeY
+        return self.configuration.sound_volume
 
     @property
     def configuration(self) -> EmulatorConfiguration:

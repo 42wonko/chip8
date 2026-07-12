@@ -138,11 +138,15 @@ class MainWindow(QMainWindow):
         self.codeTableView.setSelectionMode( QAbstractItemView.SelectionMode.SingleSelection)
 
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: QKeyEvent | None) -> None:
+        if event is None:
+            return None
         self._controller.key_down(event.key())
 
 
-    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+    def keyReleaseEvent(self, event: QKeyEvent | None) -> None:
+        if event is None:
+            return None
         self._controller.key_up(event.key())
 
 

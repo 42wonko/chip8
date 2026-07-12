@@ -6,7 +6,8 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QIODevice
+from PyQt6 import sip
+from PyQt6.QtCore import QIODevice, QObject
 
 from emulator.constants import BEEPER_AMPLITUDE, BEEPER_FREQUENCY, BEEPER_SAMPLE_RATE
 
@@ -25,7 +26,7 @@ class SquareWaveGenerator(QIODevice):
     _CHANNEL_COUNT = 1
     _BYTES_PER_FRAME = _BYTES_PER_SAMPLE * _CHANNEL_COUNT
 
-    def __init__(self, parent: None = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._period = max( 1, round(BEEPER_SAMPLE_RATE / BEEPER_FREQUENCY),)   # Samples per waveform period.
         self._position = 0                                                      # Current byte position within the virtual stream.
@@ -70,13 +71,13 @@ class SquareWaveGenerator(QIODevice):
                 value = BEEPER_AMPLITUDE
             else:
                 value = -BEEPER_AMPLITUDE
-            data[index:index + 2] = value.to_bytes( 2, byteorder="little", signed=True,)
+            data[index:index + 2] = value.to_bytes( 2, byteorder="little", signed=True)
             position += self._BYTES_PER_FRAME
         self._position = position
         return bytes(data)
 
 
-    def writeData(self, data: bytes) -> int:
+    def writeData(self, data: sip.Buffer) -> int:
         """
         @brief Writing is unsupported.
         """
