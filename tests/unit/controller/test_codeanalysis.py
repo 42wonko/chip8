@@ -1,6 +1,8 @@
 import unittest
 
 from controller.codeanalysis import CodeAnalysis, CodeStatus
+from controller.diagnostic import DiagnosticSource
+from controller.diagnostics import Diagnostics
 from emulator.chip8memory import Chip8Memory
 from emulator.constants import PROGRAM_START
 
@@ -31,7 +33,8 @@ class TestCodeAnalysis(unittest.TestCase):
         @brief Create a fresh analyzer.
         """
         self.memory = Chip8Memory()
-        self.analysis = CodeAnalysis(self.memory)
+        diagnostics = Diagnostics()
+        self.analysis = CodeAnalysis(self.memory, diagnostics.reporter(DiagnosticSource.ANALYZER))
 
 
     def test_empty_memory_is_data(self) -> None:
@@ -162,17 +165,19 @@ class TestCodeAnalysis(unittest.TestCase):
         row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 4))    # Analysis terminates here.
         self.assertEqual(row.status, CodeStatus.UNKNOWN)
 
-    def test_find_row_inside_instruction(self) -> None:
+
+    def test_find_row_returns_instruction_start(self) -> None:
         """
-        @brief Verify that both bytes of an instruction map to the same row.
+        @brief Verify that only instruction start addresses are mapped.
         """
         self.load_rom(
             0x60, 0x01,     # LD V0, 01
         )
         self.analysis.rebuild()
-        row0 = self.analysis.find_row(PROGRAM_START)
-        row1 = self.analysis.find_row(PROGRAM_START + 1)
-        self.assertEqual(row0, row1)
+        row = self.analysis.find_row(PROGRAM_START)
+        self.assertIsNotNone(row)
+        self.assertIsNone(self.analysis.find_row(PROGRAM_START + 1))
+
 
     def test_unknown_bytes_remain_unknown(self) -> None:
         """
