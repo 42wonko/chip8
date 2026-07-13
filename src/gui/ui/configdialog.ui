@@ -64,7 +64,7 @@
    <item>
     <widget class="QCheckBox" name="disableDisplayUpdatesCheckBox">
      <property name="text">
-      <string>Disable Dsiplay Updates</string>
+      <string>Disable Display Updates</string>
      </property>
     </widget>
    </item>

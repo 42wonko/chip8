@@ -23,7 +23,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Chagnge Key Mapping</string>
+      <string>Change Key Mapping</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -39,7 +39,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Press the new ke that you want to 
+      <string>Press the new key that you want to 
 assign to the CHIP8 key</string>
      </property>
     </widget>
