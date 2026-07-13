@@ -239,11 +239,7 @@ class Chip8Controller:
         """
         if self._running:
             return
-        result = self._machine.execute_cycle()
-        if result.bnnn_target is not None:
-            instruction_address, target = result.bnnn_target
-            self._code_analysis.observe_bnnn_target(instruction_address, target)
-        self.update_gui(result)
+        self._execute_cycle()
 
 
     def key_down(self, qt_key: int) -> None:
@@ -336,22 +332,29 @@ class Chip8Controller:
             self._main_window.scroll_code_to_row(row)
 
 
+    def _execute_cycle(self) -> None:
+        """
+        @brief Execute one CHIP-8 instruction and perform all related updates.
+        """
+        result = self._machine.execute_cycle()
+        refresh_code = False
+        if result.bnnn_target is not None:
+            instruction_address, target = result.bnnn_target
+            refresh_code = self._code_analysis.analyze_observed_bnnn_target(
+                instruction_address,
+                target,
+            )
+        self.update_gui(result)
+        if refresh_code:
+            self._code_model.refresh()
+            self._update_code_view()
+
+
     def _cpu_tick(self) -> None:
         """
         @brief Execute one CPU cycle.
         """
-        result = self._machine.execute_cycle()
-
-        if result.bnnn_target is not None:
-            instruction_address, target = result.bnnn_target
-
-            if self._code_analysis.analyze_observed_bnnn_target(
-                instruction_address,
-                target
-            ):
-                self._code_model.refresh()
-
-        self.update_gui(result)
+        self._execute_cycle()
 
 
     def _timer_tick(self) -> None:
