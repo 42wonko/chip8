@@ -18,6 +18,7 @@
 - [x] Current instruction highlighting
 - [x] Automatic debugger scrolling
 - [x] Disable realtime display updates
+- [x] Diagnostics view
 
 ### Audio
 
@@ -31,43 +32,15 @@
 - [x] StepResult incremental GUI updates
 - [x] Memory range update optimization
 - [x] Emulator configuration object
-- [x] Diagnostics subsystem
-- [x] Static analyzer recursion detection
-- [x] Runtime-assisted `BNNN` analysis
-- [x] Runtime discovery of additional code paths
+- [x] Diagnostics framework
+- [x] Static code analyzer
+- [x] Runtime-assisted `BNNN` code analysis
+- [x] Incremental code analysis updates
+- [x] Duplicate runtime target suppression
 
 ---
 
 ## Remaining Features
-
-### Code Analysis
-
-- [ ] Create a dedicated test ROM that executes `BNNN`
-- [ ] Improve static handling of `BNNN`
-- [ ] Distinguish unreachable code from unknown data where possible
-- [ ] Generate labels for discovered subroutine entry points
-- [ ] Display generated labels in the Code View
-
-### Debugger
-
-- [ ] Improve debugger highlighting using code analysis information
-- [ ] Highlight current subroutine entry point
-- [ ] Highlight active execution path
-
-### Diagnostics
-
-#### Diagnostics View
-
-- [ ] Filter diagnostics by severity
-- [ ] Filter diagnostics by source
-- [ ] Double-click a diagnostic to jump to the corresponding address
-
-#### Analyzer Diagnostics
-
-- [ ] Warn about unreachable code
-- [ ] Warn about suspicious control-flow patterns
-
----
 
 ### Emulator Diagnostics
 
@@ -81,6 +54,11 @@
 
 - [ ] Function call trace
 - [ ] Optional instruction-level emulator trace
+- [ ] Optional analyzer trace
+    - Runtime `BNNN` target discovery
+    - Incremental code analysis
+    - Call graph exploration
+    - Recursion detection
 
 #### CHIP-8 program trace
 
@@ -117,65 +95,49 @@
 - [ ] Run to cursor
 - [ ] Go to address
 - [ ] Follow memory writes
+- [ ] Search for byte sequence in ROM
 
 ### Audio
 
 - [ ] Configurable beep frequency
 - [ ] Alternative waveforms (optional)
 
+### Testing
+
+- [ ] Create a regression ROM suite
+- [ ] Document the expected behavior of each test ROM
+- [ ] Package the regression ROMs with the project
+
+### Development Tools
+
+#### CHIP-8 Assembler
+
+- [ ] Two-pass assembler
+- [ ] Labels and forward references
+- [ ] Symbol table
+- [ ] Expressions and constants
+- [ ] `DB` directive for arbitrary byte data
+- [ ] `DW` directive for 16-bit data
+- [ ] `ORG` directive
+- [ ] `EQU` directive
+- [ ] Binary (`0b`), decimal and hexadecimal (`0x`) literals
+- [ ] Character and string literals
+- [ ] Generate CHIP-8 ROM images
+- [ ] Listing file generation
+- [ ] Error reporting with source line numbers
+
 ---
 
-## Post-1.0 Architectural Refactoring
+## Major Refactoring
 
 ### Instruction Decoder
 
-There are currently three independent instruction decoders:
-
-- CPU execution
-- Static code analyzer
-- Disassembler
-
-Replace them with a single shared decoder.
-
-- [ ] Introduce a canonical instruction decoder
-- [ ] Decode every instruction exactly once
-- [ ] Share decoded instructions between CPU, analyzer and disassembler
-- [ ] Eliminate duplicated opcode decoding logic
-- [ ] Centralize instruction metadata
-
-### Code Analyzer
-
-- [ ] Refactor opcode dispatch to use shared instruction metadata
-
-### Controller
-
-- [ ] Continue splitting `controller.py` into logical modules
-- [ ] Restrict controller responsibilities to orchestration
-
-### GUI
-
-- [ ] Further separate controller and view responsibilities
-
-### Architecture
-
-- [ ] Continue dependency injection of shared services
-- [ ] Keep subsystems independent of the GUI
-- [ ] Avoid optional collaborators when dependencies are required
-
-### Performance
-
-- [ ] Cache decoded instructions
-- [ ] Profile analyzer performance on large ROM collections
-- [ ] Reduce unnecessary GUI refreshes
-
----
-
-## Testing
-
-- [ ] Create dedicated analyzer test ROMs
-- [ ] Add regression tests for recursive CALL detection
-- [ ] Add regression tests for maximum stack-depth diagnostics
-- [ ] Add regression tests for `BNNN`
+- [ ] Unify the three independent instruction decoders
+    - Emulator execution
+    - Static code analyzer
+    - Debugger / disassembler
+- [ ] Introduce a shared instruction decoder
+- [ ] Centralize opcode metadata and decoding logic
 
 ---
 
@@ -185,13 +147,14 @@ Core emulator:                ██████████ 100%
 
 GUI:                          ██████████ 100%
 
-Debugger:                     █████████░  95%
+Debugger:                     ██████████ 100%
 
 Audio:                        █████████░  95%
 
-Code analysis:                █████████░  95%
+Code analysis:                ██████████ 100%
 
-Diagnostics & tracing:        ███░░░░░░░  30%
+Diagnostics & tracing:        ██░░░░░░░░  20%
+
+Development tools:            ░░░░░░░░░░   0%
 
 Overall project completion: ~95%
-
