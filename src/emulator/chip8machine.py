@@ -26,33 +26,32 @@ from emulator.chip8memory import Chip8Memory
 from emulator.chip8registers import Chip8Registers
 from emulator.chip8stack import Chip8Stack
 from emulator.chip8timers import Chip8Timers
-from emulator.constants import (
-    FONT_CHARACTER_SIZE,
-    FONT_START,
-    FONTSET,
-    PROGRAM_START,
-)
+from emulator.constants import  FONT_CHARACTER_SIZE, FONT_START, FONTSET, PROGRAM_START
 from emulator.instruction import Instruction
 from emulator.stepresult import StepResult
+from emulator.tracerecord import TraceRecord
+from controller.executiontracereporter import ExecutionTraceReporter
 
 
 class Chip8Machine:
     """
     @brief CHIP-8 virtual machine.
     """
-    def __init__(self) -> None:
+    def __init__(self, tracer: ExecutionTraceReporter) -> None:
+    
         """
         @brief Construct the virtual machine.
         @detai All members are private to prevent other classes from accidentally
         replacing any of the hardware components. By decorating them with @property
         we can still use them, though.
         """
-        self._memory        = Chip8Memory()
-        self._registers     = Chip8Registers()
-        self._stack         = Chip8Stack()
-        self._timers        = Chip8Timers()
-        self._keyboard      = Chip8Keyboard()
-        self._framebuffer   = Chip8Framebuffer()
+        self._memory            = Chip8Memory()
+        self._registers         = Chip8Registers()
+        self._stack             = Chip8Stack()
+        self._timers            = Chip8Timers()
+        self._keyboard          = Chip8Keyboard()
+        self._framebuffer       = Chip8Framebuffer()
+        self._trace_reporter    = tracer
         self.reset()
 
     ###########################################################################
@@ -164,10 +163,17 @@ class Chip8Machine:
         @brief Execute one instruction.
         """
         result = StepResult()
+        ptrace_rec = TraceRecord()
+
         instruction = self.fetch_instruction()
+        ptrace_rec.pc_before = instruction.address
+        ptrace_rec.instruction = instruction
+
         self._execute_instruction(instruction, result)
         if instruction.family == 0xB:
             result.bnnn_target = ( instruction.address, self.registers.pc)
+        ptrace_rec.pc_after = self._registers.pc
+        self._trace_reporter.trace(ptrace_rec)
         return result
 
 

@@ -11,6 +11,7 @@ from datetime import datetime
 from controller.bufferedfilesink import BufferedFileSink
 from controller.emulatorconfiguration import EmulatorConfiguration
 from controller.applicationlogreporter import ApplicationLogReporter
+from controller.executiontracereporter import ExecutionTraceReporter
 from controller.diagnostic import DiagnosticSource, format_source
 
 class LogSeverity(Enum):
@@ -144,34 +145,58 @@ class ExecutionTracer:
         self._enabled = False
         self._sink = BufferedFileSink()
         self._filename = ""
+        self._cycle = 0
 
 
     def enable(self) -> None:
         """
         @brief Enable execution tracing.
         """
+        if self._enabled:
+            return
         self._enabled = True
+        if self._filename:
+            self._sink.open(self._filename)
 
 
     def disable(self) -> None:
         """
         @brief Disable execution tracing.
         """
+        if not self._enabled:
+            return
         self._enabled = False
+        self._sink.close()
 
 
     def set_filename(self, filename: str) -> None:
         """
         @brief Set the trace output file.
         """
-        self._filename = Path(filename)
+        self._filename = filename
+        if self._enabled:
+            self._sink.open(filename)
 
 
-    def trace(self, message: str) -> None:
+    def trace(self, record: TraceRecord) -> None:
         """
         @brief Write one execution trace record.
         """
-        pass
+        if not self._enabled:
+            return
+        self._cycle += 1
+        line = (
+            f"{self._cycle:06d} "
+            f"{record.pc_before:03X} "
+            f"{record.instruction.opcode:04X} "
+            f"{record.instruction}"
+        )
+        self._sink.write(line)
+
+
+    def reporter(self) -> ExecutionTraceReporter:
+        return ExecutionTraceReporter(self)
+
 
 
 class LogManager:
@@ -217,6 +242,6 @@ class LogManager:
         """
         @brief Return the execution tracer.
         """
-        return self._tracer
+        return self._tracer.reporter()
 
 
