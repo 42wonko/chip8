@@ -36,13 +36,13 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QFileDialog
 
 from audio.beeper import Beeper
+from controller.applicationlogreporter import ApplicationLogReporter
 from controller.codeanalysis import CodeAnalysis
 from controller.diagnostic import DiagnosticSource, format_severity, format_source
 from controller.diagnostics import Diagnostics
 from controller.emulatorconfiguration import EmulatorConfiguration
 from controller.keyboardmap import KeyboardMap
 from controller.logging import LogManager
-from controller.applicationlogreporter import ApplicationLogReporter
 from emulator.chip8machine import Chip8Machine
 from emulator.constants import DEFAULT_CPU_FREQUENCY, PROGRAM_START, TIMER_FREQUENCY
 from emulator.stepresult import StepResult

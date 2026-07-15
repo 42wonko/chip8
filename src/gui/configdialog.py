@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import cast
 
 from PyQt6 import uic
-from PyQt6.QtWidgets import QDialog, QWidget, QMessageBox, QFileDialog
+from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
+
 from controller.emulatorconfiguration import EmulatorConfiguration, TraceLevel
 
 

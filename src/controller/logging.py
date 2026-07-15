@@ -5,14 +5,16 @@
 """
 
 from __future__ import annotations
-from enum import Enum, auto
-from pathlib import Path
+
 from datetime import datetime
-from controller.bufferedfilesink import BufferedFileSink
-from controller.emulatorconfiguration import EmulatorConfiguration
+from enum import Enum, auto
+
 from controller.applicationlogreporter import ApplicationLogReporter
-from controller.executiontracereporter import ExecutionTraceReporter
+from controller.bufferedfilesink import BufferedFileSink
 from controller.diagnostic import DiagnosticSource, format_source
+from controller.emulatorconfiguration import EmulatorConfiguration
+from controller.executiontracereporter import ExecutionTraceReporter
+
 
 class LogSeverity(Enum):
     """
@@ -88,7 +90,7 @@ class ApplicationLogger:
         """
         @brief Write an informational message.
         """
-        self._write(LogSeverity.INFO, source, message) 
+        self._write(LogSeverity.INFO, source, message)
 
 
     def warning(self, source: DiagnosticSource, message: str) -> None:
@@ -190,6 +192,7 @@ class ExecutionTracer:
             f"{record.pc_before:03X} "
             f"{record.instruction.opcode:04X} "
             f"{record.instruction}"
+            f" -> {record.pc_after:03X}"
         )
         self._sink.write(line)
 

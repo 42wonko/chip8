@@ -20,17 +20,17 @@ from __future__ import annotations
 
 import random
 
+from controller.executiontracereporter import ExecutionTraceReporter
 from emulator.chip8framebuffer import Chip8Framebuffer
 from emulator.chip8keyboard import Chip8Keyboard
 from emulator.chip8memory import Chip8Memory
 from emulator.chip8registers import Chip8Registers
 from emulator.chip8stack import Chip8Stack
 from emulator.chip8timers import Chip8Timers
-from emulator.constants import  FONT_CHARACTER_SIZE, FONT_START, FONTSET, PROGRAM_START
+from emulator.constants import FONT_CHARACTER_SIZE, FONT_START, FONTSET, PROGRAM_START
 from emulator.instruction import Instruction
 from emulator.stepresult import StepResult
 from emulator.tracerecord import TraceRecord
-from controller.executiontracereporter import ExecutionTraceReporter
 
 
 class Chip8Machine:
@@ -38,7 +38,7 @@ class Chip8Machine:
     @brief CHIP-8 virtual machine.
     """
     def __init__(self, tracer: ExecutionTraceReporter) -> None:
-    
+
         """
         @brief Construct the virtual machine.
         @detai All members are private to prevent other classes from accidentally
