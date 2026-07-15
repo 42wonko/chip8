@@ -10,9 +10,30 @@ from pathlib import Path
 from typing import cast
 
 from PyQt6 import uic
-from PyQt6.QtWidgets import QDialog, QWidget
+from PyQt6.QtWidgets import QDialog, QWidget, QMessageBox, QFileDialog
+from controller.emulatorconfiguration import EmulatorConfiguration, TraceLevel
 
-from controller.emulatorconfiguration import EmulatorConfiguration
+
+def trace_level_to_index(level: TraceLevel) -> int:
+    """
+    @brief Convert a TraceLevel to a combo box index.
+    """
+    return {
+        TraceLevel.BASIC: 0,
+        TraceLevel.CHANGES: 1,
+        TraceLevel.FULL: 2,
+    }[level]
+
+
+def index_to_trace_level(index: int) -> TraceLevel:
+    """
+    @brief Convert a combo box index to a TraceLevel.
+    """
+    return (
+        TraceLevel.BASIC,
+        TraceLevel.CHANGES,
+        TraceLevel.FULL,
+    )[index]
 
 
 class ConfigDialog(QDialog):
@@ -27,6 +48,8 @@ class ConfigDialog(QDialog):
         uic.loadUi(ui_file, self)
         self.soundVolumeSlider.valueChanged.connect(self._update_volume_label)
         self._update_volume_label( self.soundVolumeSlider.value())
+        self.browseLogFilePushButton.clicked.connect(self._browse_log_file)
+        self.browseTraceFilePushButton.clicked.connect(self._browse_trace_file)
 
     @property
     def sound_enabled(self) -> bool:
@@ -62,10 +85,15 @@ class ConfigDialog(QDialog):
         return EmulatorConfiguration(
             sound_enabled=self.enableSoundCheckBox.isChecked(),
             sound_volume=self.soundVolumeSlider.value(),
-            disable_display_updates= self.disableDisplayUpdatesCheckBox.isChecked(),
-            enable_debugging= self.enableDebuggingCheckBox.isChecked(),
-            enable_debug_trace= self.enableDebugTraceCheckBox.isChecked(),
-            enable_chip8_program_trace= self.enableChip8PTraceCheckBox.isChecked()
+            disable_display_updates=self.disableDisplayUpdatesCheckBox.isChecked(),
+
+            logging_enabled=self.applicationLoggingGroupBox.isChecked(),
+            log_filename=self.logFilenameLineEdit.text(),
+            function_trace_enabled=self.enableFunctionTraceCheckBox.isChecked(),
+
+            execution_trace_enabled=self.executionTraceGroupBox.isChecked(),
+            trace_filename=self.traceFilenameLineEdit.text(),
+            trace_level=index_to_trace_level(self.traceLevelComboBox.currentIndex())
         )
 
 
@@ -77,9 +105,12 @@ class ConfigDialog(QDialog):
         self.enableSoundCheckBox.setChecked( configuration.sound_enabled)
         self.soundVolumeSlider.setValue( configuration.sound_volume)
         self.disableDisplayUpdatesCheckBox.setChecked( configuration.disable_display_updates)
-        self.enableDebuggingCheckBox.setChecked( configuration.enable_debugging)
-        self.enableDebugTraceCheckBox.setChecked( configuration.enable_debug_trace)
-        self.enableChip8PTraceCheckBox.setChecked( configuration.enable_chip8_program_trace)
+        self.applicationLoggingGroupBox.setChecked(configuration.logging_enabled)
+        self.logFilenameLineEdit.setText(configuration.log_filename)
+        self.enableFunctionTraceCheckBox.setChecked(configuration.function_trace_enabled)
+        self.executionTraceGroupBox.setChecked(configuration.execution_trace_enabled)
+        self.traceFilenameLineEdit.setText(configuration.trace_filename)
+        self.traceLevelComboBox.setCurrentIndex( trace_level_to_index(configuration.trace_level))
 
 
     def _update_volume_label(self, value: int) -> None:
@@ -87,3 +118,105 @@ class ConfigDialog(QDialog):
         @brief Update the volume label.
         """
         self.soundVolumeLabel.setText(f"{value} %")
+
+
+    def _browse_log_file(self) -> None:
+        """
+        @brief Select the application log file.
+        """
+        dialog = QFileDialog(self)
+
+        dialog.setWindowTitle("Application Log File")
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setNameFilter("Log files (*.log);;All files (*)")
+        dialog.setOption(QFileDialog.Option.DontConfirmOverwrite, True)
+
+        if self.logFilenameLineEdit.text():
+            dialog.selectFile(self.logFilenameLineEdit.text())
+
+        if dialog.exec():
+            filenames = dialog.selectedFiles()
+            if filenames:
+                self.logFilenameLineEdit.setText(filenames[0])
+
+
+    def _browse_trace_file(self) -> None:
+        """
+        @brief Select the execution trace file.
+        """
+        dialog = QFileDialog(self)
+
+        dialog.setWindowTitle("Execution Trace File")
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setNameFilter("Trace files (*.trace);;Text files (*.txt);;All files (*)")
+        dialog.setOption(QFileDialog.Option.DontConfirmOverwrite, True)
+
+        if self.traceFilenameLineEdit.text():
+            dialog.selectFile(self.traceFilenameLineEdit.text())
+
+        if dialog.exec():
+            filenames = dialog.selectedFiles()
+            if filenames:
+                self.traceFilenameLineEdit.setText(filenames[0])
+
+
+    def accept(self) -> None:
+        """
+        @brief Validate the configuration before closing the dialog.
+        """
+
+        #
+        # Application logging
+        #
+
+        if self.applicationLoggingGroupBox.isChecked():
+
+            filename = self.logFilenameLineEdit.text().strip()
+
+            if not filename:
+                QMessageBox.warning(
+                    self,
+                    "Logging",
+                    "Application logging is enabled, but no log filename has been specified."
+                )
+                return
+
+            parent = Path(filename).parent
+
+            if not parent.exists():
+                QMessageBox.warning(
+                    self,
+                    "Logging",
+                    "The directory for the log file does not exist."
+                )
+                return
+
+        #
+        # Execution trace
+        #
+
+        if self.executionTraceGroupBox.isChecked():
+
+            filename = self.traceFilenameLineEdit.text().strip()
+
+            if not filename:
+                QMessageBox.warning(
+                    self,
+                    "Execution Trace",
+                    "Execution tracing is enabled, but no trace filename has been specified."
+                )
+                return
+
+            parent = Path(filename).parent
+
+            if not parent.exists():
+                QMessageBox.warning(
+                    self,
+                    "Execution Trace",
+                    "The directory for the trace file does not exist."
+                )
+                return
+
+        super().accept()

@@ -95,7 +95,7 @@ class CodeAnalysis:
     """
     @brief Maintains the interpreted Code View.
     """
-    def __init__(self, memory: Chip8Memory, diagnostics: DiagnosticReporter) -> None:
+    def __init__(self, memory: Chip8Memory, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
         """
         @brief Construct the Code Analysis subsystem.
 
@@ -103,6 +103,7 @@ class CodeAnalysis:
             Emulator memory.
         """
         self._diagnostics = diagnostics             # connect ourself to the Diagnostics manager in the controller
+        self._logger = logger
         self._memory = memory
         self._rows: list[CodeRow] = []
 
@@ -173,6 +174,7 @@ class CodeAnalysis:
         if target in targets:
             return False
         targets.add(target)
+        self._logger.info( f"BNNN discovered new target {target:03X} from {instruction_address:03X}.")
         return True
 
 

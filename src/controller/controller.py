@@ -41,6 +41,8 @@ from controller.diagnostic import DiagnosticSource, format_severity, format_sour
 from controller.diagnostics import Diagnostics
 from controller.emulatorconfiguration import EmulatorConfiguration
 from controller.keyboardmap import KeyboardMap
+from controller.logging import LogManager
+from controller.applicationlogreporter import ApplicationLogReporter
 from emulator.chip8machine import Chip8Machine
 from emulator.constants import DEFAULT_CPU_FREQUENCY, PROGRAM_START, TIMER_FREQUENCY
 from emulator.stepresult import StepResult
@@ -62,6 +64,9 @@ class Chip8Controller:
         self._configuration = EmulatorConfiguration()
         self._diagnostics = Diagnostics()
         self._controller_diagnostics = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
+        self._log_manager = LogManager()
+        self._log_manager.configure(self._configuration)
+        self._logger: ApplicationLogReporter = ( self._log_manager.application_logger( DiagnosticSource.CONTROLLER))
         self._running = False
         self._current_rom: Path | None = None
         self._current_rom_data: bytes | None = None
@@ -79,7 +84,7 @@ class Chip8Controller:
         self._memory_model = MemoryTableModel()
         self._main_window.set_memory_model(self._memory_model)
         self._memory_model.set_memory(self._machine.memory)
-        self._code_analysis = CodeAnalysis(self._machine.memory, self._diagnostics.reporter(DiagnosticSource.ANALYZER))
+        self._code_analysis = CodeAnalysis( self._machine.memory, self._diagnostics.reporter(DiagnosticSource.ANALYZER), self._log_manager.application_logger( DiagnosticSource.ANALYZER))
         self._code_model = CodeTableModel()
         self._main_window.set_code_model(self._code_model)
         self._code_model.set_analysis(self._code_analysis)
@@ -133,6 +138,7 @@ class Chip8Controller:
         """
         @brief Load a CHIP-8 ROM.
         """
+        self._logger.enter("load_rom")
         filename, _ = QFileDialog.getOpenFileName(
             self._main_window,
             "Open CHIP-8 ROM",
@@ -141,6 +147,7 @@ class Chip8Controller:
         )
 
         if not filename:
+            self._logger.leave("load_rom")
             return
 
         path = Path(filename)
@@ -149,20 +156,26 @@ class Chip8Controller:
 
         self._current_rom = path
         self._current_rom_data = data
+        self._logger.info(f"Loaded ROM '{path.name}' ({len(data)} bytes)")
         self.reset()
         self._main_window.set_rom_title(path)
         self._main_window.show_status_message(f"Loaded {path.name}")
+        self._logger.leave("load_rom")
 
 
     def reload_rom(self) -> None:
         """
         @brief Reload the currently loaded ROM.
         """
+        self._logger.enter("reload_rom")
         if self._current_rom_data is None:
+            self._logger.leave("reload_rom")
             return
         self.reset()
         if self._current_rom is not None:
             self._main_window.show_status_message( f"Reloaded {self._current_rom.name}")
+            self._logger.info(f"Reloaded ROM '{self._current_rom.name}'.")
+        self._logger.leave("reload_rom")
 
 
     ###########################################################################
@@ -175,38 +188,50 @@ class Chip8Controller:
         @param frequency
             CPU clock frequency in Hz.
         """
+        self._logger.enter("set_cpu_frequency")
+        self._cpu_frequency = max(1, frequency)
         self._cpu_frequency = max(1, frequency)
         self._cpu_timer.setInterval(max(1, 1000 // self._cpu_frequency))
+        self._logger.leave("set_cpu_frequency")
 
 
     def run(self) -> None:
         """
         @brief Start continuous execution.
         """
+        self._logger.enter("run")
         if self._running:
+            self._logger.leave("run")
             return
         self._running = True
+        self._logger.info("Execution started.")
         self._cpu_timer.start(1000 // self._cpu_frequency)
         self._hardware_timer.start(1000 // TIMER_FREQUENCY)
-        self._main_window.show_status_message("Running.")
+        self._main_window.show_status_message("Running")
+        self._logger.leave("run")
+
 
     def pause(self) -> None:
         """
         @brief Pause execution.
         """
-
         pass
+
 
     def stop(self) -> None:
         """
         @brief Stop execution.
         """
+        self._logger.enter("stop")
         if not self._running:
+            self._logger.leave("stop")
             return
         self._running =False
+        self._logger.info("Execution stopped.")
         self._cpu_timer.stop()
         self._hardware_timer.stop()
-        self._main_window.show_status_message("Execution stopped.")
+        self._main_window.show_status_message("Execution stopped")
+        self._logger.leave("stop")
 
 
     def reset(self) -> None:
@@ -214,7 +239,10 @@ class Chip8Controller:
         @brief Reset the virtual machine.
         @detail Resets the emulator an loads the current ROM if one is present.
         """
+        self._logger.enter("reset")
+        self._logger.info("Reset emulator.")
         self.stop()
+        self._logger.info("Emulator reset")
         self._machine.reset()
         rom = self._current_rom_data    # hack to make mypy happy
         if rom is not None:
@@ -231,15 +259,20 @@ class Chip8Controller:
 
         self.update_gui()
         self._main_window.show_status_message("Yo  dude! We just re-spawned!.")
+        self._logger.info("Emulator reset")
 
 
     def step(self) -> None:
         """
         @brief Execute exactly one CHIP-8 instruction.
         """
+        self._logger.enter("step")
         if self._running:
+            self._logger.leave("step")
             return
         self._execute_cycle()
+        self._logger.info("Single step")
+        self._logger.leave("step")
 
 
     def key_down(self, qt_key: int) -> None:
@@ -259,16 +292,27 @@ class Chip8Controller:
         """
         @brief Open the keyboard configuration dialog.
         """
+        self._logger.enter("configure_keyboard")
         dialog = KeyboardDialog(self._keyboard_map)
         dialog.exec()
+        self._logger.leave("configure_keyboard")
+
 
     def configure(self) -> None:
+        """
+        @brief Open the configuration dialog.
+        """
+        self._logger.enter("configure")
         dialog = self._main_window.config_dialog
         dialog.configuration = self._configuration
         if not self._main_window.configure():
+            self._logger.leave("configure")
             return
         self._configuration = dialog.configuration
+        self._log_manager.configure(self._configuration)        # Reconfigure all subsystems.
         self._beeper.configuration = self._configuration
+        self._logger.info("Configuration updated")
+        self._logger.leave("configure")
 
 
     ###########################################################################
@@ -373,6 +417,7 @@ class Chip8Controller:
         """
         @brief Refresh the diagnostics list.
         """
+        self._logger.enter("_update_diagnostics_view")
         widget = self._main_window.diagnosticsListWidget
         widget.clear()
         for diagnostic in self._diagnostics:
@@ -388,4 +433,4 @@ class Chip8Controller:
             if diagnostic.count > 1:
                 text += f" (x{diagnostic.count})"
             widget.addItem(text)
-
+        self._logger.leave("_update_diagnostics_view")
