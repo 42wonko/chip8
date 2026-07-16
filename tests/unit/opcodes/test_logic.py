@@ -6,13 +6,12 @@
 
 import unittest
 
-from emulator.chip8machine import Chip8Machine
-from tests.helpers import write_opcode
+from tests.helpers import create_machine, write_opcode
 
 
 class TestLogicInstructions(unittest.TestCase):
     def test_ld_register(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 0x12
         machine.registers[2] = 0xAB
         write_opcode(machine, 0x8120)
@@ -21,7 +20,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_or_register(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 0b1100
         machine.registers[2] = 0b1010
         machine.registers[0xf] = 42
@@ -33,7 +32,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_and_register(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 0b1100
         machine.registers[2] = 0b1010
         machine.registers[0xf] = 42
@@ -45,7 +44,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_xor_register(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 0b1100
         machine.registers[2] = 0b1010
         machine.registers[0xf] = 42
@@ -58,7 +57,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_sub_register(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 20
         machine.registers[2] = 5
         write_opcode(machine, 0x8125)
@@ -67,7 +66,7 @@ class TestLogicInstructions(unittest.TestCase):
         self.assertEqual(machine.registers[0xF], 1)
 
     def test_sub_register_equal(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 20
         machine.registers[2] = 20
         write_opcode(machine, 0x8125)
@@ -77,7 +76,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_sub_register_sets_borrow(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 5
         machine.registers[2] = 20
         write_opcode(machine, 0x8125)
@@ -86,7 +85,7 @@ class TestLogicInstructions(unittest.TestCase):
         self.assertEqual(machine.registers[0xF], 0)
 
     def test_sub_register_is_not_effected_by_previous_carry(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 20
         machine.registers[2] = 5
         machine.registers[0xF] = 1
@@ -97,7 +96,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_sub_register_sets_borrow_is_not_effected_by_previous_carry(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 5
         machine.registers[2] = 20
         machine.registers[0xF] = 1
@@ -108,7 +107,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_subn_register(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 5
         machine.registers[2] = 20
         write_opcode(machine, 0x8127)
@@ -118,7 +117,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_subn_register_sets_borrow(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 20
         machine.registers[2] = 5
         write_opcode(machine, 0x8127)
@@ -128,7 +127,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_subn_register_ignores_previous_VF(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 5
         machine.registers[2] = 20
         machine.registers[0xF] = 1
@@ -139,7 +138,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_subn_register_sets_borrow_ignores_previous_VF(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 20
         machine.registers[2] = 5
         machine.registers[0xF] = 1
@@ -150,7 +149,7 @@ class TestLogicInstructions(unittest.TestCase):
 
 
     def test_subn_register_equal(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 42
         machine.registers[2] = 42
         write_opcode(machine, 0x8127)

@@ -14,6 +14,7 @@ from controller.bufferedfilesink import BufferedFileSink
 from controller.diagnostic import DiagnosticSource, format_source
 from controller.emulatorconfiguration import EmulatorConfiguration
 from controller.executiontracereporter import ExecutionTraceReporter
+from emulator.tracerecord import TraceRecord
 
 
 class LogSeverity(Enum):
@@ -241,7 +242,7 @@ class LogManager:
         return self._logger.reporter(source)
 
 
-    def execution_tracer(self) -> ExecutionTracer:
+    def execution_trace_reporter(self) -> ExecutionTraceReporter:
         """
         @brief Return the execution tracer.
         """

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from emulator.instruction import Instruction
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen = True)
 class TraceRecord:
     """
     @brief Describes one executed instruction.
@@ -14,7 +14,7 @@ class TraceRecord:
     immediately after executing an instruction. Formatting
     is performed by the ExecutionTraceReporter.
     """
-    pc_before: int = 0
-    pc_after: int = 0
-    instruction: Instruction = None
+    pc_before: int
+    pc_after: int
+    instruction: Instruction
 

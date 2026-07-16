@@ -6,9 +6,8 @@
 
 import unittest
 
-from emulator.chip8machine import Chip8Machine
 from emulator.instruction import Instruction
-from tests.helpers import write_opcode
+from tests.helpers import create_machine, write_opcode
 
 
 class TestSystemInstructions(unittest.TestCase):
@@ -23,7 +22,7 @@ class TestSystemInstructions(unittest.TestCase):
         """
         @brief Test if CLD actually clears the screen.
         """
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.framebuffer.set_pixel(10, 5, True)
         write_opcode(machine, 0x00E0)
         result = machine.execute_cycle()
@@ -43,20 +42,20 @@ class TestSystemInstructions(unittest.TestCase):
     # 00EE - RET
     ###########################################################################
     def test_ret(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.stack.push(0x456)
         write_opcode(machine, 0x00EE)
         machine.execute_cycle()
         self.assertEqual(machine.registers.pc, 0x456)
 
     def test_unknown_opcode_raises(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         write_opcode(machine, 0xFFFF)
         with self.assertRaises(NotImplementedError):
             machine.execute_cycle()
 
     def test_unknown_opcode_raises_2(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         write_opcode(machine, 0xFFFF)
         with self.assertRaisesRegex( NotImplementedError, r"FFFF",):
             machine.execute_cycle()

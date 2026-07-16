@@ -6,13 +6,12 @@
 
 import unittest
 
-from emulator.chip8machine import Chip8Machine
-from tests.helpers import write_opcode
+from tests.helpers import create_machine, write_opcode
 
 
 class TestShiftInstructions(unittest.TestCase):
     def test_shift_right(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0b10010000
         write_opcode(machine, 0x8406)
         machine.execute_cycle()
@@ -21,7 +20,7 @@ class TestShiftInstructions(unittest.TestCase):
 
 
     def test_shift_right_sets_flag(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0b10100001
         write_opcode(machine, 0x8406)
         machine.execute_cycle()
@@ -30,7 +29,7 @@ class TestShiftInstructions(unittest.TestCase):
 
 
     def test_shift_right_null(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0b00000000
         write_opcode(machine, 0x8406)
         machine.execute_cycle()
@@ -39,7 +38,7 @@ class TestShiftInstructions(unittest.TestCase):
 
 
     def test_shift_right_sets_flag_ignores_VY(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0b10100001
         machine.registers[6] = 42
         write_opcode(machine, 0x8466)
@@ -50,7 +49,7 @@ class TestShiftInstructions(unittest.TestCase):
 
 
     def test_shift_left(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0b00100001
         write_opcode(machine, 0x840E)
         machine.execute_cycle()
@@ -59,7 +58,7 @@ class TestShiftInstructions(unittest.TestCase):
 
 
     def test_shift_left_sets_flag(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0b10000001
         write_opcode(machine, 0x840E)
         machine.execute_cycle()
@@ -67,7 +66,7 @@ class TestShiftInstructions(unittest.TestCase):
         self.assertEqual(machine.registers[0xF], 1)
 
     def test_shift_left_null(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0b00000000
         write_opcode(machine, 0x840E)
         machine.execute_cycle()
@@ -76,7 +75,7 @@ class TestShiftInstructions(unittest.TestCase):
 
 
     def test_shift_left_sets_flag_ignores_VY(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0b10000001
         machine.registers[6] = 42
         write_opcode(machine, 0x846E)

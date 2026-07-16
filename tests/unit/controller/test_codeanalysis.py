@@ -3,6 +3,8 @@ import unittest
 from controller.codeanalysis import CodeAnalysis, CodeStatus
 from controller.diagnostic import DiagnosticSource
 from controller.diagnostics import Diagnostics
+from controller.emulatorconfiguration import EmulatorConfiguration
+from controller.logging import LogManager
 from emulator.chip8memory import Chip8Memory
 from emulator.constants import PROGRAM_START
 
@@ -34,7 +36,10 @@ class TestCodeAnalysis(unittest.TestCase):
         """
         self.memory = Chip8Memory()
         diagnostics = Diagnostics()
-        self.analysis = CodeAnalysis(self.memory, diagnostics.reporter(DiagnosticSource.ANALYZER))
+        log_manager = LogManager()
+        configuration = EmulatorConfiguration()
+        log_manager.configure(configuration)
+        self.analysis = CodeAnalysis(self.memory, diagnostics.reporter(DiagnosticSource.ANALYZER), log_manager.application_logger(DiagnosticSource.ANALYZER))
 
 
     def test_empty_memory_is_data(self) -> None:

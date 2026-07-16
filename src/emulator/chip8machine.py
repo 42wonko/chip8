@@ -163,16 +163,14 @@ class Chip8Machine:
         @brief Execute one instruction.
         """
         result = StepResult()
-        ptrace_rec = TraceRecord()
 
         instruction = self.fetch_instruction()
-        ptrace_rec.pc_before = instruction.address
-        ptrace_rec.instruction = instruction
+        pc_before = instruction.address
 
         self._execute_instruction(instruction, result)
         if instruction.family == 0xB:
             result.bnnn_target = ( instruction.address, self.registers.pc)
-        ptrace_rec.pc_after = self._registers.pc
+        ptrace_rec = TraceRecord(pc_before = pc_before, pc_after= self._registers.pc, instruction = instruction)
         self._trace_reporter.trace(ptrace_rec)
         return result
 

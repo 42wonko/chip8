@@ -72,7 +72,7 @@ class Chip8Controller:
         self._current_rom_data: bytes | None = None
         self._cpu_frequency = DEFAULT_CPU_FREQUENCY     # has to be before mainwindow!
         self._main_window = MainWindow(self)
-        self._machine = Chip8Machine(self._log_manager.execution_tracer())
+        self._machine = Chip8Machine(self._log_manager.execution_trace_reporter())
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._cpu_timer = QTimer()
         self._cpu_timer.timeout.connect(self._cpu_tick)

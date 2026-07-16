@@ -6,13 +6,12 @@
 
 import unittest
 
-from emulator.chip8machine import Chip8Machine
-from tests.helpers import write_opcode
+from tests.helpers import create_machine, write_opcode
 
 
 class TestDrawInstructions(unittest.TestCase):
     def test_draw_single_row(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0b11110000)
         machine.registers[1] = 10
@@ -29,7 +28,7 @@ class TestDrawInstructions(unittest.TestCase):
 
 
     def test_draw_multiple_rows(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0b10000000)
         machine.memory.write_byte(0x301, 0b01000000)
@@ -43,7 +42,7 @@ class TestDrawInstructions(unittest.TestCase):
 
 
     def test_draw_collision_sets_vf(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0b10000000)
         machine.framebuffer.set_pixel(5, 6, True)
@@ -56,7 +55,7 @@ class TestDrawInstructions(unittest.TestCase):
 
 
     def test_draw_without_collision_clears_vf(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[0xF] = 1
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0b10000000)
@@ -68,7 +67,7 @@ class TestDrawInstructions(unittest.TestCase):
 
 
     def test_draw_twice_erases_sprite(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0b11000000)
         machine.registers[1] = 3
@@ -85,7 +84,7 @@ class TestDrawInstructions(unittest.TestCase):
 
 
     def test_draw_wraps_horizontally(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0b11000000)
         machine.registers[1] = 63
@@ -97,7 +96,7 @@ class TestDrawInstructions(unittest.TestCase):
 
 
     def test_draw_wraps_vertically(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0b10000000)
         machine.memory.write_byte(0x301, 0b10000000)
@@ -110,7 +109,7 @@ class TestDrawInstructions(unittest.TestCase):
 
 
     def test_draw_wraps_both_axes(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0b10000001)
         machine.registers[1] = 63
@@ -122,7 +121,7 @@ class TestDrawInstructions(unittest.TestCase):
 
 
     def test_draw_zero_height(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0xFF)
         machine.registers[1] = 5
@@ -135,7 +134,7 @@ class TestDrawInstructions(unittest.TestCase):
                 self.assertFalse(machine.framebuffer.get_pixel(x, y))
 
     def test_draw_preserves_index_register(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0xFF)
         machine.registers[1] = 10
@@ -147,7 +146,7 @@ class TestDrawInstructions(unittest.TestCase):
         self.assertEqual(machine.registers.i, 0x300)
 
     def test_draw_preserves_coordinate_registers(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 0x80)
         machine.registers[1] = 12

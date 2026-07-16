@@ -6,9 +6,8 @@
 
 from unittest import TestCase
 
-from emulator.chip8machine import Chip8Machine
 from emulator.constants import FONT_CHARACTER_SIZE, FONT_START
-from tests.helpers import write_opcode
+from tests.helpers import create_machine, write_opcode
 
 
 class TestMemoryInstructions(TestCase):
@@ -16,7 +15,7 @@ class TestMemoryInstructions(TestCase):
     # FX1E - ADD I, Vx
     ###########################################################################
     def test_add_register_to_i(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.registers[2] = 5
         write_opcode(machine, 0xF21E)
@@ -26,7 +25,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_add_register_to_i_wraps(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0xFFF
         machine.registers[2] = 2
         machine.registers[0xF] = 1
@@ -40,7 +39,7 @@ class TestMemoryInstructions(TestCase):
     # FX29 - LD F, Vx
     ###########################################################################
     def test_load_font_zero(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0
         write_opcode(machine, 0xF429)
         machine.execute_cycle()
@@ -48,7 +47,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_load_font_five(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 5
         write_opcode(machine, 0xF429)
         machine.execute_cycle()
@@ -56,7 +55,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_load_font_f(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[4] = 0xF
         write_opcode(machine, 0xF429)
         machine.execute_cycle()
@@ -68,7 +67,7 @@ class TestMemoryInstructions(TestCase):
     # FX33 - LD B, Vx
     ###########################################################################
     def test_store_bcd_zero(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.registers[1] = 0
         write_opcode(machine, 0xF133)
@@ -79,7 +78,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_store_bcd_five(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.registers[1] = 5
         write_opcode(machine, 0xF133)
@@ -90,7 +89,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_store_bcd_42(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.registers[1] = 42
         write_opcode(machine, 0xF133)
@@ -101,7 +100,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_store_bcd_123(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.registers[1] = 123
         write_opcode(machine, 0xF133)
@@ -112,7 +111,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_store_bcd_255(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.registers[1] = 255
         write_opcode(machine, 0xF133)
@@ -126,7 +125,7 @@ class TestMemoryInstructions(TestCase):
     # FX55 - LD [I], V0..Vx
     ###########################################################################
     def test_store_registers(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.registers[0] = 10
         machine.registers[1] = 20
@@ -139,7 +138,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_store_registers_leaves_i_unchanged(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x350
         write_opcode(machine, 0xF055)
         machine.execute_cycle()
@@ -147,7 +146,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_store_all_registers(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         for register in range(16):
             machine.registers[register] = register
@@ -158,7 +157,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_store_registers_preserves_source_registers(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.registers[0] = 10
         machine.registers[1] = 20
@@ -173,7 +172,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_store_registers_does_not_store_registers_above_x(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x303, 0xAA)
         machine.registers[0] = 10
@@ -192,7 +191,7 @@ class TestMemoryInstructions(TestCase):
     # FX65 - LD V0..Vx, [I]
     ###########################################################################
     def test_load_registers(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 11)
         machine.memory.write_byte(0x301, 22)
@@ -205,7 +204,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_load_registers_leaves_i_unchanged(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x350
         write_opcode(machine, 0xF065)
         machine.execute_cycle()
@@ -213,7 +212,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_load_all_registers(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         for register in range(16):
             machine.memory.write_byte(0x300 + register, register)
@@ -224,7 +223,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_load_registers_preserves_registers_above_x(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 11)
         machine.memory.write_byte(0x301, 22)
@@ -240,7 +239,7 @@ class TestMemoryInstructions(TestCase):
 
 
     def test_load_register_zero_only(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x300
         machine.memory.write_byte(0x300, 123)
         machine.registers[1] = 77

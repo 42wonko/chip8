@@ -7,14 +7,13 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from emulator.chip8machine import Chip8Machine
 from emulator.constants import PROGRAM_START
-from tests.helpers import write_opcode
+from tests.helpers import create_machine, write_opcode
 
 
 class TestRandomInstructions(TestCase):
     def test_random_byte_is_masked(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         write_opcode(machine, 0xC2F0)
         with patch("random.randint", return_value=0xAB):
             machine.execute_cycle()
@@ -22,7 +21,7 @@ class TestRandomInstructions(TestCase):
 
 
     def test_random_byte_zero_mask(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         write_opcode(machine, 0xC300)
         with patch("random.randint", return_value=0xFF):
             machine.execute_cycle()
@@ -30,14 +29,14 @@ class TestRandomInstructions(TestCase):
 
 
     def test_random_byte_full_mask(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         write_opcode(machine, 0xC4FF)
         with patch("random.randint", return_value=0x5A):
             machine.execute_cycle()
         self.assertEqual(machine.registers[4], 0x5A)
 
     def test_random_VX_only_masking(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[0] = 42
         machine.registers[1] = 42
         machine.registers[2] = 42

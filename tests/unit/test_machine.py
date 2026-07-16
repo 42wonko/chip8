@@ -4,12 +4,12 @@
 """
 import unittest
 
-from emulator.chip8machine import Chip8Machine
+from tests.helpers import create_machine
 
 
 class TestChip8Machine(unittest.TestCase):
     def test_fetch_instruction(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.memory.write_byte( 0x200, 0x6A)
         machine.memory.write_byte( 0x201, 0x05)
         instruction = machine.fetch_instruction()

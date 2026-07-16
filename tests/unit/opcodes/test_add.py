@@ -6,9 +6,8 @@
 
 import unittest
 
-from emulator.chip8machine import Chip8Machine
 from emulator.instruction import Instruction
-from tests.helpers import write_opcode
+from tests.helpers import create_machine, write_opcode
 
 
 class TestInstruction(unittest.TestCase):
@@ -16,21 +15,21 @@ class TestInstruction(unittest.TestCase):
     # 7XNN
     ###########################################################################
     def test_add_byte(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[2] = 5
         write_opcode(machine, 0x7207)
         machine.execute_cycle()
         self.assertEqual(machine.registers[2], 12)
 
     def test_add_byte_wraps(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[2] = 250
         write_opcode(machine, 0x720A)
         machine.execute_cycle()
         self.assertEqual(machine.registers[2], 4)
 
     def test_add_byte_preserves_vf(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[0xF] = 0x42
         machine.registers[2] = 250
         write_opcode(machine, 0x720A)
@@ -46,7 +45,7 @@ class TestInstruction(unittest.TestCase):
     # 8XY4
     ###########################################################################
     def test_add_register(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 10
         machine.registers[2] = 20
         write_opcode(machine, 0x8124)
@@ -56,7 +55,7 @@ class TestInstruction(unittest.TestCase):
 
 
     def test_add_register_sets_carry(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 250
         machine.registers[2] = 20
         write_opcode(machine, 0x8124)
@@ -65,7 +64,7 @@ class TestInstruction(unittest.TestCase):
         self.assertEqual(machine.registers[0xF], 1)
 
     def test_add_register_is_not_effected_by_previous_carry(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 10
         machine.registers[2] = 20
         machine.registers[0xF] = 1
@@ -76,7 +75,7 @@ class TestInstruction(unittest.TestCase):
 
 
     def test_add_register_sets_carry_is_not_effected_by_prvious_carry(self) -> None:
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[1] = 250
         machine.registers[2] = 20
         machine.registers[0xF] = 1

@@ -6,6 +6,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from controller.logging import ApplicationLogger
+
 from controller.diagnostic import DiagnosticSource
 
 
@@ -14,7 +19,7 @@ class ApplicationLogReporter:
     @brief Application log reporter for one subsystem.
     """
 
-    def __init__( self, logger: "ApplicationLogger", source: DiagnosticSource) -> None:
+    def __init__( self, logger: ApplicationLogger, source: DiagnosticSource) -> None:
         self._logger = logger
         self._source = source
 

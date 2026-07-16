@@ -6,8 +6,7 @@
 
 import unittest
 
-from emulator.chip8machine import Chip8Machine
-from tests.helpers import execute_opcode, write_opcode
+from tests.helpers import create_machine, execute_opcode, write_opcode
 
 
 class TestJumpInstructions(unittest.TestCase):
@@ -26,7 +25,7 @@ class TestJumpInstructions(unittest.TestCase):
         """
         @brief Test JP V0, addr with a zero offset.
         """
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers.i = 0x000
         machine.registers[0] = 0x00
         machine.registers[0xf] = 0x01
@@ -40,7 +39,7 @@ class TestJumpInstructions(unittest.TestCase):
         """
         @brief Test JP V0, addr with a register offset.
         """
-        machine = Chip8Machine()
+        machine = create_machine()
         machine.registers[0] = 0x12
         machine.registers[3] = 0x100    # later chip8 versions changed to PC = NNN+VX. we don't
         write_opcode(machine, 0xB300)
@@ -51,7 +50,7 @@ class TestJumpInstructions(unittest.TestCase):
         """
         @brief Test that JP V0, addr only uses register V0.
         """
-        machine = Chip8Machine()
+        machine = create_machine()
         for register in range(16):
             machine.registers[register] = 0xFF
         machine.registers[0] = 0x05
