@@ -17,8 +17,9 @@
 - [x] Code view
 - [x] Current instruction highlighting
 - [x] Automatic debugger scrolling
-- [x] Disable realtime display updates
+- [x] Incremental GUI updates
 - [x] Diagnostics view
+- [x] Runtime code discovery refresh
 
 ### Audio
 
@@ -29,43 +30,66 @@
 
 ### Infrastructure
 
+- [x] Emulator configuration object
 - [x] StepResult incremental GUI updates
 - [x] Memory range update optimization
-- [x] Emulator configuration object
 - [x] Diagnostics framework
+- [x] Application logging
+- [x] Configurable application log file
+- [x] Optional function tracing
+- [x] BufferedFileSink abstraction
+
+### Code Analysis
+
 - [x] Static code analyzer
 - [x] Runtime-assisted `BNNN` code analysis
-- [x] Incremental code analysis updates
+- [x] Dynamic code discovery
+- [x] Incremental code analysis
+- [x] Automatic Code View updates
 - [x] Duplicate runtime target suppression
+
+### Execution Tracing
+
+- [x] Execution tracing infrastructure
+- [x] TraceRecord execution model
+- [x] ExecutionTraceReporter
+- [x] BASIC instruction trace
+- [x] Program counter
+- [x] Configurable trace file
+- [x] Cycle-based trace numbering
+
+### Emulator logging
+
+- [x] Log emulator events to a file
+- [x] Configurable log file location
+- [x] Configurable log level
+
+### Emulator debug trace
+
+- [x] Function call trace
 
 ---
 
 ## Remaining Features
 
-### Emulator Diagnostics
+### Execution Tracing
 
-#### Emulator logging
+#### CHANGES trace level
 
-- [ ] Log emulator events to a file
-- [ ] Configurable log file location
-- [ ] Configurable log level
+- [ ] Register changes
+- [ ] Timer changes
+- [ ] Memory writes
+- [ ] Display update events
+- [ ] Keyboard events
+- [ ] Sound transitions
 
-#### Emulator debug trace
+#### FULL trace level
 
-- [ ] Function call trace
-- [ ] Optional instruction-level emulator trace
-- [ ] Optional analyzer trace
-    - Runtime `BNNN` target discovery
-    - Incremental code analysis
-    - Call graph exploration
-    - Recursion detection
-
-#### CHIP-8 program trace
-
-- [ ] Instruction trace
-- [ ] Register dump
-- [ ] Optional memory access logging
-- [ ] Trace output to file
+- [ ] Complete register dump
+- [ ] I register
+- [ ] Stack pointer
+- [ ] Delay timer
+- [ ] Sound timer
 
 ---
 
@@ -105,8 +129,8 @@
 ### Testing
 
 - [ ] Create a regression ROM suite
-- [ ] Document the expected behavior of each test ROM
-- [ ] Package the regression ROMs with the project
+- [ ] Document expected behaviour of each regression ROM
+- [ ] Package regression ROMs with the project
 
 ### Development Tools
 
@@ -116,11 +140,11 @@
 - [ ] Labels and forward references
 - [ ] Symbol table
 - [ ] Expressions and constants
-- [ ] `DB` directive for arbitrary byte data
-- [ ] `DW` directive for 16-bit data
+- [ ] `DB` directive
+- [ ] `DW` directive
 - [ ] `ORG` directive
 - [ ] `EQU` directive
-- [ ] Binary (`0b`), decimal and hexadecimal (`0x`) literals
+- [ ] Binary, decimal and hexadecimal literals
 - [ ] Character and string literals
 - [ ] Generate CHIP-8 ROM images
 - [ ] Listing file generation
@@ -158,3 +182,4 @@ Diagnostics & tracing:        ██░░░░░░░░  20%
 Development tools:            ░░░░░░░░░░   0%
 
 Overall project completion: ~95%
+
