@@ -325,6 +325,7 @@ class Chip8Controller:
         @details
         Called after every executed CHIP-8 instruction.
         """
+        self._update_diagnostics_view()
         if result is not None and result.display_changed:
             self._update_display()
         if self._configuration.disable_display_updates:

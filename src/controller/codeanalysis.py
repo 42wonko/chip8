@@ -21,6 +21,7 @@ from collections import deque
 from dataclasses import dataclass
 from enum import StrEnum
 
+from controller.applicationlogreporter import ApplicationLogReporter
 from controller.diagnostics import DiagnosticReporter
 from emulator.chip8memory import Chip8Memory
 from emulator.constants import CHIP8_STACK_SIZE, PROGRAM_START
