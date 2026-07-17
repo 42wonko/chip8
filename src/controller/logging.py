@@ -192,6 +192,8 @@ class ExecutionTracer:
         if not self._enabled:
             return
 
+        before = record.registers_before
+        after = record.registers_after
         # BASIC
         line = (
             f"{record.cycle:06d} "
@@ -200,9 +202,7 @@ class ExecutionTracer:
             f"{record.instruction}"
         )
 
-        if self._trace_level >= TraceLevel.CHANGES:                     # CHANGES
-            before = record.registers_before
-            after = record.registers_after
+        if self._trace_level == TraceLevel.CHANGES:                     # CHANGES
             line += "\n"
 
             if before.pc != after.pc:                                   # Registers
@@ -236,7 +236,13 @@ class ExecutionTracer:
 
             if record.display_changed:                                  # Display
                 line += " | DISPLAY UPDATED"
-        if self._trace_level >= TraceLevel.FULL:
+
+        if self._trace_level == TraceLevel.FULL:
+            line += ( f"\n       PC: 0x{before.pc:03X} -> 0x{after.pc:03X}")
+            line += ( f" | I: 0x{before.i:03X} -> 0x{after.i:03X}")
+            line += ( f" | SP: 0x{before.sp:X} -> 0x{after.sp:X}")
+            line += ( f" | DT: 0x{record.delay_timer_before:02X} -> 0x{record.delay_timer_after:02X}")
+            line += ( f" | ST: 0x{record.sound_timer_before:02X} -> 0x{record.sound_timer_after:02X}")
             line += "\n       " + " ".join( f"V{i:X}=0x{record.registers_after.read_register(i):02X}" for i in range(8))
             line += "\n       " + " ".join( f"V{i:X}=0x{record.registers_after.read_register(i):02X}" for i in range(8,16))
         self._sink.write(line)
