@@ -6,10 +6,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import IntEnum, auto      # we need the IntEnum for comparisons
 
 
-class TraceLevel(Enum):
+class TraceLevel(IntEnum):
     """
     @brief Amount of information written to the CHIP-8 execution trace.
     """

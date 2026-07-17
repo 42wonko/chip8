@@ -1,7 +1,6 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
-
+from emulator.chip8registers import Chip8Registers
 from emulator.instruction import Instruction
 
 
@@ -14,7 +13,19 @@ class TraceRecord:
     immediately after executing an instruction. Formatting
     is performed by the ExecutionTraceReporter.
     """
-    pc_before: int
-    pc_after: int
+
+    cycle: int
     instruction: Instruction
 
+    registers_before: Chip8Registers
+    registers_after: Chip8Registers
+
+    delay_timer_before: int
+    delay_timer_after: int
+
+    sound_timer_before: int
+    sound_timer_after: int
+
+    memory_range: tuple[int, int] | None = None
+
+    display_changed: bool = False

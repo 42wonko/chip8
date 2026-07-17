@@ -41,6 +41,22 @@ class Chip8Registers:
         self._pc: int = PROGRAM_START                   # program counter, 12 bit
         self._sp: int = 0                               # stack pointer 4 bit
 
+
+    ###########################################################################
+    # Creata a deep copy 
+    ###########################################################################
+    def copy(self) -> "Chip8Registers":
+        """
+        Return a deep copy of the register set.
+        """
+        registers = Chip8Registers()
+        registers._v[:] = self._v[:]
+        registers._i = self._i
+        registers._pc = self._pc
+        registers._sp = self._sp
+        return registers
+
+
     ###########################################################################
     # General-purpose registers
     ###########################################################################

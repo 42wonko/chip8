@@ -12,7 +12,7 @@ from enum import Enum, auto
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.bufferedfilesink import BufferedFileSink
 from controller.diagnostic import DiagnosticSource, format_source
-from controller.emulatorconfiguration import EmulatorConfiguration
+from controller.emulatorconfiguration import EmulatorConfiguration, TraceLevel
 from controller.executiontracereporter import ExecutionTraceReporter
 from emulator.tracerecord import TraceRecord
 
@@ -148,7 +148,7 @@ class ExecutionTracer:
         self._enabled = False
         self._sink = BufferedFileSink()
         self._filename = ""
-        self._cycle = 0
+        self._trace_level = TraceLevel.BASIC
 
 
     def enable(self) -> None:
@@ -181,20 +181,64 @@ class ExecutionTracer:
             self._sink.open(filename)
 
 
+    def set_level(self, trace_level: TraceLevel) -> None:
+        self._trace_level = trace_level
+
+
     def trace(self, record: TraceRecord) -> None:
         """
         @brief Write one execution trace record.
         """
         if not self._enabled:
             return
-        self._cycle += 1
+
+        # BASIC
         line = (
-            f"{self._cycle:06d} "
-            f"{record.pc_before:03X} "
+            f"{record.cycle:06d} "
+            f"{record.registers_before.pc:03X} "
             f"{record.instruction.opcode:04X} "
             f"{record.instruction}"
-            f" -> {record.pc_after:03X}"
         )
+
+        if self._trace_level >= TraceLevel.CHANGES:                     # CHANGES
+            before = record.registers_before
+            after = record.registers_after
+            line += "\n"
+
+            if before.pc != after.pc:                                   # Registers
+                line += ( f"       | PC: 0x{before.pc:03X} -> 0x{after.pc:03X}")
+
+            if before.i != after.i:
+                line += ( f" | I: 0x{before.i:03X} -> 0x{after.i:03X}")
+
+            if before.sp != after.sp:
+                line += ( f" | SP: 0x{before.sp:X} -> 0x{after.sp:X}")
+
+            if record.delay_timer_before != record.delay_timer_after:
+                line += ( f" | DT: 0x{record.delay_timer_before:02X} -> 0x{record.delay_timer_after:02X}")
+
+            if record.sound_timer_before != record.sound_timer_after:
+                line += ( f" | ST: 0x{record.sound_timer_before:02X} -> 0x{record.sound_timer_after:02X}")
+
+            for reg in range(16):
+                old = before.read_register(reg)
+                new = after.read_register(reg)
+
+                if old != new:
+                    line += ( f" | V{reg:X}: 0x{old:02X} -> 0x{new:02X}")
+
+            if record.memory_range is not None:                         # Memory
+                start, end = record.memory_range
+                if start == end:
+                    line += f" | MEM: 0x{start:03X} UPDATED"
+                else:
+                    line += ( f" | MEM: 0x{start:03X} -> 0x{end:03X} UPDATED")
+
+            if record.display_changed:                                  # Display
+                line += " | DISPLAY UPDATED"
+        if self._trace_level >= TraceLevel.FULL:
+            line += "\n       " + " ".join( f"V{i:X}=0x{record.registers_after.read_register(i):02X}" for i in range(8))
+            line += "\n       " + " ".join( f"V{i:X}=0x{record.registers_after.read_register(i):02X}" for i in range(8,16))
         self._sink.write(line)
 
 
@@ -228,6 +272,7 @@ class LogManager:
 
         # CHIP-8 execution trace
         self._tracer.set_filename(configuration.trace_filename)
+        self._tracer.set_level(configuration.trace_level)
 
         if configuration.execution_trace_enabled:
             self._tracer.enable()

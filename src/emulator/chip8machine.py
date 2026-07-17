@@ -52,6 +52,7 @@ class Chip8Machine:
         self._keyboard          = Chip8Keyboard()
         self._framebuffer       = Chip8Framebuffer()
         self._trace_reporter    = tracer
+        self._cycle_counter     = 0
         self.reset()
 
     ###########################################################################
@@ -120,6 +121,8 @@ class Chip8Machine:
         self._framebuffer.reset()
         for offset, byte in enumerate(FONTSET):                 # init the builtin font
             self._memory.write_byte(FONT_START + offset, byte)
+        self._cycle_counter = 0
+
 
     def load_rom(self, data: bytes) -> None:
         """
@@ -163,15 +166,38 @@ class Chip8Machine:
         @brief Execute one instruction.
         """
         result = StepResult()
+        registers_before = self._registers.copy()
+        delay_timer_before = self._timers.delay_timer
+        sound_timer_before = self._timers.sound_timer
 
         instruction = self.fetch_instruction()
-        pc_before = instruction.address
 
         self._execute_instruction(instruction, result)
         if instruction.family == 0xB:
             result.bnnn_target = ( instruction.address, self.registers.pc)
-        ptrace_rec = TraceRecord(pc_before = pc_before, pc_after= self._registers.pc, instruction = instruction)
+
+        registers_after = self._registers.copy()
+        delay_timer_after = self._timers.delay_timer
+        sound_timer_after = self._timers.sound_timer
+
+        ptrace_rec = TraceRecord(
+                cycle=self._cycle_counter,
+                instruction=instruction,
+
+                registers_before=registers_before,
+                registers_after=registers_after,
+
+                delay_timer_before=delay_timer_before,
+                delay_timer_after=delay_timer_after,
+
+                sound_timer_before=sound_timer_before,
+                sound_timer_after=sound_timer_after,
+
+                memory_range=result.memory_range,
+                display_changed=result.display_changed
+                )
         self._trace_reporter.trace(ptrace_rec)
+        self._cycle_counter += 1
         return result
 
 
