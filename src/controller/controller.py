@@ -63,7 +63,7 @@ class Chip8Controller:
         """
         self._configuration = EmulatorConfiguration()
         self._diagnostics = Diagnostics()
-        self._controller_diagnostics = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
+        self._diagnostics_reporter = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
         self._log_manager = LogManager()
         self._log_manager.configure(self._configuration)
         self._logger: ApplicationLogReporter = ( self._log_manager.application_logger( DiagnosticSource.CONTROLLER))
@@ -72,7 +72,7 @@ class Chip8Controller:
         self._current_rom_data: bytes | None = None
         self._cpu_frequency = DEFAULT_CPU_FREQUENCY     # has to be before mainwindow!
         self._main_window = MainWindow(self)
-        self._machine = Chip8Machine(self._log_manager.execution_trace_reporter())
+        self._machine = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._cpu_timer = QTimer()
         self._cpu_timer.timeout.connect(self._cpu_tick)
@@ -151,7 +151,11 @@ class Chip8Controller:
             return
 
         path = Path(filename)
-        data = path.read_bytes()
+        try:
+            data = path.read_bytes()
+        except (FileNotFoundError, PermissionError, IsADirectoryError, OSError):
+            self._logger.error(f"Failed to load ROM '{path}'.")
+            self._diagnostics_reporter.error( f"Unable to load ROM '{path.name}'.")
 
 
         self._current_rom = path
@@ -192,6 +196,7 @@ class Chip8Controller:
         self._cpu_frequency = max(1, frequency)
         self._cpu_frequency = max(1, frequency)
         self._cpu_timer.setInterval(max(1, 1000 // self._cpu_frequency))
+        self._logger.info( f"CPU frequency set to {self._cpu_frequency} Hz.")
         self._logger.leave("set_cpu_frequency")
 
 
@@ -240,9 +245,7 @@ class Chip8Controller:
         @detail Resets the emulator an loads the current ROM if one is present.
         """
         self._logger.enter("reset")
-        self._logger.info("Reset emulator.")
         self.stop()
-        self._logger.info("Emulator reset")
         self._machine.reset()
         rom = self._current_rom_data    # hack to make mypy happy
         if rom is not None:
@@ -252,7 +255,6 @@ class Chip8Controller:
             self._code_analysis.rebuild()
             self._update_diagnostics_view()
             self._code_model.refresh()
-#            row = self._code_analysis.find_row(PROGRAM_START)
             row = self._code_analysis.find_row( self._machine.registers.pc)
             if row is not None:
                 self._main_window.scroll_code_to_row(row)
@@ -295,6 +297,7 @@ class Chip8Controller:
         self._logger.enter("configure_keyboard")
         dialog = KeyboardDialog(self._keyboard_map)
         dialog.exec()
+        self._logger.info("Keyboard configuration updated.")
         self._logger.leave("configure_keyboard")
 
 
@@ -306,13 +309,13 @@ class Chip8Controller:
         dialog = self._main_window.config_dialog
         dialog.configuration = self._configuration
         if not self._main_window.configure():
-            self._logger.leave("configure")
+            self._logger.leave("Configure")
             return
         self._configuration = dialog.configuration
         self._log_manager.configure(self._configuration)        # Reconfigure all subsystems.
         self._beeper.configuration = self._configuration
-        self._logger.info("Configuration updated")
-        self._logger.leave("configure")
+        self._logger.info(" Emulator configuration updated")
+        self._logger.leave("Configure")
 
 
     ###########################################################################
@@ -418,7 +421,7 @@ class Chip8Controller:
         """
         @brief Refresh the diagnostics list.
         """
-        self._logger.enter("_update_diagnostics_view")
+#        self._logger.enter("_update_diagnostics_view")
         widget = self._main_window.diagnosticsListWidget
         widget.clear()
         for diagnostic in self._diagnostics:
@@ -434,4 +437,4 @@ class Chip8Controller:
             if diagnostic.count > 1:
                 text += f" (x{diagnostic.count})"
             widget.addItem(text)
-        self._logger.leave("_update_diagnostics_view")
+#        self._logger.leave("_update_diagnostics_view")
