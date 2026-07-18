@@ -6,11 +6,11 @@
 
 import unittest
 
-from emulator.chip8framebuffer import Chip8Framebuffer
 from emulator.constants import DISPLAY_HEIGHT, DISPLAY_WIDTH
+from tests.helpers import create_framebuffer
 
 
-class TestChip8Framebuffer(unittest.TestCase):
+class TestcreateFramebuffer(unittest.TestCase):
     """
     @brief Tests for the CHIP-8 framebuffer.
     """
@@ -20,7 +20,7 @@ class TestChip8Framebuffer(unittest.TestCase):
     ###########################################################################
 
     def test_initial_state(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         for y in range(DISPLAY_HEIGHT):
             for x in range(DISPLAY_WIDTH):
@@ -31,14 +31,14 @@ class TestChip8Framebuffer(unittest.TestCase):
     ###########################################################################
 
     def test_set_pixel(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         framebuffer.set_pixel(10, 5, True)
 
         self.assertTrue(framebuffer.get_pixel(10, 5))
 
     def test_clear_pixel(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         framebuffer.set_pixel(10, 5, True)
         framebuffer.set_pixel(10, 5, False)
@@ -50,7 +50,7 @@ class TestChip8Framebuffer(unittest.TestCase):
     ###########################################################################
 
     def test_xor_sets_pixel(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         collision = framebuffer.xor_pixel(4, 7)
 
@@ -58,7 +58,7 @@ class TestChip8Framebuffer(unittest.TestCase):
         self.assertTrue(framebuffer.get_pixel(4, 7))
 
     def test_xor_clears_pixel(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         framebuffer.set_pixel(4, 7, True)
 
@@ -72,21 +72,21 @@ class TestChip8Framebuffer(unittest.TestCase):
     ###########################################################################
 
     def test_wrap_x_coordinate(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         framebuffer.set_pixel(DISPLAY_WIDTH, 0, True)
 
         self.assertTrue(framebuffer.get_pixel(0, 0))
 
     def test_wrap_y_coordinate(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         framebuffer.set_pixel(0, DISPLAY_HEIGHT, True)
 
         self.assertTrue(framebuffer.get_pixel(0, 0))
 
     def test_negative_coordinates_wrap(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         framebuffer.set_pixel(-1, -1, True)
 
@@ -102,7 +102,7 @@ class TestChip8Framebuffer(unittest.TestCase):
     ###########################################################################
 
     def test_reset(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         framebuffer.set_pixel(1, 2, True)
         framebuffer.set_pixel(10, 20, True)
@@ -118,7 +118,7 @@ class TestChip8Framebuffer(unittest.TestCase):
     ###########################################################################
 
     def test_pixels_returns_framebuffer(self) -> None:
-        framebuffer = Chip8Framebuffer()
+        framebuffer = create_framebuffer()
 
         framebuffer.set_pixel(3, 4, True)
 

@@ -6,11 +6,11 @@
 
 import unittest
 
-from emulator.chip8keyboard import Chip8Keyboard
 from emulator.constants import KEY_COUNT
+from tests.helpers import create_keyboard
 
 
-class TestChip8Keyboard(unittest.TestCase):
+class TestcreateKeyboard(unittest.TestCase):
     """
     @brief Tests for the CHIP-8 keyboard.
     """
@@ -19,7 +19,7 @@ class TestChip8Keyboard(unittest.TestCase):
     # Construction
     ###########################################################################
     def test_initial_state(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         for key in range(KEY_COUNT):
             self.assertFalse(keyboard.is_pressed(key))
 
@@ -27,18 +27,18 @@ class TestChip8Keyboard(unittest.TestCase):
     # Key handling
     ###########################################################################
     def test_press_key(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         keyboard.press(5)
         self.assertTrue(keyboard.is_pressed(5))
 
     def test_release_key(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         keyboard.press(5)
         keyboard.release(5)
         self.assertFalse(keyboard.is_pressed(5))
 
     def test_press_does_not_affect_other_keys(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         keyboard.press(3)
         for key in range(KEY_COUNT):
             if key == 3:
@@ -47,23 +47,23 @@ class TestChip8Keyboard(unittest.TestCase):
                 self.assertFalse(keyboard.is_pressed(key))
 
     def test_first_pressed_none(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         self.assertIsNone(keyboard.first_pressed())
 
     def test_first_pressed_single_key(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         keyboard.press(7)
         self.assertEqual(keyboard.first_pressed(), 7)
 
     def test_first_pressed_returns_lowest_key(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         keyboard.press(12)
         keyboard.press(3)
         keyboard.press(9)
         self.assertEqual(keyboard.first_pressed(), 3)
 
     def test_first_pressed_after_release(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         keyboard.press(5)
         keyboard.press(8)
         keyboard.release(5)
@@ -74,12 +74,12 @@ class TestChip8Keyboard(unittest.TestCase):
     # Validation
     ###########################################################################
     def test_invalid_key_too_small(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         with self.assertRaises(IndexError):
             keyboard.press(-1)
 
     def test_invalid_key_too_large(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         with self.assertRaises(IndexError):
             keyboard.press(KEY_COUNT)
 
@@ -87,7 +87,7 @@ class TestChip8Keyboard(unittest.TestCase):
     # Reset
     ###########################################################################
     def test_reset(self) -> None:
-        keyboard = Chip8Keyboard()
+        keyboard = create_keyboard()
         keyboard.press(1)
         keyboard.press(5)
         keyboard.press(10)

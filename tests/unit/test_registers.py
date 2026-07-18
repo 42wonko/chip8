@@ -6,7 +6,6 @@
 
 import unittest
 
-from emulator.chip8registers import Chip8Registers
 from emulator.constants import (
     ADDRESS_MASK,
     BYTE_MASK,
@@ -14,9 +13,10 @@ from emulator.constants import (
     REGISTER_COUNT,
     STACK_POINTER_MASK,
 )
+from tests.helpers import create_registers
 
 
-class TestChip8Registers(unittest.TestCase):
+class TestcreateRegisters(unittest.TestCase):
     """
     @brief Tests for the CHIP-8 CPU registers.
     """
@@ -26,7 +26,7 @@ class TestChip8Registers(unittest.TestCase):
     ###########################################################################
 
     def test_initial_state(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
 
         for index in range(REGISTER_COUNT):
             self.assertEqual(registers[index], 0)
@@ -39,7 +39,7 @@ class TestChip8Registers(unittest.TestCase):
     # General-purpose registers
     ###########################################################################
     def test_read_write_register(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
         registers[0] = 0x12
         registers[5] = 0xAB
         registers[0xF] = 0xFF
@@ -48,17 +48,17 @@ class TestChip8Registers(unittest.TestCase):
         self.assertEqual(registers[0xF], 0xFF)
 
     def test_register_index_too_small(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
         with self.assertRaises(IndexError):
             registers[-1] = 0
 
     def test_register_index_too_large(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
         with self.assertRaises(IndexError):
             registers[REGISTER_COUNT] = 0
 
     def test_register_value_wraps(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
         registers[0] = 300
         self.assertEqual(registers[0], 300 & BYTE_MASK)
 
@@ -67,27 +67,27 @@ class TestChip8Registers(unittest.TestCase):
     ###########################################################################
 
     def test_index_register_wraps_to_12_bits(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
         registers.i = 0xFFFF
         self.assertEqual(registers.i, ADDRESS_MASK)
 
     def test_program_counter_wraps_to_12_bits(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
         registers.pc = 0xFFFF
         self.assertEqual(registers.pc, ADDRESS_MASK)
 
     def test_stack_pointer_wraps_to_4_bits(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
         registers.sp = 0xFF
         self.assertEqual(registers.sp, STACK_POINTER_MASK)
 
     def test_program_counter_wraparound(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
         registers.pc = 0x1000
         self.assertEqual(registers.pc, 0)
 
     def test_stack_pointer_wraparound(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
         registers.sp = 0x10
         self.assertEqual(registers.sp, 0)
 
@@ -96,7 +96,7 @@ class TestChip8Registers(unittest.TestCase):
     ###########################################################################
 
     def test_reset(self) -> None:
-        registers = Chip8Registers()
+        registers = create_registers()
 
         registers[3] = 0x42
         registers.i = 0x456

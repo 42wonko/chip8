@@ -6,14 +6,14 @@
 
 import unittest
 
-from emulator.chip8stack import Chip8Stack
 from emulator.constants import (
     ADDRESS_MASK,
     STACK_SIZE,
 )
+from tests.helpers import create_stack
 
 
-class TestChip8Stack(unittest.TestCase):
+class TestcreateStack(unittest.TestCase):
     """
     @brief Tests for the CHIP-8 stack.
     """
@@ -23,7 +23,7 @@ class TestChip8Stack(unittest.TestCase):
     ###########################################################################
 
     def test_pop_from_empty_stack(self) -> None:
-        stack = Chip8Stack()
+        stack = create_stack()
 
         #
         # Original CHIP-8 behaviour:
@@ -37,14 +37,14 @@ class TestChip8Stack(unittest.TestCase):
     ###########################################################################
 
     def test_push_pop(self) -> None:
-        stack = Chip8Stack()
+        stack = create_stack()
 
         stack.push(0x456)
 
         self.assertEqual(stack.pop(), 0x456)
 
     def test_lifo(self) -> None:
-        stack = Chip8Stack()
+        stack = create_stack()
 
         stack.push(0x111)
         stack.push(0x222)
@@ -59,7 +59,7 @@ class TestChip8Stack(unittest.TestCase):
     ###########################################################################
 
     def test_address_masking(self) -> None:
-        stack = Chip8Stack()
+        stack = create_stack()
 
         stack.push(0xFFFF)
 
@@ -70,7 +70,7 @@ class TestChip8Stack(unittest.TestCase):
     ###########################################################################
 
     def test_stack_pointer_wraps_on_push(self) -> None:
-        stack = Chip8Stack()
+        stack = create_stack()
 
         #
         # Push more values than the hardware stack can hold.
@@ -84,7 +84,7 @@ class TestChip8Stack(unittest.TestCase):
         self.assertEqual(stack.pop(), STACK_SIZE)
 
     def test_stack_pointer_wraps_on_pop(self) -> None:
-        stack = Chip8Stack()
+        stack = create_stack()
 
         stack.push(0x123)
 
@@ -100,7 +100,7 @@ class TestChip8Stack(unittest.TestCase):
         self.assertEqual(stack.pop(), 0)
 
     def test_push_masks_address(self) -> None:
-        stack = Chip8Stack()
+        stack = create_stack()
         stack.push(0xFFFF)
         self.assertEqual(stack.pop(), ADDRESS_MASK)
 
@@ -109,7 +109,7 @@ class TestChip8Stack(unittest.TestCase):
     ###########################################################################
 
     def test_reset(self) -> None:
-        stack = Chip8Stack()
+        stack = create_stack()
 
         stack.push(0x111)
         stack.push(0x222)
