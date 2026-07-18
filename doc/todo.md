@@ -34,10 +34,25 @@
 - [x] StepResult incremental GUI updates
 - [x] Memory range update optimization
 - [x] Diagnostics framework
-- [x] Application logging
+- [x] DiagnosticReporter
+- [x] Application logging framework
+- [x] ApplicationLogger
+- [x] ApplicationLogReporter
 - [x] Configurable application log file
 - [x] Optional function tracing
 - [x] BufferedFileSink abstraction
+- [x] LogManager
+- [x] Execution tracing infrastructure
+- [x] TraceRecord execution model
+- [x] ExecutionTracer
+- [x] ExecutionTraceReporter
+- [x] BASIC instruction trace
+- [x] Program counter tracing
+- [x] Configurable trace file
+- [x] Cycle-based trace numbering
+- [x] Controller integration
+- [x] Chip8Machine integration
+- [x] Trace remaining emulator state changes where appropriate
 
 ### Code Analysis
 
@@ -48,25 +63,39 @@
 - [x] Automatic Code View updates
 - [x] Duplicate runtime target suppression
 
-### Execution Tracing
-
-- [x] Execution tracing infrastructure
-- [x] TraceRecord execution model
-- [x] ExecutionTraceReporter
-- [x] BASIC instruction trace
-- [x] Program counter
-- [x] Configurable trace file
-- [x] Cycle-based trace numbering
-
-### Emulator logging
+### Emulator Logging
 
 - [x] Log emulator events to a file
 - [x] Configurable log file location
 - [x] Configurable log level
+- [x] Controller instrumentation
+- [x] CodeAnalysis instrumentation
 
-### Emulator debug trace
+### Emulator Debug Trace
 
 - [x] Function call trace
+
+### CHANGES trace level
+
+- [x] Register changes
+- [x] Timer changes
+- [x] Memory writes
+- [x] Display update events
+
+### FULL trace level
+
+- [x] Complete register dump
+- [x] I register
+- [x] Stack pointer
+- [x] Delay timer
+- [x] Sound timer
+
+### Testing
+
+- [x] Unit tests updated for logging/tracing architecture
+- [x] All unit tests passing
+- [x] Ruff clean
+- [x] mypy clean
 
 ---
 
@@ -74,22 +103,45 @@
 
 ### Execution Tracing
 
+The execution tracing framework is complete. Remaining work extends 
+the amount of information recorded.
+
 #### CHANGES trace level
 
-- [ ] Register changes
-- [ ] Timer changes
-- [ ] Memory writes
-- [ ] Display update events
 - [ ] Keyboard events
 - [ ] Sound transitions
 
-#### FULL trace level
 
-- [ ] Complete register dump
-- [ ] I register
-- [ ] Stack pointer
-- [ ] Delay timer
-- [ ] Sound timer
+#### Remaining integration
+
+- [ ] Review trace output for readability and consistency
+
+---
+
+### Diagnostics
+
+The diagnostics framework is complete.
+
+Remaining work:
+
+- [ ] Add diagnostics to remaining subsystems
+- [ ] Review diagnostic coverage
+- [ ] Add additional runtime diagnostics where useful
+
+---
+
+### Application Logging
+
+The logging framework is complete.
+
+Remaining work:
+
+- [ ] Instrument remaining subsystems
+- [ ] Improve logging coverage
+- [ ] Add additional developer-relevant log messages where appropriate
+- [ ] Add indentation to application tracing
+- [ ] Add automatic leave message for application tracing
+
 
 ---
 
@@ -97,11 +149,13 @@
 
 ### Audio
 
-- [ ] Investigate intermittent audio stoppage on some Linux systems
-    - Works reliably on openSUSE Tumbleweed
-    - Stops after several seconds on some Linux Mint systems
-    - Emulator continues to run; only audio stops
+- [ ] Investigate intermittent audio playback on some Linux systems
+    - Works reliably on Qt 6.9.x / PipeWire 1.4.x
+    - Playback stops after several seconds on Qt 6.6.x / PipeWire 1.0.x
+    - Emulator continues to run; only audio is affected
     - Restarting the emulator restores audio
+    - Investigation suggests a Qt Multimedia backend compatibility issue
+    - readData() stops being called after playback stalls
 
 ---
 
@@ -120,6 +174,7 @@
 - [ ] Go to address
 - [ ] Follow memory writes
 - [ ] Search for byte sequence in ROM
+- [ ] Highlight modified memory cells
 
 ### Audio
 
@@ -177,9 +232,12 @@ Audio:                        █████████░  95%
 
 Code analysis:                ██████████ 100%
 
-Diagnostics & tracing:        ██░░░░░░░░  20%
+Diagnostics:                  █████████░  90%
+
+Application logging:          █████████░  90%
+
+Execution tracing:            █████████░  90%
 
 Development tools:            ░░░░░░░░░░   0%
 
-Overall project completion: ~95%
-
+Overall project completion: ~97%
