@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import IntEnum, auto      # we need the IntEnum for comparisons
+from enum import IntEnum, auto  # we need the IntEnum for comparisons
 
 
 class TraceLevel(IntEnum):

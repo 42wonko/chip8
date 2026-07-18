@@ -20,6 +20,8 @@ MIT License
 
 from __future__ import annotations
 
+from controller.applicationlogreporter import ApplicationLogReporter
+from controller.diagnostics import DiagnosticReporter
 from emulator.constants import ADDRESS_MASK, STACK_SIZE
 
 
@@ -27,10 +29,12 @@ class Chip8Stack:
     """
     @brief CHIP-8 call stack.
     """
-    def __init__(self) -> None:
+    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
         """
         @brief Construct an empty stack.
         """
+        self._diagnostics = diagnostics
+        self._logger = logger
         self._stack: list[int] = [0] * STACK_SIZE       # we only store 12-bit return addresses
         self._sp: int = 0
 

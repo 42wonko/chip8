@@ -19,6 +19,8 @@ MIT License
 
 from __future__ import annotations
 
+from controller.applicationlogreporter import ApplicationLogReporter
+from controller.diagnostics import DiagnosticReporter
 from emulator.constants import BYTE_MASK
 
 
@@ -27,12 +29,14 @@ class Chip8Timers:
     @brief CHIP-8 timers.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
         """
         @brief Construct the timer registers.
         """
-        self._delay_timer: int = 0
-        self._sound_timer: int = 0
+        self._diagnostics       = diagnostics
+        self._logger            = logger
+        self._delay_timer: int  = 0
+        self._sound_timer: int  = 0
 
     ###########################################################################
     # Delay timer

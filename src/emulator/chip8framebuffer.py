@@ -23,6 +23,8 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
+from controller.applicationlogreporter import ApplicationLogReporter
+from controller.diagnostics import DiagnosticReporter
 from emulator.constants import DISPLAY_HEIGHT, DISPLAY_WIDTH
 
 
@@ -30,7 +32,9 @@ class Chip8Framebuffer:
     """
     @brief CHIP-8 framebuffer.
     """
-    def __init__(self) -> None:
+    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
+        self._diagnostics = diagnostics
+        self._logger = logger
         """
         @brief Construct an empty framebuffer.
         """

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import random
 
+from controller.applicationlogreporter import ApplicationLogReporter
+from controller.diagnostics import DiagnosticReporter
 from controller.executiontracereporter import ExecutionTraceReporter
 from emulator.chip8framebuffer import Chip8Framebuffer
 from emulator.chip8keyboard import Chip8Keyboard
@@ -37,7 +39,7 @@ class Chip8Machine:
     """
     @brief CHIP-8 virtual machine.
     """
-    def __init__(self, tracer: ExecutionTraceReporter) -> None:
+    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter, tracer: ExecutionTraceReporter) -> None:
 
         """
         @brief Construct the virtual machine.
@@ -45,14 +47,16 @@ class Chip8Machine:
         replacing any of the hardware components. By decorating them with @property
         we can still use them, though.
         """
-        self._memory            = Chip8Memory()
-        self._registers         = Chip8Registers()
-        self._stack             = Chip8Stack()
-        self._timers            = Chip8Timers()
-        self._keyboard          = Chip8Keyboard()
-        self._framebuffer       = Chip8Framebuffer()
-        self._trace_reporter    = tracer
-        self._cycle_counter     = 0
+        self._diagnostics           = diagnostics           # only needed to create the reporters for the subsystems
+        self._logger                = logger                # only needed to create the reporters for the subsystems
+        self._trace_reporter        = tracer
+        self._memory                = Chip8Memory(self._diagnostics, self._logger)
+        self._registers             = Chip8Registers(self._diagnostics, self._logger)
+        self._stack                 = Chip8Stack(self._diagnostics, self._logger)
+        self._timers                = Chip8Timers(self._diagnostics, self._logger)
+        self._keyboard              = Chip8Keyboard(self._diagnostics, self._logger)
+        self._framebuffer           = Chip8Framebuffer(self._diagnostics, self._logger)
+        self._cycle_counter         = 0
         self.reset()
 
     ###########################################################################

@@ -18,6 +18,8 @@ MIT License
 
 from __future__ import annotations
 
+from controller.applicationlogreporter import ApplicationLogReporter
+from controller.diagnostics import DiagnosticReporter
 from emulator.constants import (
     ADDRESS_MASK,
     BYTE_MASK,
@@ -32,24 +34,26 @@ class Chip8Registers:
     @brief CHIP-8 CPU registers.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
         """
         @brief Construct the register set.
         """
-        self._v: bytearray = bytearray(REGISTER_COUNT)  # registers V0-V15, 8bit
-        self._i: int = 0                                # index regiser 12 bit
-        self._pc: int = PROGRAM_START                   # program counter, 12 bit
-        self._sp: int = 0                               # stack pointer 4 bit
+        self._diagnostics   = diagnostics
+        self._logger        = logger
+        self._v: bytearray  = bytearray(REGISTER_COUNT)  # registers V0-V15, 8bit
+        self._i: int        = 0                                # index regiser 12 bit
+        self._pc: int       = PROGRAM_START                   # program counter, 12 bit
+        self._sp: int       = 0                               # stack pointer 4 bit
 
 
     ###########################################################################
-    # Creata a deep copy 
+    # Creata a deep copy
     ###########################################################################
     def copy(self) -> "Chip8Registers":
         """
         Return a deep copy of the register set.
         """
-        registers = Chip8Registers()
+        registers = Chip8Registers(self._diagnostics, self._logger)
         registers._v[:] = self._v[:]
         registers._i = self._i
         registers._pc = self._pc

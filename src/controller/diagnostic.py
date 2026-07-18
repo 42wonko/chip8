@@ -18,13 +18,12 @@ class DiagnosticSource(StrEnum):
     """
     @brief Originating subsystem.
     """
-
-    ANALYZER = auto()
-    CONTROLLER = auto()
-    EMULATOR = auto()
-    AUDIO = auto()
-    GUI = auto()
-
+    ANALYZER    = auto()
+    CONTROLLER  = auto()
+    EMULATOR    = auto()
+    AUDIO       = auto()
+    GUI         = auto()
+    UNIT_TEST   = auto()
 
 def format_severity(severity: DiagnosticSeverity) -> str:
     """

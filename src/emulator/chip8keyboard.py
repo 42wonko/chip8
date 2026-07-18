@@ -18,6 +18,8 @@ MIT License
 
 from __future__ import annotations
 
+from controller.applicationlogreporter import ApplicationLogReporter
+from controller.diagnostics import DiagnosticReporter
 from emulator.constants import KEY_COUNT
 
 
@@ -25,10 +27,12 @@ class Chip8Keyboard:
     """
     @brief CHIP-8 hexadecimal keypad.
     """
-    def __init__(self) -> None:
+    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
         """
         @brief Construct the keyboard.
         """
+        self._diagnostics = diagnostics
+        self._logger = logger
         self._keys: list[bool] = [False] * KEY_COUNT
 
 
