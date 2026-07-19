@@ -62,7 +62,7 @@ def create_framebuffer() -> Chip8Framebuffer:
 def create_keyboard() -> Chip8Keyboard:
     log_manager = LogManager()
     diagnostics = Diagnostics()
-    return Chip8Keyboard(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST))
+    return Chip8Keyboard(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST), log_manager.execution_trace_reporter(), lambda: 0)
 
 def create_memory() -> Chip8Memory:
     log_manager = LogManager()
