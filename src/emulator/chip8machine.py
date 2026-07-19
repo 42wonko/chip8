@@ -50,13 +50,13 @@ class Chip8Machine:
         self._diagnostics           = diagnostics           # only needed to create the reporters for the subsystems
         self._logger                = logger                # only needed to create the reporters for the subsystems
         self._trace_reporter        = tracer
+        self._cycles                = 0
         self._memory                = Chip8Memory(self._diagnostics, self._logger)
         self._registers             = Chip8Registers(self._diagnostics, self._logger)
         self._stack                 = Chip8Stack(self._diagnostics, self._logger)
         self._timers                = Chip8Timers(self._diagnostics, self._logger)
-        self._keyboard              = Chip8Keyboard(self._diagnostics, self._logger)
+        self._keyboard              = Chip8Keyboard(self._diagnostics, self._logger, self._trace_reporter, cycle_provider=self.cycle_counter)
         self._framebuffer           = Chip8Framebuffer(self._diagnostics, self._logger)
-        self._cycle_counter         = 0
         self.reset()
 
     ###########################################################################
@@ -110,6 +110,13 @@ class Chip8Machine:
         return self._framebuffer
 
 
+    def cycle_counter(self) -> int:
+        """
+        @brief returns the current cycle count. Needed for execution tracing in Keybord.
+        """
+        return self._cycles
+
+
     ###########################################################################
     # Machine control
     ###########################################################################
@@ -117,6 +124,7 @@ class Chip8Machine:
         """
         @brief Reset the complete virtual machine.
         """
+        self._logger.info("Resetting virtual machine.")
         self._memory.reset()
         self._registers.reset()
         self._stack.reset()
@@ -125,7 +133,7 @@ class Chip8Machine:
         self._framebuffer.reset()
         for offset, byte in enumerate(FONTSET):                 # init the builtin font
             self._memory.write_byte(FONT_START + offset, byte)
-        self._cycle_counter = 0
+        self._cycles = 0
 
 
     def load_rom(self, data: bytes) -> None:
@@ -135,6 +143,7 @@ class Chip8Machine:
         @param data
             ROM contents.
         """
+        self._logger.info(f"Loading ROM ({len(data)} bytes) into memory.")
         self.reset()
         self._memory.load_rom(data)
         self._registers.pc = PROGRAM_START
@@ -185,7 +194,7 @@ class Chip8Machine:
         sound_timer_after = self._timers.sound_timer
 
         ptrace_rec = TraceRecord(
-                cycle=self._cycle_counter,
+                cycle=self._cycles,
                 instruction=instruction,
 
                 registers_before=registers_before,
@@ -201,7 +210,7 @@ class Chip8Machine:
                 display_changed=result.display_changed
                 )
         self._trace_reporter.trace(ptrace_rec)
-        self._cycle_counter += 1
+        self._cycles += 1
         return result
 
 

@@ -151,12 +151,15 @@ class CodeAnalysis:
         """
         @brief Rebuild the complete analysis.
         """
+        self._logger.enter("rebuild")
+        self._logger.info("Starting code analysis.")
         self._instructions.clear()
         self._address_to_row.clear()
         self._initialize_status()
         self._analyze()
         self._build_rows()
-
+        self._logger.info("Code analysis completed.")
+        self._logger.leave("rebuild")
 
     def observe_bnnn_target( self, instruction_address: int, target: int) -> bool:
         """

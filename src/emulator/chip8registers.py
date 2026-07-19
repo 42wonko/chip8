@@ -153,9 +153,8 @@ class Chip8Registers:
         """
         @brief Reset all registers.
         """
-
+        self._diagnostics.info("Resetting registers")
         self._v[:] = b"\x00" * REGISTER_COUNT
-
         self._i = 0
         self._pc = PROGRAM_START
         self._sp = 0
@@ -191,4 +190,6 @@ class Chip8Registers:
             Register number is invalid.
         """
         if index < 0 or index >= REGISTER_COUNT:
+            self._diagnostics.warning("Invalid register", index)
+            self._logger.warning("Invalid register <{index}>")
             raise IndexError( f"Register V{index:X} is out of range.")

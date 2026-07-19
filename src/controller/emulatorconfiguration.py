@@ -38,6 +38,9 @@ class EmulatorConfiguration:
     # Application Logging
     ###########################################################################
     logging_enabled: bool           = False
+    logging_enabled_info: bool      = False
+    logging_enabled_warning: bool   = False
+    logging_enabled_error: bool     = False
     log_filename: str               = ""
     function_trace_enabled: bool    = False
 

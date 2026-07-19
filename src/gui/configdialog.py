@@ -89,9 +89,11 @@ class ConfigDialog(QDialog):
             disable_display_updates=self.disableDisplayUpdatesCheckBox.isChecked(),
 
             logging_enabled=self.applicationLoggingGroupBox.isChecked(),
+            logging_enabled_info=self.logInformationCheckBox.isChecked(),
+            logging_enabled_warning=self.logWarningsCheckBox.isChecked(),
+            logging_enabled_error=self.logErrorsCheckBox.isChecked(),
             log_filename=self.logFilenameLineEdit.text(),
             function_trace_enabled=self.enableFunctionTraceCheckBox.isChecked(),
-
             execution_trace_enabled=self.executionTraceGroupBox.isChecked(),
             trace_filename=self.traceFilenameLineEdit.text(),
             trace_level=index_to_trace_level(self.traceLevelComboBox.currentIndex())
@@ -107,6 +109,9 @@ class ConfigDialog(QDialog):
         self.soundVolumeSlider.setValue( configuration.sound_volume)
         self.disableDisplayUpdatesCheckBox.setChecked( configuration.disable_display_updates)
         self.applicationLoggingGroupBox.setChecked(configuration.logging_enabled)
+        self.logInformationCheckBox.setChecked(configuration.logging_enabled_info)
+        self.logWarningsCheckBox.setChecked(configuration.logging_enabled_warning)
+        self.logErrorsCheckBox.setChecked(configuration.logging_enabled_error)
         self.logFilenameLineEdit.setText(configuration.log_filename)
         self.enableFunctionTraceCheckBox.setChecked(configuration.function_trace_enabled)
         self.executionTraceGroupBox.setChecked(configuration.execution_trace_enabled)

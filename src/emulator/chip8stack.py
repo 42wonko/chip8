@@ -53,6 +53,9 @@ class Chip8Stack:
             Return address.
         """
         self._stack[self._sp] = address & ADDRESS_MASK  #
+        if self._sp >= STACK_SIZE:
+            self._logger.warning("CHIP-8 stack overflow.")
+            self._diagnostics.warning("CHIP-8 stack overflow.")
         self._sp = (self._sp + 1) % STACK_SIZE          # modulo addressing allows wrap-around
 
 
@@ -63,6 +66,9 @@ class Chip8Stack:
         @return
             Return address.
         """
+        if self._sp <= 0:
+            self._logger.warning("CHIP-8 stack underflow.")
+            self._diagnostics.warning("CHIP-8 stack underflow.")
         self._sp = (self._sp - 1) % STACK_SIZE
         return self._stack[self._sp]
 
@@ -71,5 +77,6 @@ class Chip8Stack:
         """
         @brief Reset the stack.
         """
+        self._logger.info("Stack reset.")
         self._stack[:] = [0] * STACK_SIZE   # slice assignment reuses the existing list instead of allocating a new one
         self._sp = 0

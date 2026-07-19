@@ -314,7 +314,7 @@ class Chip8Controller:
         self._configuration = dialog.configuration
         self._log_manager.configure(self._configuration)        # Reconfigure all subsystems.
         self._beeper.configuration = self._configuration
-        self._logger.info(" Emulator configuration updated")
+        self._logger.info("Emulator configuration updated")
         self._logger.leave("Configure")
 
 
@@ -412,8 +412,10 @@ class Chip8Controller:
         self._machine.tick_timers()
         if self._machine.timers.sound_timer > 0:
             self._beeper.start()
+            self._logger.info("Beeper On")
         else:
             self._beeper.stop()
+            self._logger.info("Beeper Off")
         self.update_gui()
 
 

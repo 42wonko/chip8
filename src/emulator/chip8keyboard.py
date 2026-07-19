@@ -20,20 +20,25 @@ from __future__ import annotations
 
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.diagnostics import DiagnosticReporter
+from controller.executiontracereporter import ExecutionTraceReporter
+from emulator.tracerecord import KeyExecutionEvent, TraceRecord
 from emulator.constants import KEY_COUNT
+from collections.abc import Callable
 
 
 class Chip8Keyboard:
     """
     @brief CHIP-8 hexadecimal keypad.
     """
-    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
+    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter, tracer: ExecutionTraceReporter, cycle_provider: Callable[[], int]) -> None:
         """
         @brief Construct the keyboard.
         """
-        self._diagnostics = diagnostics
-        self._logger = logger
-        self._keys: list[bool] = [False] * KEY_COUNT
+        self._diagnostics_reporter  = diagnostics
+        self._log_reporter          = logger
+        self._trace_reporter        = tracer
+        self._keys: list[bool]      = [False] * KEY_COUNT
+        self._cycle                 = cycle_provider
 
 
     ###########################################################################
@@ -48,6 +53,7 @@ class Chip8Keyboard:
         """
         self._validate_key(key)
         self._keys[key] = True
+        self._trace_reporter.trace_key_event(self._cycle(), KeyExecutionEvent.KEY_DOWN, key)
 
 
     def release(self, key: int) -> None:
@@ -59,6 +65,7 @@ class Chip8Keyboard:
         """
         self._validate_key(key)
         self._keys[key] = False
+        self._trace_reporter.trace_key_event(self._cycle(), KeyExecutionEvent.KEY_UP, key)
 
 
     def is_pressed(self, key: int) -> bool:
@@ -110,5 +117,6 @@ class Chip8Keyboard:
             Invalid key number.
         """
         if key < 0 or key >= KEY_COUNT:
+            self._diagnostics_reporter.warning("Key <{key.X}> is out of range")
             raise IndexError( f"Key {key:X} is out of range.")
 

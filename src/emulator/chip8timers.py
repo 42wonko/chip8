@@ -99,5 +99,6 @@ class Chip8Timers:
         """
         @brief Reset both timers.
         """
+        self._diagnostics.info("Resetting timers")
         self._delay_timer = 0
         self._sound_timer = 0

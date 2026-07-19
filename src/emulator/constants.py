@@ -88,3 +88,9 @@ BYTE_MASK: int          = 0x00FF    # make sure a value stays within 8 bits
 NIBBLE_MASK: int        = 0x000F    # mask the lower 4 bits of a byte.
 ADDRESS_MASK: int       = 0x0FFF    # makae sure an address is alwas within 12 bits
 STACK_POINTER_MASK: int = 0x000F    # we have a 4 bit stack pointer
+
+###############################################################################
+# Application / Version
+###############################################################################
+APPLICATION_NAME = "CHIP-8 Emulator"
+APPLICATION_VERSION = "1.0.0"

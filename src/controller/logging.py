@@ -8,14 +8,16 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum, auto
-
+import platform
+from numpy import record
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.bufferedfilesink import BufferedFileSink
 from controller.diagnostic import DiagnosticSource, format_source
 from controller.emulatorconfiguration import EmulatorConfiguration, TraceLevel
 from controller.executiontracereporter import ExecutionTraceReporter
-from emulator.tracerecord import TraceRecord
-
+from controller.sessionheader import SessionHeader
+from emulator.tracerecord import KeyExecutionEvent, TraceRecord
+from emulator.constants import APPLICATION_NAME, APPLICATION_VERSION
 
 class LogSeverity(Enum):
     """
@@ -41,6 +43,25 @@ class ApplicationLogger:
         self._sink = BufferedFileSink()
         self._filename = ""
         self._function_trace_enabled = False
+
+
+    def write_header(self, header: SessionHeader) -> None:
+        """
+        @brief Writes a session header to the application log.
+        """
+        text = (
+            "===============================================================================\n"
+            f"{header.application} - {header.title}\n"
+            "===============================================================================\n"
+            f"Session started : {header.timestamp:%Y-%m-%d %H:%M:%S}\n"
+            f"Application     : {header.application}\n"
+            f"Version         : {header.version}\n"
+            f"Python          : {header.python_version}\n"
+        )
+        if header.logging is not None:
+            text += f"Logging         : {header.logging}\n"
+        text += ( "===============================================================================\n\n")
+        self._sink.write(text)
 
 
     def enable(self) -> None:
@@ -137,18 +158,33 @@ class ApplicationLogger:
         self._sink.write( f"{timestamp} [{severity.name}] {format_source(source):>10} {message}")
 
 
-
-
 class ExecutionTracer:
     """
     @brief CHIP-8 execution trace writer.
     """
-
     def __init__(self) -> None:
         self._enabled = False
         self._sink = BufferedFileSink()
         self._filename = ""
         self._trace_level = TraceLevel.BASIC
+
+    def write_header(self, header: SessionHeader) -> None:
+        """
+        @brief Writes a session header to the execution trace.
+        """
+        text = (
+            "===============================================================================\n"
+            f"{header.application} - {header.title}\n"
+            "===============================================================================\n"
+            f"Session started : {header.timestamp:%Y-%m-%d %H:%M:%S}\n"
+            f"Application     : {header.application}\n"
+            f"Version         : {header.version}\n"
+            f"Python          : {header.python_version}\n"
+        )
+        if header.trace_level is not None:
+            text += f"Trace level     : {header.trace_level}\n"
+        text += ( "===============================================================================\n\n")
+        self._sink.write(text)
 
 
     def enable(self) -> None:
@@ -185,13 +221,13 @@ class ExecutionTracer:
         self._trace_level = trace_level
 
 
-    def trace(self, record: TraceRecord) -> None:
+    def trace_instruction(self, record: TraceRecord) -> None:
         """
         @brief Write one execution trace record.
         """
         if not self._enabled:
             return
-
+    
         before = record.registers_before
         after = record.registers_after
         # BASIC
@@ -247,7 +283,22 @@ class ExecutionTracer:
             line += "\n       " + " ".join( f"V{i:X}=0x{record.registers_after.read_register(i):02X}" for i in range(8,16))
         self._sink.write(line)
 
+    def trace_key_event(self, cycle: int, event: KeyExecutionEvent, key: int) -> None:
+        if not self._enabled:
+            return
+    
+        if event != KeyExecutionEvent.NONE:
+            line = ""
+            if KeyExecutionEvent.KEY_UP == event:
+                line = f'{cycle:06d} KEY UP   <{key:1X}>'
+            elif KeyExecutionEvent.KEY_DOWN == event:
+                line = f'{cycle:06d} KEY DOWN <{key:1X}>'
+            self._sink.write(line)
 
+
+    ###########################################################################
+    # Factory
+    ###########################################################################
     def reporter(self) -> ExecutionTraceReporter:
         return ExecutionTraceReporter(self)
 
@@ -261,7 +312,6 @@ class LogManager:
     def __init__(self) -> None:
         self._logger = ApplicationLogger()
         self._tracer = ExecutionTracer()
-
 
     def configure(self, configuration: EmulatorConfiguration) -> None:
         """
@@ -285,6 +335,35 @@ class LogManager:
         else:
             self._tracer.disable()
 
+        enabled = []
+        if configuration.logging_enabled_info:
+            enabled.append("Information")
+        if configuration.logging_enabled_warning:
+            enabled.append("Warnings")
+        if configuration.logging_enabled_error:
+            enabled.append("Errors")
+        if configuration.function_trace_enabled:
+            enabled.append("Function trace")
+        self._logger.write_header(
+            SessionHeader(
+                title="Application Log",
+                application=APPLICATION_NAME,
+                version=APPLICATION_VERSION,
+                python_version=platform.python_version(),
+                timestamp=datetime.now(),
+                logging=", ".join(enabled)
+            )
+        )
+        self._tracer.write_header(
+            SessionHeader(
+                title="Execution Trace",
+                application=APPLICATION_NAME,
+                version=APPLICATION_VERSION,
+                python_version=platform.python_version(),
+                timestamp=datetime.now(),
+                trace_level=configuration.trace_level.name
+            )
+        )
 
     def application_logger( self, source: DiagnosticSource) -> ApplicationLogReporter:
         """
