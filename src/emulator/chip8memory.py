@@ -46,6 +46,7 @@ class Chip8Memory:
         """
         @brief Reset and clear the complete memory.
         """
+        self._logger.info("Clearing emulator memory.")
         self._memory[:] = b"\x00" * MEMORY_SIZE
 
 
@@ -86,8 +87,12 @@ class Chip8Memory:
         """
         end: int = PROGRAM_START + len(data)
         if end > MEMORY_SIZE:
+            self._logger.error( f"ROM size {len(data)} exceeds maximum {MEMORY_SIZE} bytes.")
+            self._diagnostics.error( f"ROM is too large ({len(data)} bytes).")
             raise ValueError("ROM image exceeds available memory.")
+        self._logger.info( f"Copied {len(data)} ROM bytes to memory at 0x{PROGRAM_START:03X}.")
         self._memory[PROGRAM_START:end] = data
+
 
     def size(self) -> int:
         """
