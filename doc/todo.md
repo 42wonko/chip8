@@ -81,6 +81,7 @@
 - [x] Timer changes
 - [x] Memory writes
 - [x] Display update events
+- [x] Keyboard events
 
 ### FULL trace level
 
@@ -97,19 +98,27 @@
 - [x] Ruff clean
 - [x] mypy clean
 
+### Diagnostics
+
+The diagnostics framework is complete.
+
+- [x] Add diagnostics to remaining subsystems
+- [x] Review diagnostic coverage
+- [x] Add additional runtime diagnostics where useful
+
+---
+
+### Application Logging
+
+Remaining work:
+
+- [x] Instrument remaining subsystems
+- [x] Improve logging coverage
+- [x] Add additional developer-relevant log messages where appropriate
+
 ---
 
 ## Remaining Features
-
-### Execution Tracing
-
-The execution tracing framework is complete. Remaining work extends 
-the amount of information recorded.
-
-#### CHANGES trace level
-
-- [ ] Keyboard events
-- [ ] Sound transitions
 
 
 #### Remaining integration
@@ -118,27 +127,10 @@ the amount of information recorded.
 
 ---
 
-### Diagnostics
-
-The diagnostics framework is complete.
-
-Remaining work:
-
-- [ ] Add diagnostics to remaining subsystems
-- [ ] Review diagnostic coverage
-- [ ] Add additional runtime diagnostics where useful
-
----
-
 ### Application Logging
 
-The logging framework is complete.
-
 Remaining work:
 
-- [ ] Instrument remaining subsystems
-- [ ] Improve logging coverage
-- [ ] Add additional developer-relevant log messages where appropriate
 - [ ] Add indentation to application tracing
 - [ ] Add automatic leave message for application tracing
 
