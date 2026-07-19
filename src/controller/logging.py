@@ -24,10 +24,9 @@ class LogSeverity(Enum):
     """
     @brief Severity of an application log message.
     """
-
-    INFO = auto()
+    INFO    = auto()
     WARNING = auto()
-    ERROR = auto()
+    ERROR   = auto()
 
 
 class ApplicationLogger:
@@ -44,6 +43,7 @@ class ApplicationLogger:
         self._sink = BufferedFileSink()
         self._filename = ""
         self._function_trace_enabled = False
+        self._indent_level = 0
 
 
     def write_header(self, header: SessionHeader) -> None:
@@ -134,17 +134,23 @@ class ApplicationLogger:
         """
         @brief Record function entry.
         """
-        if self._function_trace_enabled:
-            self.info(source, f">>> {function}")
+        if not self._function_trace_enabled:
+            return
+        timestamp = datetime.now().strftime("%H:%M:%S %H:%M:%S")
+        self._write_indented( f"{timestamp} TRACE   {source.value:<16} {function}() ENTER\n")
+        self._indent_level += 1
 
 
     def leave(self, source: DiagnosticSource, function: str) -> None:
         """
         @brief Record function exit.
         """
-        if self._function_trace_enabled:
-            self.info(source, f"<<< {function}")
-
+        if not self._function_trace_enabled:
+            return
+        if self._indent_level > 0:
+            self._indent_level -= 1
+        timestamp = datetime.now().strftime("%H:%M:%S %H:%M:%S")
+        self._write_indented( f"{timestamp} TRACE   {source.value:<16} {function}() LEAVE\n")
 
     ###########################################################################
     # private helpers
@@ -156,7 +162,14 @@ class ApplicationLogger:
         if not self._enabled:
             return
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self._sink.write( f"{timestamp} [{severity.name}] {format_source(source):>10} {message}")
+        self._write_indented( f"{timestamp} [{severity.name}] {format_source(source):>10} {message}")
+
+
+    def _write_indented(self, text: str) -> None:
+        """
+        @brief Writes a message using the current indentation level.
+        """
+        self._sink.write(f"{'    ' * self._indent_level}{text}")
 
 
 class ExecutionTracer:
@@ -168,6 +181,7 @@ class ExecutionTracer:
         self._sink = BufferedFileSink()
         self._filename = ""
         self._trace_level = TraceLevel.BASIC
+
 
     def write_header(self, header: SessionHeader) -> None:
         """
