@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum, auto
 
 from emulator.chip8registers import Chip8Registers
 from emulator.instruction import Instruction
+
+class KeyExecutionEvent(Enum):
+    NONE = auto()
+    KEY_DOWN = auto()
+    KEY_UP = auto()
 
 
 @dataclass(slots=True, frozen = True)
@@ -31,3 +37,7 @@ class TraceRecord:
     memory_range: tuple[int, int] | None = None
 
     display_changed: bool = False
+
+    key_event: KeyExecutionEvent = KeyExecutionEvent.NONE
+    key: int | None = None
+
