@@ -6,18 +6,19 @@
 
 from __future__ import annotations
 
+import platform
 from datetime import datetime
 from enum import Enum, auto
-import platform
-from numpy import record
+
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.bufferedfilesink import BufferedFileSink
 from controller.diagnostic import DiagnosticSource, format_source
 from controller.emulatorconfiguration import EmulatorConfiguration, TraceLevel
 from controller.executiontracereporter import ExecutionTraceReporter
 from controller.sessionheader import SessionHeader
-from emulator.tracerecord import KeyExecutionEvent, TraceRecord
 from emulator.constants import APPLICATION_NAME, APPLICATION_VERSION
+from emulator.tracerecord import KeyExecutionEvent, TraceRecord
+
 
 class LogSeverity(Enum):
     """
@@ -227,7 +228,7 @@ class ExecutionTracer:
         """
         if not self._enabled:
             return
-    
+
         before = record.registers_before
         after = record.registers_after
         # BASIC
@@ -286,7 +287,7 @@ class ExecutionTracer:
     def trace_key_event(self, cycle: int, event: KeyExecutionEvent, key: int) -> None:
         if not self._enabled:
             return
-    
+
         if event != KeyExecutionEvent.NONE:
             line = ""
             if KeyExecutionEvent.KEY_UP == event:

@@ -18,12 +18,13 @@ MIT License
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.diagnostics import DiagnosticReporter
 from controller.executiontracereporter import ExecutionTraceReporter
-from emulator.tracerecord import KeyExecutionEvent, TraceRecord
 from emulator.constants import KEY_COUNT
-from collections.abc import Callable
+from emulator.tracerecord import KeyExecutionEvent
 
 
 class Chip8Keyboard:

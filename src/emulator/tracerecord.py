@@ -6,6 +6,7 @@ from enum import Enum, auto
 from emulator.chip8registers import Chip8Registers
 from emulator.instruction import Instruction
 
+
 class KeyExecutionEvent(Enum):
     NONE = auto()
     KEY_DOWN = auto()
