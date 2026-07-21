@@ -26,7 +26,18 @@
 - [x] CHIP-8 beep emulation
 - [x] Runtime enable/disable
 - [x] Volume control
+- [x] Beeper frequency control
 - [x] Configuration dialog integration
+- [x] sounddevice / PortAudio backend
+- [x] Continuous audio stream
+- [x] Callback-based waveform generation
+- [x] Square wave generation
+- [x] Phase accumulator waveform continuity
+- [x] Stereo output
+- [x] Audio output device selection
+- [x] Runtime audio device switching
+- [x] Audio backend isolated in AudioDevice
+- [x] Audio unit tests
 
 ### Infrastructure
 
@@ -94,6 +105,7 @@
 ### Testing
 
 - [x] Unit tests updated for logging/tracing architecture
+- [x] Audio subsystem unit tests
 - [x] All unit tests passing
 - [x] Ruff clean
 - [x] mypy clean
@@ -115,6 +127,8 @@ Remaining work:
 - [x] Instrument remaining subsystems
 - [x] Improve logging coverage
 - [x] Add additional developer-relevant log messages where appropriate
+- [x] Add indentation to application tracing
+- [x] Add automatic leave message for application tracing
 
 ---
 
@@ -127,27 +141,8 @@ Remaining work:
 
 ---
 
-### Application Logging
-
-Remaining work:
-
-- [ ] Add indentation to application tracing
-- [ ] Add automatic leave message for application tracing
-
-
----
-
 ## Known Issues
 
-### Audio
-
-- [ ] Investigate intermittent audio playback on some Linux systems
-    - Works reliably on Qt 6.9.x / PipeWire 1.4.x
-    - Playback stops after several seconds on Qt 6.6.x / PipeWire 1.0.x
-    - Emulator continues to run; only audio is affected
-    - Restarting the emulator restores audio
-    - Investigation suggests a Qt Multimedia backend compatibility issue
-    - readData() stops being called after playback stalls
 
 ---
 
@@ -158,6 +153,17 @@ Remaining work:
 - [ ] Persist configuration between sessions
 - [ ] Remember last ROM directory
 - [ ] Remember window geometry
+
+## Deployment
+
+- [ ] Create installable Python package
+- [ ] Update pyproject.toml package metadata
+- [ ] Define runtime dependencies
+- [ ] Define development dependencies
+- [ ] Verify clean virtual environment installation
+- [ ] Document installation procedure
+- [ ] Document supported Python versions
+- [ ] Test installation on a second system
 
 ### Debugger
 
@@ -170,7 +176,6 @@ Remaining work:
 
 ### Audio
 
-- [ ] Configurable beep frequency
 - [ ] Alternative waveforms (optional)
 
 ### Testing
@@ -220,16 +225,16 @@ GUI:                          ██████████ 100%
 
 Debugger:                     ██████████ 100%
 
-Audio:                        █████████░  95%
+Audio:                        ██████████ 100%
 
 Code analysis:                ██████████ 100%
 
-Diagnostics:                  █████████░  90%
+Diagnostics:                  ██████████ 100%
 
-Application logging:          █████████░  90%
+Application logging:          ██████████ 100%
 
-Execution tracing:            █████████░  90%
+Execution tracing:            ██████████ 100%
 
 Development tools:            ░░░░░░░░░░   0%
 
-Overall project completion: ~97%
+Overall project completion: ~98%
