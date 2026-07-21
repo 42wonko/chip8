@@ -52,7 +52,8 @@ classifiers = [
 dev = [
     "pytest>=8",
     "mypy>=1.16",
-    "ruff>=0.12"
+    "ruff>=0.12",
+    "build>=1.2"
 ]
 
 [project.urls]
@@ -75,8 +76,11 @@ build-backend = "setuptools.build_meta"
 py-modules = ["main"]
 
 [tool.setuptools.packages.find]
+package-dir = {"" = "src"}
 where = ["src"]
 
+[project.scripts]
+chip8 = "main:main"
 
 ###############################################################################
 # Package data
