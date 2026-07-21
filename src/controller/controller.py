@@ -74,7 +74,7 @@ class Chip8Controller:
         self._main_window = MainWindow(self)
         self._machine = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
-        self._main_window.config_dialog.testSoundRequested.connect( self._test_sound)
+        self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)
         self._cpu_timer = QTimer()
         self._cpu_timer.timeout.connect(self._cpu_tick)
         self._hardware_timer = QTimer()

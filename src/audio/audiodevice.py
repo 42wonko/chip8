@@ -23,7 +23,11 @@ import sounddevice as sd
 
 from controller.diagnostics import DiagnosticReporter
 from controller.emulatorconfiguration import EmulatorConfiguration
-from emulator.constants import BEEPER_AMPLITUDE, DEFAULT_BEEPER_FREQUENCY, BEEPER_SAMPLE_RATE
+from emulator.constants import (
+    BEEPER_AMPLITUDE,
+    BEEPER_SAMPLE_RATE,
+    DEFAULT_BEEPER_FREQUENCY,
+)
 
 
 class AudioDevice:

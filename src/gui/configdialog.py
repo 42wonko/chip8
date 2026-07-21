@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import cast
 
 from PyQt6 import uic
-from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
 from controller.emulatorconfiguration import EmulatorConfiguration, TraceLevel
 
@@ -43,7 +43,7 @@ class ConfigDialog(QDialog):
     @brief Application configuration dialog.
     """
 
-    testSoundRequested = pyqtSignal(EmulatorConfiguration)
+    test_sound_requested = pyqtSignal(EmulatorConfiguration)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -153,7 +153,7 @@ class ConfigDialog(QDialog):
         """
         @brief Request a sound test through the controller.
         """
-        self.testSoundRequested.emit(self.configuration)
+        self.test_sound_requested.emit(self.configuration)
 
 
     def _update_volume_label(self, value: int) -> None:
