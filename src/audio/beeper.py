@@ -9,10 +9,12 @@ configuration and delegates low-level audio generation to AudioDevice.
 """
 
 from __future__ import annotations
+
+from PyQt6.QtCore import QTimer
+
 from audio.audiodevice import AudioDevice
 from controller.diagnostics import DiagnosticReporter
 from controller.emulatorconfiguration import EmulatorConfiguration
-from PyQt6.QtCore import QTimer
 
 
 class Beeper:
