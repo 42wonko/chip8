@@ -60,6 +60,7 @@ class AudioDevice:
         """
         with self._lock:
             self._volume = max( 0.0, min(1.0, configuration.sound_volume / 100.0))
+            self._frequency = configuration.beeper_frequency
             if not configuration.sound_enabled:
                 self._enabled = False
             if configuration.audio_output_device == self._audio_output_device:

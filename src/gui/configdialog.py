@@ -52,6 +52,8 @@ class ConfigDialog(QDialog):
         uic.loadUi(ui_file, self)
         self.soundVolumeSlider.valueChanged.connect(self._update_volume_label)
         self._update_volume_label( self.soundVolumeSlider.value())
+        self.soundFrequencySlider.valueChanged.connect(self._update_frequency_label)
+        self._update_frequency_label( self.soundFrequencySlider.value())
         self.browseLogFilePushButton.clicked.connect(self._browse_log_file)
         self.browseTraceFilePushButton.clicked.connect(self._browse_trace_file)
         self.playTestSoundPushButton.clicked.connect(self._test_sound)
@@ -84,6 +86,19 @@ class ConfigDialog(QDialog):
 
 
     @property
+    def sound_frequency(self) -> int:
+        """
+        @brief Return the sound volume in percent.
+        """
+        return cast(int, self.soundFrequencylider.value())
+
+
+    @sound_frequency.setter
+    def sound_frequency(self, frequency: int) -> None:
+        self.soundFrequencySlider.setValue(frequency)
+
+
+    @property
     def configuration(self) -> EmulatorConfiguration:
         """
         @brief Return the current dialog settings.
@@ -91,6 +106,7 @@ class ConfigDialog(QDialog):
         return EmulatorConfiguration(
             sound_enabled=self.enableAudioGroupBox.isChecked(),
             sound_volume=self.soundVolumeSlider.value(),
+            beeper_frequency=self.soundFrequencySlider.value(),
             audio_output_device=self.audioDeviceComboBox.currentText(),
             available_audio_devices=[ self.audioDeviceComboBox.itemText(i) for i in range(self.audioDeviceComboBox.count()) ],
             disable_display_updates=self.disableDisplayUpdatesCheckBox.isChecked(),
@@ -114,6 +130,7 @@ class ConfigDialog(QDialog):
         """
         self.enableAudioGroupBox.setChecked( configuration.sound_enabled)
         self.soundVolumeSlider.setValue( configuration.sound_volume)
+        self.soundFrequencySlider.setValue( configuration.beeper_frequency)
         self.audioDeviceComboBox.clear()
         self.audioDeviceComboBox.addItems(configuration.available_audio_devices)
         index = self.audioDeviceComboBox.findText( configuration.audio_output_device)
@@ -144,6 +161,13 @@ class ConfigDialog(QDialog):
         @brief Update the volume label.
         """
         self.soundVolumeLabel.setText(f"{value} %")
+
+
+    def _update_frequency_label(self, value: int) -> None:
+        """
+        @brief Update the frequency label.
+        """
+        self.soundFrequencyLabel.setText(f"{value} Hz")
 
 
     def _browse_log_file(self) -> None:
