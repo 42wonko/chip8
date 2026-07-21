@@ -5,7 +5,7 @@
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum, auto  # we need the IntEnum for comparisons
 
 
@@ -26,27 +26,29 @@ class EmulatorConfiguration:
     ###########################################################################
     # Audio
     ###########################################################################
-    sound_enabled: bool             = True
-    sound_volume: int               = 100
+    sound_enabled: bool                 = True
+    sound_volume: int                   = 100
+    audio_output_device: str            = "default"
+    available_audio_devices: list[str]  = field(default_factory=list)
 
     ###########################################################################
     # Display
     ###########################################################################
-    disable_display_updates: bool   = False
+    disable_display_updates: bool       = False
 
     ###########################################################################
     # Application Logging
     ###########################################################################
-    logging_enabled: bool           = False
-    logging_enabled_info: bool      = False
-    logging_enabled_warning: bool   = False
-    logging_enabled_error: bool     = False
-    log_filename: str               = ""
-    function_trace_enabled: bool    = False
+    logging_enabled: bool               = False
+    logging_enabled_info: bool          = False
+    logging_enabled_warning: bool       = False
+    logging_enabled_error: bool         = False
+    log_filename: str                   = ""
+    function_trace_enabled: bool        = False
 
     ###########################################################################
     # CHIP-8 Execution Trace
     ###########################################################################
-    execution_trace_enabled: bool   = False
-    trace_filename: str             = ""
-    trace_level: TraceLevel         = TraceLevel.BASIC
+    execution_trace_enabled: bool       = False
+    trace_filename: str                 = ""
+    trace_level: TraceLevel             = TraceLevel.BASIC

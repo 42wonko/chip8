@@ -11,6 +11,7 @@ from typing import cast
 
 from PyQt6 import uic
 from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
+from PyQt6.QtCore import pyqtSignal
 
 from controller.emulatorconfiguration import EmulatorConfiguration, TraceLevel
 
@@ -42,6 +43,8 @@ class ConfigDialog(QDialog):
     @brief Application configuration dialog.
     """
 
+    testSoundRequested = pyqtSignal(EmulatorConfiguration)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
@@ -51,18 +54,20 @@ class ConfigDialog(QDialog):
         self._update_volume_label( self.soundVolumeSlider.value())
         self.browseLogFilePushButton.clicked.connect(self._browse_log_file)
         self.browseTraceFilePushButton.clicked.connect(self._browse_trace_file)
+        self.playTestSoundPushButton.clicked.connect(self._test_sound)
+
 
     @property
     def sound_enabled(self) -> bool:
         """
         @brief Return whether sound is enabled.
         """
-        return cast(bool, self.enableSoundCheckBox.isChecked())
+        return cast(bool, self.enableAudioGroupBox.isChecked())
 
 
     @sound_enabled.setter
     def sound_enabled(self, enabled: bool) -> None:
-        self.enableSoundCheckBox.setChecked(enabled)
+        self.enableAudioGroupBox.setChecked(enabled)
 
 
     @property
@@ -84,8 +89,10 @@ class ConfigDialog(QDialog):
         @brief Return the current dialog settings.
         """
         return EmulatorConfiguration(
-            sound_enabled=self.enableSoundCheckBox.isChecked(),
+            sound_enabled=self.enableAudioGroupBox.isChecked(),
             sound_volume=self.soundVolumeSlider.value(),
+            audio_output_device=self.audioDeviceComboBox.currentText(),
+            available_audio_devices=[ self.audioDeviceComboBox.itemText(i) for i in range(self.audioDeviceComboBox.count()) ],
             disable_display_updates=self.disableDisplayUpdatesCheckBox.isChecked(),
 
             logging_enabled=self.applicationLoggingGroupBox.isChecked(),
@@ -105,8 +112,14 @@ class ConfigDialog(QDialog):
         """
         @brief Initialize the dialog.
         """
-        self.enableSoundCheckBox.setChecked( configuration.sound_enabled)
+        self.enableAudioGroupBox.setChecked( configuration.sound_enabled)
         self.soundVolumeSlider.setValue( configuration.sound_volume)
+        self.audioDeviceComboBox.clear()
+        self.audioDeviceComboBox.addItems(configuration.available_audio_devices)
+        index = self.audioDeviceComboBox.findText( configuration.audio_output_device)
+        if index >= 0:
+            self.audioDeviceComboBox.setCurrentIndex(index)
+
         self.disableDisplayUpdatesCheckBox.setChecked( configuration.disable_display_updates)
         self.applicationLoggingGroupBox.setChecked(configuration.logging_enabled)
         self.logInformationCheckBox.setChecked(configuration.logging_enabled_info)
@@ -117,6 +130,13 @@ class ConfigDialog(QDialog):
         self.executionTraceGroupBox.setChecked(configuration.execution_trace_enabled)
         self.traceFilenameLineEdit.setText(configuration.trace_filename)
         self.traceLevelComboBox.setCurrentIndex( trace_level_to_index(configuration.trace_level))
+
+
+    def _test_sound(self) -> None:
+        """
+        @brief Request a sound test through the controller.
+        """
+        self.testSoundRequested.emit(self.configuration)
 
 
     def _update_volume_label(self, value: int) -> None:
@@ -178,25 +198,14 @@ class ConfigDialog(QDialog):
         #
 
         if self.applicationLoggingGroupBox.isChecked():
-
             filename = self.logFilenameLineEdit.text().strip()
-
             if not filename:
-                QMessageBox.warning(
-                    self,
-                    "Logging",
-                    "Application logging is enabled, but no log filename has been specified."
-                )
+                QMessageBox.warning( self, "Logging", "Application logging is enabled, but no log filename has been specified.")
                 return
-
             parent = Path(filename).parent
 
             if not parent.exists():
-                QMessageBox.warning(
-                    self,
-                    "Logging",
-                    "The directory for the log file does not exist."
-                )
+                QMessageBox.warning( self, "Logging", "The directory for the log file does not exist.")
                 return
 
         #
@@ -204,25 +213,12 @@ class ConfigDialog(QDialog):
         #
 
         if self.executionTraceGroupBox.isChecked():
-
             filename = self.traceFilenameLineEdit.text().strip()
-
             if not filename:
-                QMessageBox.warning(
-                    self,
-                    "Execution Trace",
-                    "Execution tracing is enabled, but no trace filename has been specified."
-                )
+                QMessageBox.warning( self, "Execution Trace", "Execution tracing is enabled, but no trace filename has been specified.")
                 return
-
             parent = Path(filename).parent
-
             if not parent.exists():
-                QMessageBox.warning(
-                    self,
-                    "Execution Trace",
-                    "The directory for the trace file does not exist."
-                )
+                QMessageBox.warning( self, "Execution Trace", "The directory for the trace file does not exist.")
                 return
-
         super().accept()

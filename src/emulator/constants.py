@@ -72,7 +72,7 @@ DEFAULT_CPU_FREQUENCY: int   = 500  # Main clock is 500Hz
 ###############################################################################
 # Audio
 ###############################################################################
-BEEPER_FREQUENCY = 440              #
+DEFAULT_BEEPER_FREQUENCY = 440      #
 BEEPER_SAMPLE_RATE = 44100          #
 BEEPER_AMPLITUDE = 16000            #
 

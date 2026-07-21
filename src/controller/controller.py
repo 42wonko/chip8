@@ -74,11 +74,12 @@ class Chip8Controller:
         self._main_window = MainWindow(self)
         self._machine = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
+        self._main_window.config_dialog.testSoundRequested.connect( self._test_sound)
         self._cpu_timer = QTimer()
         self._cpu_timer.timeout.connect(self._cpu_tick)
         self._hardware_timer = QTimer()
         self._hardware_timer.timeout.connect(self._timer_tick)
-        self._beeper = Beeper()
+        self._beeper = Beeper(self._diagnostics.reporter(DiagnosticSource.AUDIO))
         self._beeper.configuration = self._configuration
         self._keyboard_map = KeyboardMap()
         self._memory_model = MemoryTableModel()
@@ -307,6 +308,7 @@ class Chip8Controller:
         """
         self._logger.enter("configure")
         dialog = self._main_window.config_dialog
+        self._configuration.available_audio_devices = ( self._beeper.enumerate_audio_devices())
         dialog.configuration = self._configuration
         if not self._main_window.configure():
             self._logger.leave("Configure")
@@ -440,3 +442,9 @@ class Chip8Controller:
                 text += f" (x{diagnostic.count})"
             widget.addItem(text)
 #        self._logger.leave("_update_diagnostics_view")
+
+    def _test_sound(self, configuration: EmulatorConfiguration) -> None:
+        """
+        @brief Play a configuration test sound.
+        """
+        self._beeper.test(configuration)
