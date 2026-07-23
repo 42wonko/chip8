@@ -718,8 +718,22 @@ The `PYTHONPATH` variable points Python to the project's source directory.
 
 ### 6. Run the unit tests
 
+Install the development dependencies first:
+
 ```bash
-PYTHONPATH=src pytest
+pip install -e .[dev]
+```
+
+Run the tests using the Python interpreter from the active virtual environment:
+
+```bash
+python -m pytest
+```
+
+For this project, use:
+
+```bash
+PYTHONPATH=src python -m pytest
 ```
 
 ---
