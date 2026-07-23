@@ -69,6 +69,7 @@ add_custom_target( run COMMAND "${CMAKE_COMMAND}" -E env PYTHONPATH=${PROJECT_SO
 ###############################################################################
 if(CHIP8_ENABLE_RUFF)
     find_program(RUFF_EXECUTABLE ruff REQUIRED)
+    add_custom_target( format COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PROJECT_SOURCE_DIR}/src "${RUFF_EXECUTABLE}" format src tests WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" COMMENT "Formatting Python sources with Ruff" VERBATIM)
     add_custom_target( lint COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PROJECT_SOURCE_DIR}/src "${RUFF_EXECUTABLE}" check src tests WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 endif()
 
@@ -100,6 +101,12 @@ add_custom_target(
     COMMAND find "${PROJECT_SOURCE_DIR}" -type d -name ".ruff_cache" -exec rm -rf {} +
     VERBATIM
 )
+
+###############################################################################
+# Complete verification
+###############################################################################
+add_custom_target( all_checks DEPENDS lint typecheck test)
+
 
 ###############################################################################
 # Help
