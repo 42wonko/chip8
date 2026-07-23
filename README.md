@@ -589,6 +589,8 @@ This makes the emulator usable on different keyboard layouts without modifying t
 
 The emulator is written in Python and targets Python 3.12 or newer.
 
+**WARNING** It has been tested only on Linux, in particular: openSuSe Tumbleweed, Kubuntu and Mint. I have absolutely no idea if it works on anything else.
+
 ## Runtime Dependencies
 
 The following Python packages are required to run the emulator.
