@@ -114,6 +114,7 @@ class MainWindow(QMainWindow):
         @brief Attach the memory model to the memory table.
         """
         self.memoryTableView.setModel(model)
+        model.scroll_to_address.connect( self._scroll_memory_to_address)
         header = self.memoryTableView.horizontalHeader()
         header.setStretchLastSection(False)
         header.setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
@@ -195,6 +196,15 @@ class MainWindow(QMainWindow):
 
     def _update_clock_frequency_label(self, value: int) -> None:
         self.clockFreqLabel.setText(f"{value} Hz")
+
+
+    def _scroll_memory_to_address(self, address: int) -> None:
+        """
+        @brief Scroll the memory view so that an address becomes visible.
+        """
+        row = address // 16
+        index = self.memoryTableView.model().index(row, 0)
+        self.memoryTableView.scrollTo( index, QAbstractItemView.ScrollHint.PositionAtCenter,)
 
 
     def configure(self) -> int:

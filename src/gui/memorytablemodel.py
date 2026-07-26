@@ -21,7 +21,7 @@ MIT License
 
 from __future__ import annotations
 from typing import Any
-from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt
+from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QBrush
 from emulator.chip8memory import Chip8Memory
 
@@ -30,6 +30,11 @@ class MemoryTableModel(QAbstractTableModel):
     """
     @brief Read-only model for the CHIP-8 memory.
     """
+
+
+    scroll_to_address = pyqtSignal(int)
+
+
     def __init__(self) -> None:
         """
         @brief Construct an empty model.
@@ -168,9 +173,8 @@ class MemoryTableModel(QAbstractTableModel):
         The previous highlighted range is repainted before the new
         highlight becomes active.
         """
-
-        # Repaint the old highlight.
-        if ( self._highlight_start is not None and self._highlight_end is not None):
+        old_start = self._highlight_start                                               # remember previous high light
+        if ( self._highlight_start is not None and self._highlight_end is not None):    # Repaint the old highlight.
             self._emit_background_changed( self._highlight_start, self._highlight_end)
 
         self._highlight_start = first
@@ -179,6 +183,8 @@ class MemoryTableModel(QAbstractTableModel):
         # Paint the new highlight.
         if ( self._highlight_start is not None and self._highlight_end is not None):
             self._emit_background_changed( self._highlight_start, self._highlight_end)
+        if first is not None and first != old_start:                                    # only scroll if we actually have to move
+            self.scroll_to_address.emit(first)
 
 
     def _emit_background_changed( self, first: int, last: int,) -> None:
