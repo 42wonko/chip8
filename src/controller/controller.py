@@ -261,6 +261,7 @@ class Chip8Controller:
                 self._main_window.scroll_code_to_row(row)
 
         self.update_gui()
+        self._memory_model.clear_highlight()
         self._main_window.show_status_message("Yo  dude! We just re-spawned!.")
         self._logger.info("Emulator reset")
 
@@ -418,7 +419,9 @@ class Chip8Controller:
         else:
             self._beeper.stop()
             self._logger.info("Beeper Off")
-        self.update_gui()
+#        self.update_gui()
+        if not self._configuration.disable_display_updates:
+            self._update_register_view()
 
 
     def _update_diagnostics_view(self) -> None:

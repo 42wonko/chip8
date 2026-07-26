@@ -20,11 +20,9 @@ MIT License
 """
 
 from __future__ import annotations
-
 from typing import Any
-
 from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt
-
+from PyQt6.QtGui import QColor, QBrush
 from emulator.chip8memory import Chip8Memory
 
 
@@ -38,6 +36,8 @@ class MemoryTableModel(QAbstractTableModel):
         """
         super().__init__()
         self._memory: Chip8Memory | None = None
+        self._highlight_start: int | None = None
+        self._highlight_end: int | None = None
 
 
     ###########################################################################
@@ -53,6 +53,13 @@ class MemoryTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._memory = memory
         self.endResetModel()
+
+
+    def clear_highlight(self) -> None:
+        """
+        @brief Remove the current memory highlight.
+        """
+        self._set_highlight(None, None)
 
 
     def refresh_all(self) -> None:
@@ -74,6 +81,7 @@ class MemoryTableModel(QAbstractTableModel):
         @param address
             CHIP-8 memory address.
         """
+        self._set_highlight(address, address)
         row = address // 16
         column = address % 16
         index = self.index(row, column)
@@ -89,6 +97,7 @@ class MemoryTableModel(QAbstractTableModel):
         @param last
             Last address (inclusive).
         """
+        self._set_highlight(first, last)
         first_row = first // 16
         last_row = last // 16
 
@@ -116,15 +125,25 @@ class MemoryTableModel(QAbstractTableModel):
         del parent
         return 256
 
+
     def columnCount( self, parent: QModelIndex = QModelIndex()) -> int:
         del parent
         return 16
 
-    def data( self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if ( self._memory is None or not index.isValid() or role != Qt.ItemDataRole.DisplayRole):
+
+    def data( self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole,) -> Any:
+        """
+        @brief Return the contents and appearance of a memory cell.
+        """
+        if self._memory is None or not index.isValid():
             return None
         address = index.row() * 16 + index.column()
-        return f"{self._memory[address]:02X}"
+        if role == Qt.ItemDataRole.DisplayRole:
+            return f"{self._memory[address]:02X}"
+        if ( role == Qt.ItemDataRole.BackgroundRole and self._highlight_start is not None and self._highlight_start <= address <= self._highlight_end):
+            return QBrush(QColor(255, 255, 160))
+        return None
+
 
     def headerData( self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if role != Qt.ItemDataRole.DisplayRole:
@@ -136,3 +155,47 @@ class MemoryTableModel(QAbstractTableModel):
     def flags( self, index: QModelIndex,) -> Qt.ItemFlag:
         del index
         return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+
+
+
+    ###########################################################################
+    # Private helpers
+    ###########################################################################
+    def _set_highlight( self, first: int | None, last: int | None,) -> None:
+        """
+        @brief Change the highlighted memory range.
+
+        The previous highlighted range is repainted before the new
+        highlight becomes active.
+        """
+
+        # Repaint the old highlight.
+        if ( self._highlight_start is not None and self._highlight_end is not None):
+            self._emit_background_changed( self._highlight_start, self._highlight_end)
+
+        self._highlight_start = first
+        self._highlight_end = last
+
+        # Paint the new highlight.
+        if ( self._highlight_start is not None and self._highlight_end is not None):
+            self._emit_background_changed( self._highlight_start, self._highlight_end)
+
+
+    def _emit_background_changed( self, first: int, last: int,) -> None:
+        """
+        @brief Notify Qt that only the background has changed.
+        """
+
+        first_row = first // 16
+        last_row = last // 16
+
+        if first_row == last_row:
+            self.dataChanged.emit( self.index(first_row, first % 16), self.index(last_row, last % 16), [Qt.ItemDataRole.BackgroundRole])
+            return
+
+        self.dataChanged.emit( self.index(first_row, first % 16), self.index(first_row, 15), [Qt.ItemDataRole.BackgroundRole],)
+
+        for row in range(first_row + 1, last_row):
+            self.dataChanged.emit( self.index(row, 0), self.index(row, 15), [Qt.ItemDataRole.BackgroundRole],)
+
+        self.dataChanged.emit( self.index(last_row, 0), self.index(last_row, last % 16), [Qt.ItemDataRole.BackgroundRole],)
