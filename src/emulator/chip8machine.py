@@ -395,11 +395,11 @@ class Chip8Machine:
                     case 0x55:                                          # Store v0 to vX at the memory pointed to by I, I is not channged
                         for register in range(instruction.x + 1):
                             self._memory.write_byte( self._registers.i + register, self._registers[register])
+                        result.memory_range = (self.registers.i, self.registers.i + instruction.x)
 
                     case 0x65:                                          # read the bytes from memory pointed to by I into the registers v0 to vX, I is unchanged
                         for register in range(instruction.x + 1):
                             self._registers[register] = self._memory.read_byte( self._registers.i + register)
-                        result.memory_range = (self.registers.i, self.registers.i + instruction.x)
 
                     case _:
                         raise NotImplementedError(f"{instruction.opcode:04X}")
