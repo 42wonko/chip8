@@ -33,8 +33,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtWidgets import QFileDialog, QApplication
 
+from chip8.settingsmanager import SettingsManager
 from audio.beeper import Beeper
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.codeanalysis import CodeAnalysis
@@ -61,13 +62,15 @@ class Chip8Controller:
         """
         @brief Construct the controller.
         """
+        self._running = False
         self._configuration = EmulatorConfiguration()
+        self._settings_manager = SettingsManager()
+        self._settings_manager.load_configuration(self._configuration)
         self._diagnostics = Diagnostics()
         self._diagnostics_reporter = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
         self._log_manager = LogManager()
         self._log_manager.configure(self._configuration)
         self._logger: ApplicationLogReporter = ( self._log_manager.application_logger( DiagnosticSource.CONTROLLER))
-        self._running = False
         self._current_rom: Path | None = None
         self._current_rom_data: bytes | None = None
         self._cpu_frequency = DEFAULT_CPU_FREQUENCY     # has to be before mainwindow!
@@ -82,6 +85,7 @@ class Chip8Controller:
         self._beeper = Beeper(self._diagnostics.reporter(DiagnosticSource.AUDIO))
         self._beeper.configuration = self._configuration
         self._keyboard_map = KeyboardMap()
+        self._keyboard_map.read_settings( self._settings_manager.settings())
         self._memory_model = MemoryTableModel()
         self._main_window.set_memory_model(self._memory_model)
         self._memory_model.set_memory(self._machine.memory)
@@ -92,6 +96,15 @@ class Chip8Controller:
         self._code_analysis.rebuild()
         self._update_diagnostics_view()
         self._code_model.refresh()
+        QApplication.instance().aboutToQuit.connect(self.save_settings)
+        settings = self._settings_manager.settings()
+        last_rom = settings.value("recent/last_rom")
+        if isinstance(last_rom, str):
+            rom = Path(last_rom)
+            if rom.exists():
+                self._load_rom(rom)
+            else:
+                settings.remove("recent/last_rom")
 
     ###########################################################################
     # Read-only properties
@@ -129,7 +142,7 @@ class Chip8Controller:
         """
         @brief Show the main application window.
         """
-
+        self._main_window.restore_settings()
         self._main_window.show()
 
     ###########################################################################
@@ -150,22 +163,8 @@ class Chip8Controller:
         if not filename:
             self._logger.leave("load_rom")
             return
+        self._load_rom(Path(filename))
 
-        path = Path(filename)
-        try:
-            data = path.read_bytes()
-        except (FileNotFoundError, PermissionError, IsADirectoryError, OSError):
-            self._logger.error(f"Failed to load ROM '{path}'.")
-            self._diagnostics_reporter.error( f"Unable to load ROM '{path.name}'.")
-
-
-        self._current_rom = path
-        self._current_rom_data = data
-        self._logger.info(f"Loaded ROM '{path.name}' ({len(data)} bytes)")
-        self.reset()
-        self._main_window.set_rom_title(path)
-        self._main_window.show_status_message(f"Loaded {path.name}")
-        self._logger.leave("load_rom")
 
 
     def reload_rom(self) -> None:
@@ -182,6 +181,14 @@ class Chip8Controller:
             self._logger.info(f"Reloaded ROM '{self._current_rom.name}'.")
         self._logger.leave("reload_rom")
 
+
+    def save_settings(self) -> None:
+        """
+        @brief Save persistent application settings.
+        """
+        self._main_window.save_settings()
+        self._settings_manager.save_configuration( self._configuration)
+        self._keyboard_map.write_settings( self._settings_manager.settings())
 
     ###########################################################################
     # Emulator control
@@ -451,3 +458,32 @@ class Chip8Controller:
         @brief Play a configuration test sound.
         """
         self._beeper.test(configuration)
+
+
+    def _load_rom(self, path: Path) -> bool:
+        """
+        @brief Load a CHIP-8 ROM from disk.
+
+        @param path
+            ROM file to load.
+
+        @return
+            True if the ROM was loaded successfully.
+        """
+        try:
+            data = path.read_bytes()
+        except (FileNotFoundError, PermissionError, IsADirectoryError, OSError):
+            self._logger.error(f"Failed to load ROM '{path}'.")
+            self._diagnostics_reporter.error(
+                f"Unable to load ROM '{path.name}'."
+            )
+            return False
+
+        self._current_rom = path
+        self._current_rom_data = data
+        self._settings_manager.settings().setValue( "recent/last_rom", str(path))
+        self._logger.info( f"Loaded ROM '{path.name}' ({len(data)} bytes)")
+        self.reset()
+        self._main_window.set_rom_title(path)
+        self._main_window.show_status_message( f"Loaded {path.name}")
+        return True

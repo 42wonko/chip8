@@ -57,6 +57,35 @@ class KeyboardMap:
             0xF: Qt.Key.Key_V
         }
 
+
+    def read_settings(self, settings: QSettings) -> None:
+        """
+        @brief Read the keyboard mapping from persistent storage.
+
+        @param settings
+            Application settings.
+        """
+        for chip8_key in range(16):
+            value = settings.value(f"keyboard/key{chip8_key:X}")
+
+            if value is not None:
+                self._mapping[chip8_key] = int(value)
+
+
+    def write_settings(self, settings: QSettings) -> None:
+        """
+        @brief Write the keyboard mapping to persistent storage.
+
+        @param settings
+            Application settings.
+        """
+        for chip8_key in range(16):
+            settings.setValue(
+                f"keyboard/key{chip8_key:X}",
+                int(self._mapping[chip8_key])
+            )
+
+
     ###########################################################################
     # Mapping lookup
     ###########################################################################
@@ -88,6 +117,13 @@ class KeyboardMap:
             Qt key code.
         """
         return self._mapping[chip8_key]
+
+
+    def set_host_key(self, chip8_key: int, host_key: int) -> None:
+        """
+        @brief Assign a host key to a CHIP-8 key.
+        """
+        self._mapping[chip8_key] = host_key
 
 
     ###########################################################################

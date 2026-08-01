@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
-from PyQt6.QtCore import QItemSelectionModel
+from PyQt6.QtCore import QItemSelectionModel, QSettings
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -47,6 +47,7 @@ from PyQt6.QtWidgets import (
 
 from gui.configdialog import ConfigDialog
 from gui.displaywidget import DisplayWidget
+from chip8.settingsmanager import SettingsManager
 
 if TYPE_CHECKING:
     from controller.controller import Chip8Controller
@@ -174,6 +175,29 @@ class MainWindow(QMainWindow):
             selection.setCurrentIndex( index, QItemSelectionModel.SelectionFlag.NoUpdate,)
         self.codeTableView.scrollTo( index, QAbstractItemView.ScrollHint.PositionAtCenter,)
 
+
+    def restore_settings(self) -> None:
+        """
+        @brief Restore the persistent window state.
+        """
+        settings = QSettings( SettingsManager.ORGANIZATION, SettingsManager.APPLICATION)
+        geometry = settings.value("mainwindow/geometry")
+        if geometry is not None:
+            self.restoreGeometry(geometry)
+        state = settings.value("mainwindow/state")
+        if state is not None:
+            self.restoreState(state)
+
+
+    def save_settings(self) -> None:
+        """
+        @brief Save the persistent window state.
+        """
+        settings = QSettings( SettingsManager.ORGANIZATION, SettingsManager.APPLICATION)
+        settings.setValue( "mainwindow/geometry", self.saveGeometry())
+        settings.setValue( "mainwindow/state", self.saveState())
+
+   
     ###########################################################################
     # Private helpers
     ###########################################################################
@@ -246,4 +270,3 @@ class MainWindow(QMainWindow):
         self.singleStepButton.clicked.connect(self._controller.step)                # type: ignore[attr-defined]
         self.keyboardButton.clicked.connect( self._controller.configure_keyboard)   # type: ignore[attr-defined]
         self.configButton.clicked.connect(self._controller.configure)               # type: ignore[attr-defined]
-
