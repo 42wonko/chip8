@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1140</width>
-    <height>998</height>
+    <height>1046</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -828,6 +828,46 @@
            <layout class="QVBoxLayout" name="verticalLayout">
             <item>
              <widget class="QTableView" name="codeTableView"/>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="debuggerControlGroupBox">
+              <property name="title">
+               <string>Debug</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+              <layout class="QHBoxLayout" name="horizontalLayout_25">
+               <item>
+                <widget class="QPushButton" name="dbgStepInPushButton">
+                 <property name="text">
+                  <string>Step In...</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="dbgStepOverPushButton">
+                 <property name="text">
+                  <string>Step Over...</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="dbgStepOutPushButton">
+                 <property name="text">
+                  <string>Step Out...</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="dbgRunToAddressPushButton">
+                 <property name="text">
+                  <string>Run To...</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
             </item>
             <item>
              <widget class="QGroupBox" name="groupBox_3">

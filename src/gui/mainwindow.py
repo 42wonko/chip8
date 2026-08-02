@@ -293,4 +293,4 @@ class MainWindow(QMainWindow):
         self.keyboardButton.clicked.connect( self._controller.configure_keyboard)   # type: ignore[attr-defined]
         self.configButton.clicked.connect(self._controller.configure)               # type: ignore[attr-defined]
         self.codeTableView.doubleClicked.connect(self._code_table_double_clicked)
-
+        self.dbgStepInPushButton.clicked.connect(self._controller.step)
