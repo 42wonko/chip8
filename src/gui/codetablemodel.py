@@ -20,6 +20,7 @@ from typing import Any
 
 from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
+from chip8.debugger import Debugger
 from controller.codeanalysis import CodeAnalysis
 
 
@@ -32,11 +33,11 @@ class CodeTableModel(QAbstractTableModel):
     @brief Enumeration for the columns of the code analysis view.
     """
     class Column(IntEnum):
-        BP = 0
-        ADDR = 1
-        BYTES = 2
-        INTERPRETATION = 3
-        STATUS = 4
+        BP              = 0
+        ADDR            = 1
+        BYTES           = 2
+        INTERPRETATION  = 3
+        STATUS          = 4
 
     HEADERS = ( "BP", "Addr", "Bytes", "Interpretation", "Status")
 
@@ -46,6 +47,7 @@ class CodeTableModel(QAbstractTableModel):
         """
         super().__init__()
         self._analysis: CodeAnalysis | None = None
+        self._debugger: Debugger | None     = None
 
 
     ###########################################################################
@@ -61,6 +63,33 @@ class CodeTableModel(QAbstractTableModel):
         self._analysis = analysis
 
 
+    def address_at_row(self, row: int) -> int | None:
+        """
+        @brief Return the CHIP-8 address corresponding to a table row.
+
+        @param row
+            Code view row.
+
+        @return
+            CHIP-8 address or None if the row is invalid.
+        """
+        if self._analysis is None:
+            return None
+        if row < 0 or row >= self._analysis.row_count():
+            return None
+        return self._analysis.row(row).address
+
+
+    def set_debugger(self, debugger: Debugger) -> None:
+        """
+        @brief Attach the debugger.
+
+        @param debugger
+            Debugger instance.
+        """
+        self._debugger = debugger
+
+
     def refresh(self) -> None:
         """
         @brief Refresh the complete model.
@@ -71,6 +100,23 @@ class CodeTableModel(QAbstractTableModel):
         """
         self.beginResetModel()
         self.endResetModel()
+
+
+    def refresh_address(self, address: int) -> None:
+        """
+        @brief Refresh the row corresponding to a CHIP-8 address.
+
+        @param address
+            CHIP-8 memory address.
+        """
+        if self._analysis is None:
+            return
+        row = self._analysis.find_row(address)
+        if row is None:
+            return
+        top_left = self.index(row, 0)
+        bottom_right = self.index(row, self.columnCount() - 1)
+        self.dataChanged.emit( top_left, bottom_right, [ Qt.ItemDataRole.DisplayRole ])
 
 
     ###########################################################################
@@ -94,6 +140,12 @@ class CodeTableModel(QAbstractTableModel):
         row = self._analysis.row(index.row())
         match index.column():
             case self.Column.BP:
+                if self._debugger is None:
+                    return ""
+                if self._debugger.is_breakpoint_enabled(row.address):
+                    return "●"
+                if self._debugger.is_breakpoint_disabled(row.address):
+                    return "○"
                 return ""
             case self.Column.ADDR:
                 return f"{row.address:04X}"

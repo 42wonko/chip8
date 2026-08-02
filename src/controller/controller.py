@@ -33,10 +33,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QFileDialog, QApplication
+from PyQt6.QtWidgets import QApplication, QFileDialog
 
-from chip8.settingsmanager import SettingsManager
 from audio.beeper import Beeper
+from chip8.debugger import Debugger
+from chip8.settingsmanager import SettingsManager
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.codeanalysis import CodeAnalysis
 from controller.diagnostic import DiagnosticSource, format_severity, format_source
@@ -62,20 +63,23 @@ class Chip8Controller:
         """
         @brief Construct the controller.
         """
-        self._running = False
-        self._configuration = EmulatorConfiguration()
-        self._settings_manager = SettingsManager()
+        self._running                           = False
+        self._stopped_on_breakpoint             = False
+        self._debugger                          = Debugger()
+        self._configuration                     = EmulatorConfiguration()
+        self._settings_manager                  = SettingsManager()
         self._settings_manager.load_configuration(self._configuration)
-        self._diagnostics = Diagnostics()
-        self._diagnostics_reporter = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
-        self._log_manager = LogManager()
+        self._diagnostics                       = Diagnostics()
+        self._diagnostics_reporter              = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
+        self._log_manager                       = LogManager()
         self._log_manager.configure(self._configuration)
-        self._logger: ApplicationLogReporter = ( self._log_manager.application_logger( DiagnosticSource.CONTROLLER))
-        self._current_rom: Path | None = None
-        self._current_rom_data: bytes | None = None
-        self._cpu_frequency = DEFAULT_CPU_FREQUENCY     # has to be before mainwindow!
-        self._main_window = MainWindow(self)
-        self._machine = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
+        self._logger: ApplicationLogReporter    = ( self._log_manager.application_logger( DiagnosticSource.CONTROLLER))
+        self._current_rom: Path | None          = None
+        self._current_rom_data: bytes | None    = None
+        self._cpu_frequency                     = DEFAULT_CPU_FREQUENCY     # has to be before mainwindow!
+        self._main_window                       = MainWindow(self)
+        self._main_window.breakpoint_toggled.connect( self._toggle_breakpoint)
+        self._machine                           = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)
         self._cpu_timer = QTimer()
@@ -93,6 +97,7 @@ class Chip8Controller:
         self._code_model = CodeTableModel()
         self._main_window.set_code_model(self._code_model)
         self._code_model.set_analysis(self._code_analysis)
+        self._code_model.set_debugger(self._debugger)
         self._code_analysis.rebuild()
         self._update_diagnostics_view()
         self._code_model.refresh()
@@ -105,6 +110,7 @@ class Chip8Controller:
                 self._load_rom(rom)
             else:
                 settings.remove("recent/last_rom")
+
 
     ###########################################################################
     # Read-only properties
@@ -128,12 +134,14 @@ class Chip8Controller:
     def current_rom(self) -> Path | None:
         return self._current_rom
 
+
     @property
     def cpu_frequency(self) -> int:
         """
         @brief Current CPU clock frequency in Hz.
         """
         return self._cpu_frequency
+
 
     ###########################################################################
     # Window handling
@@ -144,6 +152,7 @@ class Chip8Controller:
         """
         self._main_window.restore_settings()
         self._main_window.show()
+
 
     ###########################################################################
     # File operations
@@ -394,18 +403,23 @@ class Chip8Controller:
         """
         @brief Execute one CHIP-8 instruction and perform all related updates.
         """
-        result = self._machine.execute_cycle()
-        refresh_code = False
-        if result.bnnn_target is not None:
-            instruction_address, target = result.bnnn_target
-            refresh_code = self._code_analysis.analyze_observed_bnnn_target(
-                instruction_address,
-                target,
-            )
-        self.update_gui(result)
-        if refresh_code:
-            self._code_model.refresh()
-            self._update_code_view()
+        if (not self._debugger.has_any_breakpoint(self._machine.registers.pc)) or (self._stopped_on_breakpoint == True):
+            self._stopped_on_breakpoint = False
+            result = self._machine.execute_cycle()
+            refresh_code = False
+            if result.bnnn_target is not None:
+                instruction_address, target = result.bnnn_target
+                refresh_code = self._code_analysis.analyze_observed_bnnn_target(
+                    instruction_address,
+                    target,
+                )
+            self.update_gui(result)
+            if refresh_code:
+                self._code_model.refresh()
+                self._update_code_view()
+        else:
+            self.stop()
+            self._stopped_on_breakpoint = True
 
 
     def _cpu_tick(self) -> None:
@@ -487,3 +501,18 @@ class Chip8Controller:
         self._main_window.set_rom_title(path)
         self._main_window.show_status_message( f"Loaded {path.name}")
         return True
+
+
+
+    def _toggle_breakpoint(self, address: int) -> None:
+        """
+        @brief Toggle the breakpoint at an address.
+
+        @param address
+            CHIP-8 instruction address.
+        """
+        self._debugger.toggle_breakpoint(address)
+        self._code_model.refresh_address(address)
+
+
+

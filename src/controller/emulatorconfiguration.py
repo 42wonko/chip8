@@ -4,9 +4,13 @@
 @brief Emulator runtime configuration.
 """
 from __future__ import annotations
-from PyQt6.QtCore import QSettings          # TBD: think about this. Do I want Qt depedencies here?
+
 from dataclasses import dataclass, field
 from enum import IntEnum, auto  # we need the IntEnum for comparisons
+
+from PyQt6.QtCore import (
+    QSettings,  # TBD: think about this. Do I want Qt depedencies here?
+)
 
 from emulator.constants import DEFAULT_BEEPER_FREQUENCY
 

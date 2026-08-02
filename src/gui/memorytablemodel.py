@@ -20,9 +20,12 @@ MIT License
 """
 
 from __future__ import annotations
+
 from typing import Any
+
 from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QBrush
+from PyQt6.QtGui import QBrush, QColor
+
 from emulator.chip8memory import Chip8Memory
 
 

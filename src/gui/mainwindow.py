@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
-from PyQt6.QtCore import QItemSelectionModel, QSettings
+from PyQt6.QtCore import QItemSelectionModel, QSettings, pyqtSignal
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -45,13 +45,13 @@ from PyQt6.QtWidgets import (
     QStatusBar,
 )
 
+from chip8.settingsmanager import SettingsManager
 from gui.configdialog import ConfigDialog
 from gui.displaywidget import DisplayWidget
-from chip8.settingsmanager import SettingsManager
+from gui.codetablemodel import CodeTableModel
 
 if TYPE_CHECKING:
     from controller.controller import Chip8Controller
-    from gui.codetablemodel import CodeTableModel
     from gui.memorytablemodel import MemoryTableModel
 
 class MainWindow(QMainWindow):
@@ -61,6 +61,8 @@ class MainWindow(QMainWindow):
 #    if TYPE_CHECKING:
 #        displayWidget: DisplayWidget
 #        statusbar: QStatusBar
+
+    breakpoint_toggled = pyqtSignal(int)    # handle enabling/disabling breakpoints
 
     def __init__(self, controller: Chip8Controller) -> None:
         """
@@ -128,6 +130,7 @@ class MainWindow(QMainWindow):
         """
         @brief Attach the code model to the code table.
         """
+        self._code_model = model
         self.codeTableView.setModel(model)
         self.codeTableView.verticalHeader().hide()
         header = self.codeTableView.horizontalHeader()
@@ -197,7 +200,7 @@ class MainWindow(QMainWindow):
         settings.setValue( "mainwindow/geometry", self.saveGeometry())
         settings.setValue( "mainwindow/state", self.saveState())
 
-   
+
     ###########################################################################
     # Private helpers
     ###########################################################################
@@ -229,6 +232,25 @@ class MainWindow(QMainWindow):
         row = address // 16
         index = self.memoryTableView.model().index(row, 0)
         self.memoryTableView.scrollTo( index, QAbstractItemView.ScrollHint.PositionAtCenter,)
+
+
+    def _code_table_double_clicked(self, index: QModelIndex) -> None:
+        """
+        @brief Handle double-clicks in the code view.
+
+        Double-clicking the breakpoint column toggles the breakpoint at the
+        corresponding CHIP-8 address.
+
+        @param index
+            Clicked table index.
+        """
+        if index.column() != CodeTableModel.Column.BP:
+            return
+        if self._code_model is None:
+            return
+        address = self._code_model.address_at_row(index.row())
+        if address is not None:
+            self.breakpoint_toggled.emit(address)
 
 
     def configure(self) -> int:
@@ -270,3 +292,5 @@ class MainWindow(QMainWindow):
         self.singleStepButton.clicked.connect(self._controller.step)                # type: ignore[attr-defined]
         self.keyboardButton.clicked.connect( self._controller.configure_keyboard)   # type: ignore[attr-defined]
         self.configButton.clicked.connect(self._controller.configure)               # type: ignore[attr-defined]
+        self.codeTableView.doubleClicked.connect(self._code_table_double_clicked)
+
