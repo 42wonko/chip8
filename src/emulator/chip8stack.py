@@ -80,3 +80,40 @@ class Chip8Stack:
         self._logger.info("Stack reset.")
         self._stack[:] = [0] * STACK_SIZE   # slice assignment reuses the existing list instead of allocating a new one
         self._sp = 0
+
+
+    def empty(self) -> bool:
+        """
+        @brief Check whether the stack is empty.
+
+        @return
+            True if the stack contains no entries.
+        """
+        return self.size() == 0
+
+
+    def size(self) -> int:
+        """
+        @brief Return the current number of stack entries.
+
+        @return
+            Number of entries currently stored on the stack.
+        """
+        return self._sp
+
+
+    def peek(self) -> int:
+        """
+        @brief Return the top stack entry.
+
+        @return
+            Return address currently on top of the stack.
+
+        @raises IndexError
+            If the stack is empty.
+        """
+        if self.empty():
+            raise IndexError("peek from empty stack")
+
+        return self._stack[self._sp - 1]
+

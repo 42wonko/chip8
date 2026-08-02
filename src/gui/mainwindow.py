@@ -35,15 +35,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
-from PyQt6.QtCore import QItemSelectionModel, QSettings, pyqtSignal
+from PyQt6.QtCore import QItemSelectionModel, QSettings, pyqtSignal, Qt, QPoint
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QDialog,
-    QHeaderView,
-    QMainWindow,
-    QStatusBar,
-)
+from PyQt6.QtWidgets import QAbstractItemView, QDialog, QHeaderView, QMainWindow, QStatusBar, QMessageBox
 
 from chip8.settingsmanager import SettingsManager
 from gui.configdialog import ConfigDialog
@@ -58,11 +52,10 @@ class MainWindow(QMainWindow):
     """
     @brief Main application window.
     """
-#    if TYPE_CHECKING:
-#        displayWidget: DisplayWidget
-#        statusbar: QStatusBar
 
     breakpoint_toggled = pyqtSignal(int)    # handle enabling/disabling breakpoints
+    breakpoint_context_menu_requested = pyqtSignal(int, QPoint)
+
 
     def __init__(self, controller: Chip8Controller) -> None:
         """
@@ -168,14 +161,6 @@ class MainWindow(QMainWindow):
         index = model.index(row, 0)
         if not index.isValid():
             return
-
-        selection = self.codeTableView.selectionModel()
-        if selection is not None:
-            current = selection.currentIndex()            # Avoid unnecessary GUI updates.
-            if current.isValid() and current.row() == row:
-                return
-            selection.select( index, QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows,)
-            selection.setCurrentIndex( index, QItemSelectionModel.SelectionFlag.NoUpdate,)
         self.codeTableView.scrollTo( index, QAbstractItemView.ScrollHint.PositionAtCenter,)
 
 
@@ -199,6 +184,41 @@ class MainWindow(QMainWindow):
         settings = QSettings( SettingsManager.ORGANIZATION, SettingsManager.APPLICATION)
         settings.setValue( "mainwindow/geometry", self.saveGeometry())
         settings.setValue( "mainwindow/state", self.saveState())
+
+
+    def show_warning(self, title: str, text: str) -> None:
+        """
+        @brief Display a warning message.
+        @param title
+            Dialog title.
+        @param text
+            Warning message.
+        """
+        QMessageBox.warning(self, title, text)
+
+
+    def selected_code_address(self) -> int | None:
+        """
+        @brief Return the currently selected CHIP-8 address.
+        @return
+            Selected address or None if no instruction is selected.
+        """
+        model = self.codeTableView.model()
+        if model is None:
+            return None
+        index = self.codeTableView.currentIndex()
+        if not index.isValid():
+            return None
+        model = self.codeTableView.model()
+        assert isinstance(model, CodeTableModel)
+        return model.address(index.row())
+
+
+    def clear_code_selection(self) -> None:
+        """
+        @brief Clear the current code selection.
+        """
+        self.codeTableView.clearSelection()
 
 
     ###########################################################################
@@ -253,6 +273,21 @@ class MainWindow(QMainWindow):
             self.breakpoint_toggled.emit(address)
 
 
+    def _code_table_context_menu(self, position: QPoint) -> None:
+        """
+        @brief Show the breakpoint context menu.
+
+        @param position
+            Mouse position in viewport coordinates.
+        """
+        index = self.codeTableView.indexAt(position)
+        if not index.isValid():
+            return
+        if index.column() != CodeTableModel.Column.BP:
+            return
+        self.breakpoint_context_menu_requested.emit(index.row(), position)
+
+
     def configure(self) -> int:
         """
         @brief Show the configuration dialog.
@@ -282,15 +317,25 @@ class MainWindow(QMainWindow):
         """
 
         self.loadButton.clicked.connect(self._controller.load_rom)                  # type: ignore[attr-defined]
-
         self.runButton.clicked.connect(self._controller.run)                        # type: ignore[attr-defined]
         self.continueButton.clicked.connect(self._controller.run)                   # type: ignore[attr-defined]
+
         self.clockFreqSlider.valueChanged.connect(self._controller.set_cpu_frequency)
         self.clockFreqSlider.valueChanged.connect(self._update_clock_frequency_label)
+
         self.stopExecutionButton.clicked.connect(self._controller.stop)             # type: ignore[attr-defined]
         self.resetButton.clicked.connect(self._controller.reset)                    # type: ignore[attr-defined]
         self.singleStepButton.clicked.connect(self._controller.step)                # type: ignore[attr-defined]
+
         self.keyboardButton.clicked.connect( self._controller.configure_keyboard)   # type: ignore[attr-defined]
         self.configButton.clicked.connect(self._controller.configure)               # type: ignore[attr-defined]
+
         self.codeTableView.doubleClicked.connect(self._code_table_double_clicked)
+        self.codeTableView.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.codeTableView.customContextMenuRequested.connect( self._code_table_context_menu)
+
         self.dbgStepInPushButton.clicked.connect(self._controller.step)
+        self.dbgRunToAddressPushButton.clicked.connect( self._controller.run_to_address)
+        self.debuggerControlGroupBox.toggled.connect(self._controller.debugger.enable)
+        self.dbgStepOverPushButton.clicked.connect( self._controller.step_over)
+        self.dbgStepOutPushButton.clicked.connect( self._controller.step_out)

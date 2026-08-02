@@ -19,6 +19,7 @@ from enum import IntEnum
 from typing import Any
 
 from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt
+from PyQt6.QtGui import QBrush, QColor
 
 from chip8.debugger import Debugger
 from controller.codeanalysis import CodeAnalysis
@@ -48,6 +49,8 @@ class CodeTableModel(QAbstractTableModel):
         super().__init__()
         self._analysis: CodeAnalysis | None = None
         self._debugger: Debugger | None     = None
+        self._current_pc: int | None        = None
+        self._previous_pc: int | None       = None
 
 
     ###########################################################################
@@ -80,6 +83,24 @@ class CodeTableModel(QAbstractTableModel):
         return self._analysis.row(row).address
 
 
+    def address(self, row: int) -> int | None:
+        """
+        @brief Return the CHIP-8 address for a table row.
+
+        @param row
+            Table row.
+
+        @return
+            CHIP-8 address or None if the row is invalid.
+        """
+        if self._analysis is None:
+            return None
+        if row < 0 or row >= self._analysis.row_count():
+            return None
+
+        return self._analysis.row(row).address
+
+
     def set_debugger(self, debugger: Debugger) -> None:
         """
         @brief Attach the debugger.
@@ -88,6 +109,22 @@ class CodeTableModel(QAbstractTableModel):
             Debugger instance.
         """
         self._debugger = debugger
+
+
+    def set_current_pc(self, address: int) -> None:
+        """
+        @brief Update the highlighted program counter.
+
+        @param address
+            Current CHIP-8 program counter.
+        """
+        if self._current_pc == address:
+            return
+        self._previous_pc = self._current_pc
+        self._current_pc = address
+        if self._previous_pc is not None:
+            self.refresh_address(self._previous_pc)
+        self.refresh_address(self._current_pc)
 
 
     def refresh(self) -> None:
@@ -135,13 +172,21 @@ class CodeTableModel(QAbstractTableModel):
 
 
     def data( self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if ( self._analysis is None or not index.isValid() or role != Qt.ItemDataRole.DisplayRole):
+        if self._analysis is None or not index.isValid():
             return None
         row = self._analysis.row(index.row())
+        if role == Qt.ItemDataRole.BackgroundRole:
+            if row.address == self._current_pc:
+                return QBrush(QColor(255, 255, 160))
+            return None
+        if role != Qt.ItemDataRole.DisplayRole:
+            return None
         match index.column():
             case self.Column.BP:
                 if self._debugger is None:
                     return ""
+                if self._debugger.temporary_breakpoint == row.address:
+                    return "►"
                 if self._debugger.is_breakpoint_enabled(row.address):
                     return "●"
                 if self._debugger.is_breakpoint_disabled(row.address):

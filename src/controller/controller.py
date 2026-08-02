@@ -33,7 +33,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication, QFileDialog
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
+from PyQt6.QtGui import QAction, QCursor
 
 from audio.beeper import Beeper
 from chip8.debugger import Debugger
@@ -69,6 +70,7 @@ class Chip8Controller:
         self._configuration                     = EmulatorConfiguration()
         self._settings_manager                  = SettingsManager()
         self._settings_manager.load_configuration(self._configuration)
+        self._debugger.read_settings( self._settings_manager.settings())
         self._diagnostics                       = Diagnostics()
         self._diagnostics_reporter              = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
         self._log_manager                       = LogManager()
@@ -82,6 +84,7 @@ class Chip8Controller:
         self._machine                           = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)
+        self._main_window.breakpoint_context_menu_requested.connect( self._show_breakpoint_context_menu)
         self._cpu_timer = QTimer()
         self._cpu_timer.timeout.connect(self._cpu_tick)
         self._hardware_timer = QTimer()
@@ -143,6 +146,11 @@ class Chip8Controller:
         return self._cpu_frequency
 
 
+    @property
+    def debugger(self) -> Debugger:
+        return self._debugger
+
+    
     ###########################################################################
     # Window handling
     ###########################################################################
@@ -198,6 +206,9 @@ class Chip8Controller:
         self._main_window.save_settings()
         self._settings_manager.save_configuration( self._configuration)
         self._keyboard_map.write_settings( self._settings_manager.settings())
+        self._debugger.write_settings( self._settings_manager.settings())
+
+
 
     ###########################################################################
     # Emulator control
@@ -293,6 +304,71 @@ class Chip8Controller:
         self._execute_cycle()
         self._logger.info("Single step")
         self._logger.leave("step")
+
+
+    def run_to_address(self) -> None:
+        """
+        @brief Continue execution until the selected instruction is reached.
+        """
+        self._logger.enter("run_to_address")
+        address = self._main_window.selected_code_address()
+        if address is None:
+            self._main_window.show_warning( "Run to Address", "Please select a target instruction in the code view.")
+            self._logger.leave("run_to_address")
+            return
+        if address == self._machine.registers.pc:
+            self._logger.leave("run_to_address")
+            return
+        self._debugger.set_temporary_breakpoint(address)
+        self._code_model.refresh_address(address)
+        self.run()
+        self._logger.leave("run_to_address")
+
+
+    def step_over(self) -> None:
+        """
+        @brief Execute one instruction, stepping over subroutine calls.
+        """
+        self._logger.enter("step_over")
+        if self._running:
+            self._logger.leave("step_over")
+            return
+        pc = self._machine.registers.pc
+        # Temporary instruction decoding.
+        # This code exists only until the instruction decoder is unified.
+        # It should be replaced by the shared decoder introduced during the
+        # instruction decoder refactoring.
+        opcode = ( (self._machine.memory.read_byte(pc) << 8) | self._machine.memory.read_byte(pc + 1))
+
+        # CALL nnn
+        if (opcode & 0xF000) == 0x2000:
+            self._debugger.set_temporary_breakpoint(pc + 2)
+            self._code_model.refresh_address(pc + 2)
+            self.run()
+            self._logger.info("Step over")
+        else:
+            self.step()
+        self._logger.leave("step_over")
+
+
+    def step_out(self) -> None:
+        """
+        @brief Continue execution until the current subroutine returns.
+        """
+        self._logger.enter("step_out")
+        if self._running:
+            self._logger.leave("step_out")
+            return
+        if self._machine._stack.empty():
+            self._main_window.show_warning( "Step Out", "There is no active subroutine to return from.")
+            self._logger.leave("step_out")
+            return
+        return_address = self._machine._stack.peek()
+        self._debugger.set_temporary_breakpoint(return_address)
+        self._code_model.refresh_address(return_address)
+        self.run()
+        self._logger.info( f"Step out to {return_address:04X}")
+        self._logger.leave("step_out")
 
 
     def key_down(self, qt_key: int) -> None:
@@ -394,6 +470,7 @@ class Chip8Controller:
         """
         @brief Highlight the current instruction in the debugger.
         """
+        self._code_model.set_current_pc(self._machine.registers.pc)
         row = self._code_analysis.find_row(self._machine.registers.pc)
         if row is not None:
             self._main_window.scroll_code_to_row(row)
@@ -403,6 +480,7 @@ class Chip8Controller:
         """
         @brief Execute one CHIP-8 instruction and perform all related updates.
         """
+        temporary_breakpoint_hit = ( self._debugger.temporary_breakpoint == self._machine.registers.pc)
         if (not self._debugger.has_any_breakpoint(self._machine.registers.pc)) or (self._stopped_on_breakpoint == True):
             self._stopped_on_breakpoint = False
             result = self._machine.execute_cycle()
@@ -420,7 +498,9 @@ class Chip8Controller:
         else:
             self.stop()
             self._stopped_on_breakpoint = True
-
+            if temporary_breakpoint_hit:
+                self._code_model.refresh_address(self._machine.registers.pc)
+                self._main_window.clear_code_selection()
 
     def _cpu_tick(self) -> None:
         """
@@ -503,7 +583,6 @@ class Chip8Controller:
         return True
 
 
-
     def _toggle_breakpoint(self, address: int) -> None:
         """
         @brief Toggle the breakpoint at an address.
@@ -515,4 +594,51 @@ class Chip8Controller:
         self._code_model.refresh_address(address)
 
 
+    def _show_breakpoint_context_menu(self, row: int, position: QPoint) -> None:
+        """
+        @brief Show the breakpoint context menu.
+
+        @param row
+            Code analysis row.
+        """
+        address = self._code_analysis.row(row).address
+
+        menu = QMenu(self._main_window)
+
+        set_action: QAction | None = None
+        clear_action: QAction | None = None
+        enable_action: QAction | None = None
+        disable_action: QAction | None = None
+        clear_all_action: QAction | None = None
+
+        if self._debugger.is_breakpoint_enabled(address):
+            disable_action = menu.addAction("Disable Breakpoint")
+            clear_action = menu.addAction("Clear Breakpoint")
+        elif self._debugger.is_breakpoint_disabled(address):
+            enable_action = menu.addAction("Enable Breakpoint")
+            clear_action = menu.addAction("Clear Breakpoint")
+        else:
+            set_action = menu.addAction("Set Breakpoint")
+
+        if self._debugger.has_breakpoints():
+            menu.addSeparator()
+            clear_all_action = menu.addAction("Clear All Breakpoints")
+
+#        action = menu.exec(QCursor.pos())
+        action = menu.exec( self._main_window.codeTableView.viewport().mapToGlobal(position))
+        if action is None:
+            return
+
+        if action == set_action:
+            self._debugger.set_breakpoint(address)
+        elif action == clear_action:
+            self._debugger.clear_breakpoint(address)
+        elif action == enable_action:
+            self._debugger.enable_breakpoint(address)
+        elif action == disable_action:
+            self._debugger.disable_breakpoint(address)
+        elif action == clear_all_action:
+            self._debugger.clear_all_breakpoints()
+
+        self._code_model.refresh()
 
