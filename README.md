@@ -869,6 +869,9 @@ Current implementation status:
 | Execution Tracing | ✅ Complete |
 | Audio | ✅ Complete |
 | Unit Tests | ✅ Complete |
+| Persistent Configuration | ✅ Complete |
+| Debugger Breakpoints | ✅ Complete |
+| Run-to-cursor Support | ✅ Complete |
 
 The project currently provides
 
@@ -887,9 +890,7 @@ The project currently provides
 
 Future development may include
 
-- persistent configuration
-- debugger breakpoints
-- run-to-cursor support
+
 - memory watchpoints
 - integrated CHIP-8 assembler
 - regression ROM suite
