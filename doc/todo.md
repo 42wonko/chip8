@@ -130,10 +130,26 @@ Remaining work:
 - [x] Add indentation to application tracing
 - [x] Add automatic leave message for application tracing
 
+### Deployment
+
+- [x] Create installable Python package
+- [x] Update pyproject.toml package metadata
+- [x] Define runtime dependencies
+- [x] Define development dependencies
+- [x] Verify clean virtual environment installation
+- [x] Document installation procedure
+- [x] Document supported Python versions
+- [x] Test installation on a second system
+
+### Configuration
+
+- [x] Persist configuration between sessions
+- [x] Remember last ROM directory
+- [x] Remember window geometry
+
 ---
 
 ## Remaining Features
-
 
 #### Remaining integration
 
@@ -143,27 +159,9 @@ Remaining work:
 
 ## Known Issues
 
-
 ---
 
 ## Future Enhancements
-
-### Configuration
-
-- [ ] Persist configuration between sessions
-- [ ] Remember last ROM directory
-- [ ] Remember window geometry
-
-## Deployment
-
-- [ ] Create installable Python package
-- [ ] Update pyproject.toml package metadata
-- [ ] Define runtime dependencies
-- [ ] Define development dependencies
-- [ ] Verify clean virtual environment installation
-- [ ] Document installation procedure
-- [ ] Document supported Python versions
-- [ ] Test installation on a second system
 
 ### Debugger
 
