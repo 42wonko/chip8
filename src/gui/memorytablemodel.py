@@ -148,8 +148,14 @@ class MemoryTableModel(QAbstractTableModel):
         address = index.row() * 16 + index.column()
         if role == Qt.ItemDataRole.DisplayRole:
             return f"{self._memory[address]:02X}"
-        if ( role == Qt.ItemDataRole.BackgroundRole and self._highlight_start is not None and self._highlight_start <= address <= self._highlight_end):
-            return QBrush(QColor(255, 255, 160))
+#        if ( role == Qt.ItemDataRole.BackgroundRole and self._highlight_start is not None and self._highlight_start <= address <= self._highlight_end):
+        if role == Qt.ItemDataRole.BackgroundRole:
+            if (
+                self._highlight_start is not None
+                and self._highlight_end is not None
+                and self._highlight_start <= address <= self._highlight_end
+            ):
+                return QBrush(QColor(255, 255, 160))
         return None
 
 

@@ -35,14 +35,21 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
-from PyQt6.QtCore import QItemSelectionModel, QSettings, pyqtSignal, Qt, QPoint
+from PyQt6.QtCore import QModelIndex, QPoint, QSettings, Qt, pyqtSignal
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import QAbstractItemView, QDialog, QHeaderView, QMainWindow, QStatusBar, QMessageBox
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QDialog,
+    QHeaderView,
+    QMainWindow,
+    QMessageBox,
+    QStatusBar,
+)
 
 from chip8.settingsmanager import SettingsManager
+from gui.codetablemodel import CodeTableModel
 from gui.configdialog import ConfigDialog
 from gui.displaywidget import DisplayWidget
-from gui.codetablemodel import CodeTableModel
 
 if TYPE_CHECKING:
     from controller.controller import Chip8Controller
@@ -110,13 +117,16 @@ class MainWindow(QMainWindow):
         @brief Attach the memory model to the memory table.
         """
         self.memoryTableView.setModel(model)
+        font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        self.memoryTableView.setFont(font)
         model.scroll_to_address.connect( self._scroll_memory_to_address)
         header = self.memoryTableView.horizontalHeader()
         header.setStretchLastSection(False)
-        header.setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
-        self.memoryTableView.verticalHeader().setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
-        font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
-        self.memoryTableView.setFont(font)
+        header.setSectionResizeMode( QHeaderView.ResizeMode.Interactive)
+        vertical = self.memoryTableView.verticalHeader()
+        vertical.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        self.memoryTableView.resizeColumnsToContents()
+        self.memoryTableView.resizeRowsToContents()
 
 
     def set_code_model(self, model: CodeTableModel) -> None:
@@ -128,7 +138,9 @@ class MainWindow(QMainWindow):
         self.codeTableView.verticalHeader().hide()
         header = self.codeTableView.horizontalHeader()
         header.setStretchLastSection(True)
-        header.setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
+#        header.setSectionResizeMode( QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode( QHeaderView.ResizeMode.Interactive)
+        self.codeTableView.resizeColumnsToContents()
         self.codeTableView.verticalHeader().setSectionResizeMode( QHeaderView.ResizeMode.Fixed)
         font = QFontDatabase.systemFont( QFontDatabase.SystemFont.FixedFont)
         self.codeTableView.setFont(font)
@@ -161,7 +173,9 @@ class MainWindow(QMainWindow):
         index = model.index(row, 0)
         if not index.isValid():
             return
-        self.codeTableView.scrollTo( index, QAbstractItemView.ScrollHint.PositionAtCenter,)
+        if self.codeTableView.viewport().rect().contains( self.codeTableView.visualRect(index)):
+            return
+        self.codeTableView.scrollTo( index, QAbstractItemView.ScrollHint.PositionAtCenter)
 
 
     def restore_settings(self) -> None:

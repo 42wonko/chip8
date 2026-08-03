@@ -32,9 +32,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QPoint, QTimer
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
-from PyQt6.QtGui import QAction, QCursor
 
 from audio.beeper import Beeper
 from chip8.debugger import Debugger
@@ -104,7 +104,10 @@ class Chip8Controller:
         self._code_analysis.rebuild()
         self._update_diagnostics_view()
         self._code_model.refresh()
-        QApplication.instance().aboutToQuit.connect(self.save_settings)
+#        QApplication.instance().aboutToQuit.connect(self.save_settings)
+        application = QApplication.instance()
+        assert application is not None
+        application.aboutToQuit.connect(self.save_settings)
         settings = self._settings_manager.settings()
         last_rom = settings.value("recent/last_rom")
         if isinstance(last_rom, str):
@@ -113,7 +116,6 @@ class Chip8Controller:
                 self._load_rom(rom)
             else:
                 settings.remove("recent/last_rom")
-
 
     ###########################################################################
     # Read-only properties
@@ -150,7 +152,7 @@ class Chip8Controller:
     def debugger(self) -> Debugger:
         return self._debugger
 
-    
+
     ###########################################################################
     # Window handling
     ###########################################################################
@@ -207,7 +209,6 @@ class Chip8Controller:
         self._settings_manager.save_configuration( self._configuration)
         self._keyboard_map.write_settings( self._settings_manager.settings())
         self._debugger.write_settings( self._settings_manager.settings())
-
 
 
     ###########################################################################
@@ -481,7 +482,7 @@ class Chip8Controller:
         @brief Execute one CHIP-8 instruction and perform all related updates.
         """
         temporary_breakpoint_hit = ( self._debugger.temporary_breakpoint == self._machine.registers.pc)
-        if (not self._debugger.has_any_breakpoint(self._machine.registers.pc)) or (self._stopped_on_breakpoint == True):
+        if (not self._debugger.has_any_breakpoint(self._machine.registers.pc)) or self._stopped_on_breakpoint:
             self._stopped_on_breakpoint = False
             result = self._machine.execute_cycle()
             refresh_code = False

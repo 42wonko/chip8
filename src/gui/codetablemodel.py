@@ -51,6 +51,7 @@ class CodeTableModel(QAbstractTableModel):
         self._debugger: Debugger | None     = None
         self._current_pc: int | None        = None
         self._previous_pc: int | None       = None
+        self._performance =  None
 
 
     ###########################################################################

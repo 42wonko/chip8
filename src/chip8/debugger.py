@@ -3,7 +3,7 @@
 @brief Debugger for the Chip8 emulator.
 @details
 This class handles all functions related to breakpoints. It maintains a list of permanent
-breakpoints and a temporary breakpoint. Functions like "run to cursor" or "step over sub-routine call" 
+breakpoints and a temporary breakpoint. Functions like "run to cursor" or "step over sub-routine call"
 use temporary breakpoints but rely on the ssame infrastucture than normal breakpoints.
 
 @author
@@ -14,6 +14,7 @@ MIT License
 """
 
 from __future__ import annotations
+
 from PyQt6.QtCore import QSettings
 
 
@@ -94,7 +95,7 @@ class Debugger:
         """
         @brief Set a temporary breakpoint.
         @details Only one temporary brakpoint is needed. It is used for implementing functions
-        like "run to cursor" or "step over function call". It is implicitely set and reset by 
+        like "run to cursor" or "step over function call". It is implicitely set and reset by
         these unctions.
         @param address Breakpoint address.
         """
@@ -145,7 +146,7 @@ class Debugger:
         return address in self._inactive_breakpoints
 
 
-    def enable(self, enable:bool):
+    def enable(self, enable:bool) -> None:
         """
         @brief Enable or disable the debugger.
         """
