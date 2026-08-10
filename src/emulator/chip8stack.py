@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.diagnostics import DiagnosticReporter
+from emulator.chip8registers import Chip8Registers
 from emulator.constants import ADDRESS_MASK, STACK_SIZE
 
 
@@ -29,14 +30,14 @@ class Chip8Stack:
     """
     @brief CHIP-8 call stack.
     """
-    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
+    def __init__(self, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter, registers: Chip8Registers) -> None:
         """
         @brief Construct an empty stack.
         """
         self._diagnostics = diagnostics
         self._logger = logger
         self._stack: list[int] = [0] * STACK_SIZE       # we only store 12-bit return addresses
-        self._sp: int = 0
+        self._registers = registers
 
 
     ###########################################################################
@@ -52,12 +53,11 @@ class Chip8Stack:
         @param address
             Return address.
         """
-        self._stack[self._sp] = address & ADDRESS_MASK  #
-        if self._sp >= STACK_SIZE:
+        self._stack[self._registers.sp] = address & ADDRESS_MASK  #
+        if self._registers.sp >= STACK_SIZE:
             self._logger.warning("CHIP-8 stack overflow.")
             self._diagnostics.warning("CHIP-8 stack overflow.")
-        self._sp = (self._sp + 1) % STACK_SIZE          # modulo addressing allows wrap-around
-
+        self._registers.sp = (self._registers.sp + 1) % STACK_SIZE          # modulo addressing allows wrap-around
 
     def pop(self) -> int:
         """
@@ -66,11 +66,11 @@ class Chip8Stack:
         @return
             Return address.
         """
-        if self._sp <= 0:
+        if self._registers.sp <= 0:
             self._logger.warning("CHIP-8 stack underflow.")
             self._diagnostics.warning("CHIP-8 stack underflow.")
-        self._sp = (self._sp - 1) % STACK_SIZE
-        return self._stack[self._sp]
+        self._registers.sp = (self._registers.sp - 1) % STACK_SIZE
+        return self._stack[self._registers.sp]
 
 
     def reset(self) -> None:
@@ -79,7 +79,7 @@ class Chip8Stack:
         """
         self._logger.info("Stack reset.")
         self._stack[:] = [0] * STACK_SIZE   # slice assignment reuses the existing list instead of allocating a new one
-        self._sp = 0
+        self._registers.sp = 0
 
 
     def empty(self) -> bool:
@@ -99,7 +99,7 @@ class Chip8Stack:
         @return
             Number of entries currently stored on the stack.
         """
-        return self._sp
+        return self._registers.sp
 
 
     def peek(self) -> int:
@@ -115,5 +115,13 @@ class Chip8Stack:
         if self.empty():
             raise IndexError("peek from empty stack")
 
-        return self._stack[self._sp - 1]
+        return self._stack[self._registers.sp - 1]
+
+    @property
+    def registers(self) -> Chip8Registers:
+        return self._registers
+
+
+
+
 

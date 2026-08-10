@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 
+from chip8.isa.instruction import Instruction
 from emulator.chip8registers import Chip8Registers
-from emulator.instruction import Instruction
 
 
 class KeyExecutionEvent(Enum):

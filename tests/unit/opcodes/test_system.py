@@ -6,7 +6,6 @@
 
 import unittest
 
-from emulator.instruction import Instruction
 from tests.helpers import create_machine, write_opcode
 
 
@@ -34,9 +33,9 @@ class TestSystemInstructions(unittest.TestCase):
         """
         @brief test if mnemonic is correct.
         """
-        instruction = Instruction.decode(0x200, 0x00E0)
-        self.assertEqual(str(instruction), "CLS")
-
+        machine = create_machine()
+        instruction = machine.isa.decode(0x200, 0x00E0)
+        self.assertEqual(machine.isa.format(instruction), "CLS")
 
     ###########################################################################
     # 00EE - RET

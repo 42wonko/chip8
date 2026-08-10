@@ -1,12 +1,13 @@
 import unittest
 
+from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from controller.codeanalysis import CodeAnalysis, CodeStatus
 from controller.diagnostic import DiagnosticSource
 from controller.diagnostics import Diagnostics
 from controller.emulatorconfiguration import EmulatorConfiguration
 from controller.logging import LogManager
 from emulator.constants import PROGRAM_START
-from tests.helpers import create_memory
+from tests.helpers import create_machine
 
 
 class TestCodeAnalysis(unittest.TestCase):
@@ -34,12 +35,15 @@ class TestCodeAnalysis(unittest.TestCase):
         """
         @brief Create a fresh analyzer.
         """
-        self.memory = create_memory()
+#        self.memory = create_memory()
         diagnostics = Diagnostics()
         log_manager = LogManager()
         configuration = EmulatorConfiguration()
         log_manager.configure(configuration)
-        self.analysis = CodeAnalysis(self.memory, diagnostics.reporter(DiagnosticSource.ANALYZER), log_manager.application_logger(DiagnosticSource.ANALYZER))
+        machine = create_machine()
+        self.memory = machine.memory
+        isa = ClassicInstructionSetArchitecture(machine)
+        self.analysis = CodeAnalysis(self.memory, diagnostics.reporter(DiagnosticSource.ANALYZER), log_manager.application_logger(DiagnosticSource.ANALYZER), isa)
 
 
     def test_empty_memory_is_data(self) -> None:

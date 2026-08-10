@@ -54,6 +54,14 @@ class TestcreateStack(unittest.TestCase):
         self.assertEqual(stack.pop(), 0x222)
         self.assertEqual(stack.pop(), 0x111)
 
+    def test_sp(self):
+        stack = create_stack()
+        self.assertEqual(stack.registers.sp , 0)
+        stack.push(0x456)
+        self.assertEqual(stack.registers.sp, 1)
+        self.assertEqual(stack.pop(), 0x456)
+        self.assertEqual(stack.registers.sp, 0)
+
     ###########################################################################
     # Address masking
     ###########################################################################

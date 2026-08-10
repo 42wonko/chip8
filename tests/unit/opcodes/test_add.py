@@ -6,7 +6,6 @@
 
 import unittest
 
-from emulator.instruction import Instruction
 from tests.helpers import create_machine, write_opcode
 
 
@@ -37,9 +36,12 @@ class TestInstruction(unittest.TestCase):
         self.assertEqual(machine.registers[2], 4)
         self.assertEqual(machine.registers[0xF], 0x42)
 
+
     def test_instruction_str_add_byte(self) -> None:
-        instruction = Instruction.decode(0x200, 0x720A)
-        self.assertEqual(str(instruction), "ADD V2, 0A")
+        machine = create_machine()
+        instruction = machine.isa.decode(0x200, 0x720A)
+        self.assertEqual(machine.isa.format(instruction), "ADD V2, 0A")
+
 
     ###########################################################################
     # 8XY4

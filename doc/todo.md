@@ -141,6 +141,8 @@ Remaining work:
 - [x] Document supported Python versions
 - [x] Test installation on a second system
 
+---
+
 ### Configuration
 
 - [x] Persist configuration between sessions
@@ -149,9 +151,33 @@ Remaining work:
 
 ---
 
+### Debugger
+
+- [x] Breakpoints
+- [x] Run to cursor
+- [x] Step over sub-routine call
+- [x] Step into sub-routine
+- [x] Highlight modified memory cells
+
+---
+
+## Major Refactoring
+
+### Instruction Decoder
+
+- [x] Unify the three independent instruction decoders
+- [x] Inventory every place opcode decoding currently occurs
+- [x] Design a unified decoded-instruction representation
+- [x] Introduce centralized opcode metadata
+- [x] Migrate disassembler
+- [x] Migrate static analyzer
+- [x] Migrate emulator execution
+- [x] Remove obsolete decoding logic
+
+---
 ## Remaining Features
 
-#### Remaining integration
+### Remaining integration
 
 - [ ] Review trace output for readability and consistency
 
@@ -165,12 +191,9 @@ Remaining work:
 
 ### Debugger
 
-- [ ] Breakpoints
-- [ ] Run to cursor
-- [ ] Go to address
+- [ ] Go to address / Set PC
 - [ ] Follow memory writes
 - [ ] Search for byte sequence in ROM
-- [ ] Highlight modified memory cells
 
 ### Audio
 
@@ -202,18 +225,7 @@ Remaining work:
 
 ---
 
-## Major Refactoring
 
-### Instruction Decoder
-
-- [ ] Unify the three independent instruction decoders
-    - Emulator execution
-    - Static code analyzer
-    - Debugger / disassembler
-- [ ] Introduce a shared instruction decoder
-- [ ] Centralize opcode metadata and decoding logic
-
----
 
 ## Project Status
 

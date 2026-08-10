@@ -21,11 +21,12 @@ from collections import deque
 from dataclasses import dataclass
 from enum import StrEnum
 
+from chip8.isa.instruction import Instruction
+from chip8.isa.isa import ControlFlow, InstructionSetArchitecture
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.diagnostics import DiagnosticReporter
 from emulator.chip8memory import Chip8Memory
 from emulator.constants import CHIP8_STACK_SIZE, PROGRAM_START
-from emulator.instruction import Instruction
 
 
 class CodeStatus(StrEnum):
@@ -96,7 +97,8 @@ class CodeAnalysis:
     """
     @brief Maintains the interpreted Code View.
     """
-    def __init__(self, memory: Chip8Memory, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
+#    def __init__(self, memory: Chip8Memory, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter) -> None:
+    def __init__( self, memory: Chip8Memory, diagnostics: DiagnosticReporter, logger: ApplicationLogReporter, isa: InstructionSetArchitecture) -> None:
         """
         @brief Construct the Code Analysis subsystem.
 
@@ -104,10 +106,10 @@ class CodeAnalysis:
             Emulator memory.
         """
         self._diagnostics = diagnostics             # connect ourself to the Diagnostics manager in the controller
-        self._logger = logger
-        self._memory = memory
+        self._logger    = logger
+        self._memory    = memory
+        self._isa       = isa
         self._rows: list[CodeRow] = []
-
         self._status: list[CodeStatus] = []         # Classification for every memory byte.
 
         # Instructions discovered by analysis.
@@ -243,7 +245,7 @@ class CodeAnalysis:
         opcode = self._get_word(address)
         if opcode is None:
             return None
-        return Instruction.decode(address, opcode)
+        return self._isa.decode(address, opcode)
 
 
     def analyze_observed_bnnn_target( self, instruction_address: int, target: int) -> bool:
@@ -266,179 +268,112 @@ class CodeAnalysis:
 
 
     def _analyze(self) -> None:
-        """
-        @brief Perform control-flow analysis.
-
-        @details
-        Starting at the program entry point, performs a conservative
-        worklist-based traversal to discover executable instructions.
-
-        Previously observed BNNN runtime targets are treated as additional
-        analysis entry points.
-        """
         self._instructions.clear()
+
         worklist: deque[WorkItem] = deque()
         visited: set[WorkItem] = set()
-        worklist.append(WorkItem(PROGRAM_START))                # Primary program entry point.
 
-        for targets in self._observed_bnnn_targets.values():    # Previously observed runtime targets of BNNN instructions.
+        worklist.append(WorkItem(PROGRAM_START))
+
+        for targets in self._observed_bnnn_targets.values():
             for target in targets:
                 worklist.append(WorkItem(target))
+
         while worklist:
             work = worklist.pop()
-            if len(work.call_stack) > CHIP8_STACK_SIZE:
-                self._diagnostics.warning( "Maximum CHIP-8 call stack depth exceeded during static analysis." , work.address)
-                continue
+
             if work in visited:
                 continue
+
+            if len(work.call_stack) > CHIP8_STACK_SIZE:
+                self._diagnostics.warning(
+                    "Maximum CHIP-8 call stack depth exceeded during static analysis.",
+                    work.address
+                )
+                continue
+
             visited.add(work)
+
             address = work.address
+
             if not (self._rom_start <= address < self._rom_end):
                 continue
-            instruction = self._decode_instruction(address)
-            if instruction is None:
+
+            opcode = self._get_word(address)
+
+            if opcode is None:
+                continue
+
+            instruction = self._isa.decode(address, opcode)
+            analysis = self._isa.analyze(instruction)
+            if not analysis.is_code:
+                self._status[address] = CodeStatus.DATA
+                if address + 1 < self._rom_end:
+                    self._status[address + 1] = CodeStatus.DATA
                 continue
             self._instructions[address] = instruction
-            self._status[address] = CodeStatus.CODE             # Mark the occupied bytes as executable.
+            self._status[address] = CodeStatus.CODE
+
             if address + 1 < self._rom_end:
                 self._status[address + 1] = CodeStatus.CODE
-            successors = self._successors(work, instruction)
-            if successors is None:
-                self._status[address] = CodeStatus.DATA
-                continue
-            self._status[address] = CodeStatus.CODE
-            for successor in successors:
-                if len(successor.call_stack) > CHIP8_STACK_SIZE:
-                    self._diagnostics.warning("Maximum CHIP-8 stack depth exceeded.", instruction.address )
-                if successor not in visited:
-                    worklist.append(successor)
 
+            match analysis.control_flow:
+                case ControlFlow.NEXT:
+                    for target in analysis.targets:
+                        worklist.append(
+                            WorkItem(target, work.call_stack)
+                        )
 
-    def _successors( self, work: WorkItem, instruction: Instruction,) -> list[WorkItem] | None:
-        """
-        @brief Determine successor analysis states.
+                case ControlFlow.BRANCH:
+                    for target in analysis.targets:
+                        worklist.append(
+                            WorkItem(target, work.call_stack)
+                        )
 
-        @param work
-            Current analysis state.
+                case ControlFlow.CONDITIONAL_BRANCH:
+                    for target in analysis.targets:
+                        worklist.append(
+                            WorkItem(target, work.call_stack)
+                        )
 
-        @param instruction
-            Decoded instruction.
+                case ControlFlow.CALL:
+                    for target in analysis.targets:
+                        if any(
+                            frame.callee == target
+                            for frame in work.call_stack
+                        ):
+                            self._diagnostics.warning(
+                                "Potential recursive CALL path detected; analysis terminated this path.",
+                                instruction.address
+                            )
+                            continue
 
-        @return
-            List of successor work items for valid CHIP-8 instructions,
-            an empty list for instructions with no statically known
-            successors, or None for invalid instruction encodings.
-        """
-        #
-        # Instructions identified by their complete opcode.
-        #
-        match instruction.opcode:
-            case 0x00EE:      # RET
-                if not work.call_stack:
-                    return []
-                frame = work.call_stack[-1]
-                return [WorkItem(frame.return_address, work.call_stack[:-1])]
+                        call_stack = work.call_stack + (
+                            CallFrame(
+                                callee=target,
+                                return_address=instruction.address + 2
+                            ),
+                        )
 
-        #
-        # Instructions identified by opcode family.
-        #
-        match instruction.family:
-            case 0x1:         # JP addr
-                return [
-                    WorkItem(
-                        instruction.nnn,
-                        work.call_stack,
+                        worklist.append(
+                            WorkItem(target, call_stack)
+                        )
+
+                case ControlFlow.RETURN:
+                    if not work.call_stack:
+                        continue
+
+                    frame = work.call_stack[-1]
+
+                    worklist.append(
+                        WorkItem(
+                            frame.return_address,
+                            work.call_stack[:-1]
+                        )
                     )
-                ]
 
-            case 0x2:         # CALL addr
-                if any( frame.callee == instruction.nnn for frame in work.call_stack):
-                    self._diagnostics.warning( "Potential recursive CALL path detected; analysis terminated this path." , instruction.address)
-                    return []
-                return [ WorkItem( instruction.nnn, work.call_stack + ( CallFrame( callee=instruction.nnn , return_address=instruction.address + 2),)) ]
-
-            case 0x3:         # SE Vx, byte
-                return [
-                    WorkItem(
-                        instruction.address + 2,
-                        work.call_stack,
-                    ),
-                    WorkItem(
-                        instruction.address + 4,
-                        work.call_stack,
-                    ),
-                ]
-
-            case 0x4:         # SNE Vx, byte
-                return [
-                    WorkItem(
-                        instruction.address + 2,
-                        work.call_stack,
-                    ),
-                    WorkItem(
-                        instruction.address + 4,
-                        work.call_stack,
-                    ),
-                ]
-
-            case 0x5:         # SE Vx, Vy
-                if instruction.n != 0:
-                    return None
-                return [
-                    WorkItem(
-                        instruction.address + 2,
-                        work.call_stack,
-                    ),
-                    WorkItem(
-                        instruction.address + 4,
-                        work.call_stack,
-                    ),
-                ]
-
-            case 0x8:         # SE Vx, Vy
-                if instruction.n in (8,9,0xA,0xB,0xC,0xD,0xF):
-                    return None
-                return [ WorkItem( instruction.address + 2, work.call_stack,) ]
-
-            case 0x9:         # SNE Vx, Vy
-                if instruction.n != 0:
-                    return None
-                return [
-                    WorkItem(
-                        instruction.address + 2,
-                        work.call_stack,
-                    ),
-                    WorkItem(
-                        instruction.address + 4,
-                        work.call_stack,
-                    ),
-                ]
-
-            case 0xB:         # JP V0, addr
-                #
-                # Conservative for now.
-                #
-                return []
-
-            case 0xE:         # SKP / SKNP
-                return [
-                    WorkItem(
-                        instruction.address + 2,
-                        work.call_stack,
-                    ),
-                    WorkItem(
-                        instruction.address + 4,
-                        work.call_stack,
-                    ),
-                ]
-
-            case _:
-                return [
-                    WorkItem(
-                        instruction.address + 2,
-                        work.call_stack,
-                    )
-                ]
+                case ControlFlow.TERMINATE:
+                    continue
 
 
     def _build_rows(self) -> None:
@@ -452,14 +387,13 @@ class CodeAnalysis:
             instruction = self._instructions.get(address)
             if instruction is not None:
                 self._address_to_row[address] = len(rows)
-                rows.append( CodeRow( address=address, raw_bytes=bytes( ( self._memory[address], self._memory[address + 1],)), interpretation=str(instruction), status=self._status[address]))
+                rows.append( CodeRow( address=address, raw_bytes=bytes((self._memory[address], self._memory[address + 1])), interpretation=self._isa.format(instruction), status=self._status[address]))
                 address += 2
                 continue
             self._address_to_row[address] = len(rows)
             rows.append( CodeRow( address=address, raw_bytes=bytes((self._memory[address],)), interpretation=f"{self._memory[address]:02X}", status=self._status[address],))
             address += 1
         self._rows = rows
-
 
     def row_count(self) -> int:
         """

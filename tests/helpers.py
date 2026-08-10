@@ -4,6 +4,7 @@
 @brief Helper functions for emulator unit tests.
 """
 
+from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from controller.diagnostic import DiagnosticSource
 from controller.diagnostics import Diagnostics
 from controller.logging import LogManager
@@ -52,7 +53,10 @@ def execute_opcode( opcode: int) -> Chip8Machine:
 def create_machine() -> Chip8Machine:
     log_manager = LogManager()
     diagnostics = Diagnostics()
-    return Chip8Machine(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST), log_manager.execution_trace_reporter())
+    machine =  Chip8Machine(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST), log_manager.execution_trace_reporter())
+    isa = ClassicInstructionSetArchitecture(machine)
+    machine.set_isa(isa)
+    return machine
 
 def create_framebuffer() -> Chip8Framebuffer:
     log_manager = LogManager()
@@ -77,7 +81,8 @@ def create_registers() -> Chip8Registers:
 def create_stack() -> Chip8Stack:
     log_manager = LogManager()
     diagnostics = Diagnostics()
-    return Chip8Stack(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST) )
+    registers = create_registers()
+    return Chip8Stack(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST), registers)
 
 def create_timers() -> Chip8Timers:
     log_manager = LogManager()

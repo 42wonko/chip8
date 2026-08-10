@@ -38,6 +38,7 @@ from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
 
 from audio.beeper import Beeper
 from chip8.debugger import Debugger
+from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.settingsmanager import SettingsManager
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.codeanalysis import CodeAnalysis
@@ -82,6 +83,8 @@ class Chip8Controller:
         self._main_window                       = MainWindow(self)
         self._main_window.breakpoint_toggled.connect( self._toggle_breakpoint)
         self._machine                           = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
+        self._isa                               = ClassicInstructionSetArchitecture(self._machine)
+        self._machine.set_isa(self._isa)
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)
         self._main_window.breakpoint_context_menu_requested.connect( self._show_breakpoint_context_menu)
@@ -96,7 +99,7 @@ class Chip8Controller:
         self._memory_model = MemoryTableModel()
         self._main_window.set_memory_model(self._memory_model)
         self._memory_model.set_memory(self._machine.memory)
-        self._code_analysis = CodeAnalysis( self._machine.memory, self._diagnostics.reporter(DiagnosticSource.ANALYZER), self._log_manager.application_logger( DiagnosticSource.ANALYZER))
+        self._code_analysis = CodeAnalysis( self._machine.memory, self._diagnostics.reporter(DiagnosticSource.ANALYZER), self._log_manager.application_logger( DiagnosticSource.ANALYZER), self._isa)
         self._code_model = CodeTableModel()
         self._main_window.set_code_model(self._code_model)
         self._code_model.set_analysis(self._code_analysis)

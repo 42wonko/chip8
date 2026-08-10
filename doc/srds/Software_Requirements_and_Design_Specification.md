@@ -152,9 +152,10 @@ This table of contents is maintained manually.
 4. Emulator Core
 5. Graphical User Interface
 6. Debugger and Disassembler
-7. Build System
-8. Development Process
-9. Appendices
+7. Assembler
+8. Build System
+9. Development Process
+10. Appendices
 
 ---
 
@@ -732,13 +733,15 @@ Chip8Controller
     │
     ├── MainWindow
     │
-    └── Chip8Machine
-            │
-            ├── Memory
-            ├── Registers
-            ├── Timers
-            ├── Keyboard
-            └── Framebuffer
+    ├── Chip8Machine
+    │       │
+    │       ├── Memory
+    │       ├── Registers
+    │       ├── Timers
+    │       ├── Keyboard
+    │       └── Framebuffer
+    │
+    └── Assembler
 ```
 
 Objects shall have exactly one owner.
@@ -2166,12 +2169,268 @@ During ROM loading or emulator reset, the Controller performs the corresponding 
 The Code Analysis subsystem shall operate in an event-driven manner. It shall not continuously poll emulator memory or execute independently of the Controller.
 
 
+# 7. Assembler
 
-# Chapter 7 — Build System
+## 7.1 Purpose
+
+The assembler is responsible for translating CHIP-8 assembly language source code into executable ROM images.
+
+The assembler is designed as an integral subsystem of the CHIP-8 emulator and debugger rather than as a standalone application. It shares the application's controller architecture, diagnostics framework, logging facilities and configuration management.
+
+The initial implementation targets the original COSMAC CHIP-8 architecture. The architecture shall support future extensions for additional members of the CHIP-8 family without requiring changes to the assembler framework.
 
 ---
 
-## 7.1 Purpose
+## 7.2 Responsibilities
+
+The assembler subsystem shall provide the following functionality.
+
+- Lexical analysis
+- Syntax analysis
+- Semantic analysis
+- Symbol table management
+- Expression evaluation
+- Machine code generation
+- Source diagnostics
+- Generation of executable ROM images
+
+The assembler shall be implemented as a reusable software component. It shall not depend on the graphical user interface and shall therefore be usable from automated tests, command line tools and future scripting interfaces.
+
+---
+
+## 7.3 Overall Architecture
+
+The assembler follows a traditional compiler architecture consisting of independent compilation stages.
+
+```
+                    Source File
+                         │
+                         ▼
+                 Lexical Analysis
+                         │
+                         ▼
+                 Parser Framework
+                  ▲            │
+                  │            ▼
+      Architecture Definition  AST
+                               │
+                               ▼
+                    Semantic Analysis
+                               │
+                               ▼
+                     Code Generation
+                               │
+                               ▼
+                         Binary ROM
+```
+
+Each stage performs exactly one well-defined task.
+
+The parser framework is architecture independent.
+
+The architecture definition describes the assembly language accepted by the selected target architecture.
+
+The parser framework and the architecture definition together produce the Abstract Syntax Tree.
+
+The semantic analyser validates the AST independently from machine code generation.
+
+---
+
+## 7.4 Integration into the Application
+
+The assembler is owned by the application controller in the same way as the emulator subsystem.
+
+```
+Chip8Controller
+    │
+    ├── MainWindow
+    │
+    ├── Chip8Machine
+    │       │
+    │       ├── Memory
+    │       ├── Registers
+    │       ├── Timers
+    │       ├── Keyboard
+    │       └── Framebuffer
+    │
+    └── Assembler
+```
+
+The controller coordinates interactions between the graphical user interface, the emulator and the assembler.
+
+The assembler shall not directly communicate with the emulator. Both subsystems remain independent and interact only through the controller.
+
+---
+
+## 7.5 Compilation Pipeline
+
+Assembly is performed in a sequence of independent phases.
+
+1. Lexical analysis
+2. Parsing
+3. Abstract Syntax Tree construction
+4. Semantic analysis
+5. Code generation
+
+Each compilation phase shall only depend on the output produced by the previous phase.
+
+No compilation phase shall perform work that belongs to a later stage.
+
+---
+
+## 7.6 Lexical Analysis
+
+The lexer converts the source text into a sequence of lexical tokens.
+
+The lexer shall recognise
+
+- identifiers
+- mnemonics
+- directives
+- register names
+- reserved keywords
+- numeric literals
+- character literals
+- string literals
+- operators
+- punctuation
+- comments
+
+The lexer is independent of instruction encoding.
+
+---
+
+## 7.7 Parser Framework
+
+The parser framework is responsible for constructing the Abstract Syntax Tree.
+
+The parser framework contains no architecture-specific knowledge.
+
+Instead, parsing behaviour is determined entirely by the active architecture definition.
+
+The parser framework is responsible for
+
+- validating grammar rules
+- constructing AST nodes
+- preserving source locations
+- reporting syntax errors
+
+The parser framework shall not perform semantic validation or machine code generation.
+
+---
+
+## 7.8 Architecture Definitions
+
+Each supported architecture supplies an architecture definition describing the complete assembly language accepted by that architecture.
+
+An architecture definition consists of
+
+- lexical rules
+- grammar definition
+- instruction definitions
+- directives
+- reserved keywords
+- operand forms
+- expression syntax
+- architecture-specific semantic rules
+- opcode encoder
+
+The active target architecture determines the grammar accepted by the parser.
+
+Instructions or directives that are not defined by the active architecture are not part of the language and therefore result in syntax errors.
+
+Architecture definitions may reuse common functionality through inheritance while remaining independent objects.
+
+The initial implementation shall provide an architecture definition for the original COSMAC CHIP-8 architecture.
+
+---
+
+## 7.9 Abstract Syntax Tree
+
+Parsing produces an Abstract Syntax Tree (AST).
+
+The AST represents the complete source program independently of machine code generation.
+
+Each AST node shall preserve
+
+- source location
+- labels
+- directives
+- mnemonics
+- operands
+- expressions
+
+The AST shall not contain encoded machine instructions.
+
+---
+
+## 7.10 Semantic Analysis
+
+Semantic analysis validates the parsed program.
+
+Responsibilities include
+
+- symbol table construction
+- duplicate symbol detection
+- undefined symbol detection
+- expression evaluation
+- operand validation
+- range checking
+
+Semantic analysis operates exclusively on the AST.
+
+It shall not generate executable machine code.
+
+---
+
+## 7.11 Code Generation
+
+Code generation transforms the validated AST into executable machine code.
+
+The code generator is responsible for
+
+- opcode encoding
+- address resolution
+- ROM image generation
+
+The code generator is completely independent of the parser framework.
+
+Different architectures may provide different code generators while sharing the same parser framework.
+
+---
+
+## 7.12 Diagnostics
+
+All compilation stages shall report diagnostics through the existing diagnostics subsystem.
+
+Each diagnostic shall contain
+
+- severity
+- source file
+- source line
+- source column
+- descriptive message
+
+Compilation should continue after recoverable errors whenever practical to maximise the number of diagnostics presented to the user.
+
+---
+
+## 7.13 Summary
+
+The assembler extends the emulator into a complete CHIP-8 development environment.
+
+Its architecture is based on a strict separation between lexical analysis, parsing, semantic analysis and code generation.
+
+The parser framework is architecture independent and derives its behaviour from the selected architecture definition.
+
+This design allows additional CHIP-family architectures to be added with minimal impact on the existing implementation while maintaining a clear separation between language definition, semantic validation and machine code generation.
+
+
+# Chapter 8 — Build System
+
+---
+
+## 8.1 Purpose
 
 This chapter specifies the build system, project configuration, and
 development tools required for the CHIP-8 Emulator.
@@ -2185,7 +2444,7 @@ generation.
 
 ---
 
-## 7.2 Build Environment
+## 8.2 Build Environment
 
 The reference development platform is Linux using Python 3.13.
 
@@ -2194,17 +2453,17 @@ practical.
 
 ### Requirements
 
-**REQ-BUILD-700**
+**REQ-BUILD-800**
 
 The minimum supported Python version shall be 3.12.
 
-**REQ-BUILD-701**
+**REQ-BUILD-801**
 
 The reference development environment shall use Python 3.13.
 
 ---
 
-## 7.3 Build System
+## 8.3 Build System
 
 CMake is the primary entry point for all development tasks.
 
@@ -2212,17 +2471,17 @@ Developers should not be required to remember individual tool commands.
 
 ### Requirements
 
-**REQ-BUILD-702**
+**REQ-BUILD-802**
 
 CMake shall be used as the primary build interface.
 
-**REQ-BUILD-703**
+**REQ-BUILD-803**
 
 Frequently used development tasks shall be available as CMake targets.
 
 ---
 
-## 7.4 Project Configuration
+## 8.4 Project Configuration
 
 Project metadata shall be maintained in a single location.
 
@@ -2235,18 +2494,18 @@ The project configuration file defines
 
 ### Requirements
 
-**REQ-BUILD-704**
+**REQ-BUILD-804**
 
 Project metadata shall be maintained in `pyproject.toml`.
 
-**REQ-BUILD-705**
+**REQ-BUILD-805**
 
 Tool configuration shall be maintained in `pyproject.toml` whenever
 supported.
 
 ---
 
-## 7.5 Documentation
+## 8.5 Documentation
 
 Source code documentation shall be generated automatically.
 
@@ -2255,18 +2514,18 @@ files.
 
 ### Requirements
 
-**REQ-BUILD-706**
+**REQ-BUILD-806**
 
 API documentation shall be generated using Doxygen.
 
-**REQ-BUILD-707**
+**REQ-BUILD-807**
 
 If Graphviz is available, call graphs and caller graphs shall be
 generated.
 
 ---
 
-## 7.6 Static Analysis
+## 8.6 Static Analysis
 
 Static analysis forms part of the normal development workflow.
 
@@ -2274,22 +2533,22 @@ Formatting and analysis tools shall be executable through CMake.
 
 ### Requirements
 
-**REQ-BUILD-708**
+**REQ-BUILD-808**
 
 Source formatting shall use Ruff.
 
-**REQ-BUILD-709**
+**REQ-BUILD-809**
 
 Static type analysis shall use mypy.
 
-**REQ-BUILD-710**
+**REQ-BUILD-810**
 
 The project shall provide a target that performs all static analysis
 steps.
 
 ---
 
-## 7.7 Standard Build Targets
+## 8.7 Standard Build Targets
 
 The build system shall provide the following targets.
 
@@ -2309,14 +2568,14 @@ with the development workflow.
 
 ### Requirements
 
-**REQ-BUILD-711**
+**REQ-BUILD-811**
 
 The build system shall provide the standard development targets defined
 above.
 
 ---
 
-## 7.8 Dependencies
+## 8.8 Dependencies
 
 The project shall minimize external dependencies.
 
@@ -2329,17 +2588,17 @@ Dependencies shall be selected according to the following priorities.
 
 ### Requirements
 
-**REQ-BUILD-712**
+**REQ-BUILD-812**
 
 Only dependencies required by the project shall be included.
 
-**REQ-BUILD-713**
+**REQ-BUILD-813**
 
 Unused dependencies shall be removed.
 
 ---
 
-## 7.9 Repository Organization
+## 8.9 Repository Organization
 
 The source repository shall contain only files required for development,
 building, testing, and documentation.
@@ -2348,7 +2607,7 @@ Generated files shall not be committed unless explicitly required.
 
 ### Requirements
 
-**REQ-BUILD-714**
+**REQ-BUILD-814**
 
 Generated files shall be excluded from version control.
 
@@ -2358,27 +2617,27 @@ Generated files shall be excluded from version control.
 
 | ID | Description |
 |----|-------------|
-| REQ-BUILD-700 | Python 3.12 minimum |
-| REQ-BUILD-701 | Python 3.13 reference environment |
-| REQ-BUILD-702 | CMake is the primary build interface |
-| REQ-BUILD-703 | Common tasks exposed as CMake targets |
-| REQ-BUILD-704 | Project metadata in `pyproject.toml` |
-| REQ-BUILD-705 | Tool configuration in `pyproject.toml` |
-| REQ-BUILD-706 | Doxygen documentation |
-| REQ-BUILD-707 | Generate call graphs when Graphviz is available |
-| REQ-BUILD-708 | Ruff formatting |
-| REQ-BUILD-709 | mypy type checking |
-| REQ-BUILD-710 | Provide an `all_checks` target |
-| REQ-BUILD-711 | Standard development targets |
-| REQ-BUILD-712 | Keep dependencies minimal |
-| REQ-BUILD-713 | Remove unused dependencies |
-| REQ-BUILD-714 | Do not commit generated files |
+| REQ-BUILD-800 | Python 3.12 minimum |
+| REQ-BUILD-801 | Python 3.13 reference environment |
+| REQ-BUILD-802 | CMake is the primary build interface |
+| REQ-BUILD-803 | Common tasks exposed as CMake targets |
+| REQ-BUILD-804 | Project metadata in `pyproject.toml` |
+| REQ-BUILD-805 | Tool configuration in `pyproject.toml` |
+| REQ-BUILD-806 | Doxygen documentation |
+| REQ-BUILD-807 | Generate call graphs when Graphviz is available |
+| REQ-BUILD-808 | Ruff formatting |
+| REQ-BUILD-809 | mypy type checking |
+| REQ-BUILD-810 | Provide an `all_checks` target |
+| REQ-BUILD-811 | Standard development targets |
+| REQ-BUILD-812 | Keep dependencies minimal |
+| REQ-BUILD-813 | Remove unused dependencies |
+| REQ-BUILD-814 | Do not commit generated files |
 
-# Chapter 8 — Development Process
+# Chapter 9 — Development Process
 
 ---
 
-## 8.1 Purpose
+## 9.1 Purpose
 
 This chapter defines the software development process used throughout
 the CHIP-8 Emulator project.
@@ -2389,7 +2648,7 @@ and architectural consistency.
 
 ---
 
-## 8.2 Development Philosophy
+## 9.2 Development Philosophy
 
 Development shall proceed incrementally.
 
@@ -2402,18 +2661,18 @@ independently verifiable increments.
 
 ### Requirements
 
-**REQ-DEV-800**
+**REQ-DEV-900**
 
 Development shall proceed in incremental milestones.
 
-**REQ-DEV-801**
+**REQ-DEV-901**
 
 The application shall remain executable after every completed
 milestone.
 
 ---
 
-## 8.3 Milestones
+## 9.3 Milestones
 
 Development milestones define logical stages of project completion.
 
@@ -2428,18 +2687,18 @@ milestone has been completed.
 
 ### Requirements
 
-**REQ-DEV-802**
+**REQ-DEV-902**
 
 Each milestone shall define explicit completion criteria.
 
-**REQ-DEV-803**
+**REQ-DEV-903**
 
 Completed milestones shall not be revisited except to correct defects
 or perform approved refactoring.
 
 ---
 
-## 8.4 Verification
+## 9.4 Verification
 
 Every new feature shall be verified before additional functionality is
 implemented.
@@ -2453,19 +2712,19 @@ Verification may include
 
 ### Requirements
 
-**REQ-DEV-804**
+**REQ-DEV-904**
 
 New functionality shall be verified before further development
 continues.
 
-**REQ-DEV-805**
+**REQ-DEV-905**
 
 The project shall pass all configured static analysis tools before a
 milestone is considered complete.
 
 ---
 
-## 8.5 Documentation
+## 9.5 Documentation
 
 Documentation shall evolve together with the implementation.
 
@@ -2475,17 +2734,17 @@ API documentation shall be updated whenever public interfaces change.
 
 ### Requirements
 
-**REQ-DEV-806**
+**REQ-DEV-906**
 
 The SRDS shall be updated before implementing architectural changes.
 
-**REQ-DEV-807**
+**REQ-DEV-907**
 
 Public API documentation shall remain synchronized with the source code.
 
 ---
 
-## 8.6 Source Control
+## 9.6 Source Control
 
 The complete project shall be maintained under version control.
 
@@ -2495,17 +2754,17 @@ Generated files shall not be committed unless explicitly required.
 
 ### Requirements
 
-**REQ-DEV-808**
+**REQ-DEV-908**
 
 Version control shall be used throughout development.
 
-**REQ-DEV-809**
+**REQ-DEV-909**
 
 Each commit should represent one logical change.
 
 ---
 
-## 8.7 Refactoring
+## 9.7 Refactoring
 
 Refactoring is encouraged when it improves
 
@@ -2518,13 +2777,13 @@ Refactoring shall not alter externally observable behaviour.
 
 ### Requirements
 
-**REQ-DEV-810**
+**REQ-DEV-910**
 
 Refactoring shall preserve functional behaviour.
 
 ---
 
-## 8.8 Deferred Features
+## 9.8 Deferred Features
 
 Features outside the scope of the current release shall be documented
 rather than implemented prematurely.
@@ -2534,19 +2793,19 @@ future functionality.
 
 ### Requirements
 
-**REQ-DEV-811**
+**REQ-DEV-911**
 
 Deferred features shall remain deferred until explicitly scheduled.
 
 ### Design Rules
 
-**RULE-DEV-800**
+**RULE-DEV-900**
 
 Feature creep shall be actively avoided.
 
 ---
 
-## 8.9 Release Criteria
+## 9.9 Release Criteria
 
 A development version may be considered complete when
 
@@ -2558,7 +2817,7 @@ A development version may be considered complete when
 
 ### Requirements
 
-**REQ-DEV-812**
+**REQ-DEV-912**
 
 A release shall satisfy all documented requirements applicable to that
 version.
@@ -2569,20 +2828,20 @@ version.
 
 | ID | Description |
 |----|-------------|
-| REQ-DEV-800 | Incremental development |
-| REQ-DEV-801 | Application remains runnable |
-| REQ-DEV-802 | Milestones have completion criteria |
-| REQ-DEV-803 | Completed milestones are not reopened unnecessarily |
-| REQ-DEV-804 | Verify before continuing |
-| REQ-DEV-805 | Static analysis must succeed |
-| REQ-DEV-806 | Update SRDS before architectural changes |
-| REQ-DEV-807 | Keep API documentation synchronized |
-| REQ-DEV-808 | Use version control |
-| REQ-DEV-809 | One logical change per commit |
-| REQ-DEV-810 | Refactoring preserves behaviour |
-| REQ-DEV-811 | Deferred features remain deferred |
-| REQ-DEV-812 | Releases satisfy documented requirements |
-| RULE-DEV-800 | Avoid feature creep |
+| REQ-DEV-900 | Incremental development |
+| REQ-DEV-901 | Application remains runnable |
+| REQ-DEV-902 | Milestones have completion criteria |
+| REQ-DEV-903 | Completed milestones are not reopened unnecessarily |
+| REQ-DEV-904 | Verify before continuing |
+| REQ-DEV-905 | Static analysis must succeed |
+| REQ-DEV-906 | Update SRDS before architectural changes |
+| REQ-DEV-907 | Keep API documentation synchronized |
+| REQ-DEV-908 | Use version control |
+| REQ-DEV-909 | One logical change per commit |
+| REQ-DEV-910 | Refactoring preserves behaviour |
+| REQ-DEV-911 | Deferred features remain deferred |
+| REQ-DEV-912 | Releases satisfy documented requirements |
+| RULE-DEV-900 | Avoid feature creep |
 
 # Appendix A — Glossary
 
