@@ -90,7 +90,7 @@ class ConfigDialog(QDialog):
         """
         @brief Return the sound volume in percent.
         """
-        return cast(int, self.soundFrequencylider.value())
+        return cast(int, self.soundFrequencySlider.value())
 
 
     @sound_frequency.setter
