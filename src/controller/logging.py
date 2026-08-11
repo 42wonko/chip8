@@ -18,6 +18,7 @@ from controller.executiontracereporter import ExecutionTraceReporter
 from controller.sessionheader import SessionHeader
 from emulator.constants import APPLICATION_NAME, APPLICATION_VERSION
 from emulator.tracerecord import KeyExecutionEvent, TraceRecord
+from chip8.isa.isa import InstructionSetArchitecture
 
 
 class LogSeverity(Enum):
@@ -181,6 +182,7 @@ class ExecutionTracer:
         self._sink = BufferedFileSink()
         self._filename = ""
         self._trace_level = TraceLevel.BASIC
+        self._isa: InstructionSetArchitecture | None = None 
 
 
     def write_header(self, header: SessionHeader) -> None:
@@ -200,6 +202,16 @@ class ExecutionTracer:
             text += f"Trace level     : {header.trace_level}\n"
         text += ( "===============================================================================\n\n")
         self._sink.write(text)
+
+
+    def set_isa(self, isa: InstructionSetArchitecture) -> None:
+        """
+        @brief Set the instruction set architecture used for instruction formatting.
+
+        @param isa
+            Instruction set architecture used to format decoded instructions.
+        """
+        self._isa = isa
 
 
     def enable(self) -> None:
@@ -245,12 +257,15 @@ class ExecutionTracer:
 
         before = record.registers_before
         after = record.registers_after
+
+        if self._isa is None:
+            raise RuntimeError("Instruction set architecture has not been configured.")
         # BASIC
         line = (
             f"{record.cycle:06d} "
             f"{record.registers_before.pc:03X} "
             f"{record.instruction.opcode:04X} "
-            f"{record.instruction}"
+            f"{self._isa.format(record.instruction)}"
         )
 
         if self._trace_level == TraceLevel.CHANGES:                     # CHANGES
@@ -379,6 +394,14 @@ class LogManager:
                 trace_level=configuration.trace_level.name
             )
         )
+
+
+    def set_isa(self, isa: InstructionSetArchitecture) -> None:
+        """
+        @brief Set the instruction set architecture used by the execution tracer.
+        """
+        self._tracer.set_isa(isa)
+
 
     def application_logger( self, source: DiagnosticSource) -> ApplicationLogReporter:
         """

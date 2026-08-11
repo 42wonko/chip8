@@ -85,6 +85,7 @@ class Chip8Controller:
         self._machine                           = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
         self._isa                               = ClassicInstructionSetArchitecture(self._machine)
         self._machine.set_isa(self._isa)
+        self._log_manager.set_isa(self._isa)
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)
         self._main_window.breakpoint_context_menu_requested.connect( self._show_breakpoint_context_menu)
