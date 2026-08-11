@@ -129,6 +129,7 @@ Remaining work:
 - [x] Add additional developer-relevant log messages where appropriate
 - [x] Add indentation to application tracing
 - [x] Add automatic leave message for application tracing
+- [x] Review trace output for readability and consistency
 
 ### Deployment
 
@@ -178,8 +179,6 @@ Remaining work:
 ## Remaining Features
 
 ### Remaining integration
-
-- [ ] Review trace output for readability and consistency
 
 ---
 
