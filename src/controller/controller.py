@@ -277,6 +277,7 @@ class Chip8Controller:
         @brief Reset the virtual machine.
         @detail Resets the emulator an loads the current ROM if one is present.
         """
+        self._log_manager.reset()
         self._logger.enter("reset")
         self.stop()
         self._machine.reset()
@@ -409,13 +410,13 @@ class Chip8Controller:
         self._configuration.available_audio_devices = ( self._beeper.enumerate_audio_devices())
         dialog.configuration = self._configuration
         if not self._main_window.configure():
-            self._logger.leave("Configure")
+            self._logger.leave("configure")
             return
         self._configuration = dialog.configuration
         self._log_manager.configure(self._configuration)        # Reconfigure all subsystems.
         self._beeper.configuration = self._configuration
         self._logger.info("Emulator configuration updated")
-        self._logger.leave("Configure")
+        self._logger.leave("configure")
 
 
     ###########################################################################

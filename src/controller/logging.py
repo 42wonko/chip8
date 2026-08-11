@@ -66,6 +66,10 @@ class ApplicationLogger:
         self._sink.write(text)
 
 
+    def reset(self) -> None:
+        self._indent_level = 0
+
+
     def enable(self) -> None:
         """
         @brief Enable logging.
@@ -73,6 +77,7 @@ class ApplicationLogger:
         if self._enabled:
             return
         self._enabled = True
+        self._indent_level = 0
         if self._filename:
             self._sink.open(self._filename)
 
@@ -137,7 +142,7 @@ class ApplicationLogger:
         """
         if not self._function_trace_enabled:
             return
-        timestamp = datetime.now().strftime("%H:%M:%S %H:%M:%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._write_indented( f"{timestamp} TRACE   {source.value:<16} {function}() ENTER\n")
         self._indent_level += 1
 
@@ -150,7 +155,7 @@ class ApplicationLogger:
             return
         if self._indent_level > 0:
             self._indent_level -= 1
-        timestamp = datetime.now().strftime("%H:%M:%S %H:%M:%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._write_indented( f"{timestamp} TRACE   {source.value:<16} {function}() LEAVE\n")
 
     ###########################################################################
@@ -342,6 +347,10 @@ class LogManager:
     def __init__(self) -> None:
         self._logger = ApplicationLogger()
         self._tracer = ExecutionTracer()
+
+    def reset(self) -> None:
+        self._logger.reset()
+
 
     def configure(self, configuration: EmulatorConfiguration) -> None:
         """
