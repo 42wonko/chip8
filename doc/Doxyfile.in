@@ -3,7 +3,7 @@
 ###############################################################################
 
 PROJECT_NAME           = "@PROJECT_NAME@"
-PROJECT_NUMBER         = "@PROJECT_VERSION@"
+PROJECT_NUMBER         = "V 0.99"
 PROJECT_BRIEF          = "A modern CHIP-8 emulator written in Python and PyQt6."
 PROJECT_LOGO           = "@PROJECT_SOURCE_DIR@/doc/chip8_logo_128x60.png"
 
