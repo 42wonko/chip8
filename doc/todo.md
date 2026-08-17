@@ -175,6 +175,12 @@ Remaining work:
 - [x] Migrate emulator execution
 - [x] Remove obsolete decoding logic
 
+## Testing
+
+- [x] Create a regression ROM suite
+- [x] Package regression ROMs with the project
+- [x] Document expected behaviour of each regression ROM
+
 ---
 ## Remaining Features
 
@@ -197,12 +203,6 @@ Remaining work:
 ### Audio
 
 - [ ] Alternative waveforms (optional)
-
-### Testing
-
-- [ ] Create a regression ROM suite
-- [ ] Document expected behaviour of each regression ROM
-- [ ] Package regression ROMs with the project
 
 ### Development Tools
 
