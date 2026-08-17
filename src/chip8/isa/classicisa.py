@@ -16,7 +16,7 @@ import random
 from collections.abc import Callable
 
 from assembler.instruction import AssemblerInstruction
-from assembler.operand import AssemblerOperand
+from assembler.operand import AssemblerOperand, AssemblerOperandType
 from chip8.isa.instruction import Instruction
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.isa import ControlFlow, InstructionAnalysis, InstructionSetArchitecture
@@ -189,7 +189,36 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
                 raise ValueError( "RET does not accept operands.")
             return AssemblerInstruction( id=InstructionId.RET)
 
+        if name == "SYS":
+            if len(operands) != 1:
+                raise ValueError( "SYS requires exactly one operand.")
+            operand = operands[0]
+            if operand.type != AssemblerOperandType.ADDRESS:
+                raise ValueError( "SYS requires an address operand.")
+            if not 0 <= operand.value <= 0xFFF:
+                raise ValueError( "SYS address must be in the range 0x000 to 0xFFF.")
+            return AssemblerInstruction( id=InstructionId.SYS, nnn=operand.value)
+        if name == "JP":
+            if len(operands) != 1:
+                raise ValueError( "JP requires exactly one operand.")
+            operand = operands[0]
+            if operand.type != AssemblerOperandType.ADDRESS:
+                raise ValueError( "JP requires an address operand.")
+            if not 0 <= operand.value <= 0xFFF:
+                raise ValueError( "JP address must be in the range 0x000 to 0xFFF.")
+            return AssemblerInstruction( id=InstructionId.JP, nnn=operand.value)
+        if name == "CALL":
+            if len(operands) != 1:
+                raise ValueError( "CALL requires exactly one operand.")
+            operand = operands[0]
+            if operand.type != AssemblerOperandType.ADDRESS:
+                raise ValueError( "CALL requires an address operand.")
+            if not 0 <= operand.value <= 0xFFF:
+                raise ValueError( "CALL address must be in the range 0x000 to 0xFFF.")
+            return AssemblerInstruction( id=InstructionId.CALL, nnn=operand.value)
+
         raise ValueError( f"Unsupported Classic CHIP-8 instruction: {mnemonic}")
+
 
     def encode(self, instruction: AssemblerInstruction) -> int:
         """
