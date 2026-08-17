@@ -6,6 +6,7 @@
 
 import unittest
 
+from assembler.instruction import AssemblerInstruction
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.instructionid import InstructionId
 from emulator.constants import FONT_CHARACTER_SIZE, FONT_START
@@ -952,6 +953,60 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
         self.assertEqual(self.isa._machine.registers[1], 0x34)
         self.assertEqual(self.isa._machine.registers[2], 0xAA)
         self.assertEqual(self.isa._machine.registers[3], 0xBB)
+
+
+    def test_encode_ld_byte(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.LD_BYTE, x=3, nn=0x42)
+        self.assertEqual( self.isa.encode(instruction), 0x6342)
+
+
+    def test_encode_add_register(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.ADD_REGISTER, x=3, y=4)
+        self.assertEqual( self.isa.encode(instruction), 0x8344)
+
+
+    def test_encode_drw(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.DRW, x=3, y=4, n=5)
+        self.assertEqual( self.isa.encode(instruction), 0xD345)
+
+
+    def test_encode_sys(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.SYS, nnn=0x234)
+        self.assertEqual( self.isa.encode(instruction), 0x0234)
+
+
+    def test_encode_cls(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.CLS)
+        self.assertEqual( self.isa.encode(instruction), 0x00E0)
+
+
+    def test_encode_ret(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.RET)
+        self.assertEqual( self.isa.encode(instruction), 0x00EE)
+
+
+    def test_encode_rejects_missing_operand(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.LD_BYTE, x=3)
+        with self.assertRaises(ValueError):
+            self.isa.encode(instruction)
+
+
+    def test_encode_rejects_register_out_of_range(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.LD_BYTE, x=16, nn=0)
+        with self.assertRaises(ValueError):
+            self.isa.encode(instruction)
+
+
+    def test_encode_rejects_byte_out_of_range(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.LD_BYTE, x=0, nn=256)
+        with self.assertRaises(ValueError):
+            self.isa.encode(instruction)
+
+
+    def test_encode_rejects_address_out_of_range(self) -> None:
+        instruction = AssemblerInstruction( id=InstructionId.JP, nnn=0x1000)
+        with self.assertRaises(ValueError):
+            self.isa.encode(instruction)
 
 
 if __name__ == "__main__":

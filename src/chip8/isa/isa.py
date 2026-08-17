@@ -15,6 +15,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
 
+from assembler.instruction import AssemblerInstruction
+from assembler.operand import AssemblerOperand
 from chip8.isa.instruction import Instruction
 from emulator.stepresult import StepResult
 
@@ -60,6 +62,40 @@ class InstructionSetArchitecture(ABC):
 
         @return
             Decoded instruction.
+        """
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def create_assembler_instruction( self, mnemonic: str, operands: tuple[AssemblerOperand, ...]) -> AssemblerInstruction:
+        """
+        @brief Construct an assembler instruction from a mnemonic and operands.
+
+        @param mnemonic
+            Assembly language instruction mnemonic.
+
+        @param operands
+            Evaluated assembler operands.
+
+        @return
+            Architecture-specific assembler instruction.
+
+        @exception ValueError
+            If the mnemonic or operand combination is invalid.
+        """
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def encode(self, instruction: AssemblerInstruction) -> int:
+        """
+        @brief Encode an assembler instruction.
+
+        @param instruction
+            Instruction to encode.
+
+        @return
+            Raw 16-bit machine opcode.
         """
         raise NotImplementedError
 

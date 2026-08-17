@@ -15,6 +15,8 @@ from __future__ import annotations
 import random
 from collections.abc import Callable
 
+from assembler.instruction import AssemblerInstruction
+from assembler.operand import AssemblerOperand
 from chip8.isa.instruction import Instruction
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.isa import ControlFlow, InstructionAnalysis, InstructionSetArchitecture
@@ -157,6 +159,158 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
             n=n,
             nn=nn,
             nnn=nnn,
+        )
+
+    def create_assembler_instruction( self, mnemonic: str, operands: tuple[AssemblerOperand, ...]) -> AssemblerInstruction:
+        """
+        @brief Create a Classic CHIP-8 assembler instruction.
+
+        @param mnemonic
+            Assembly instruction mnemonic.
+
+        @param operands
+            Evaluated assembler operands.
+
+        @return
+            Classic Chip-8 assembler instruction.
+
+        @exception ValueError
+            If the mnemonic or operand combination is invalid.
+        """
+        name = mnemonic.upper()
+
+        if name == "CLS":
+            if operands:
+                raise ValueError( "CLS does not accept operands.")
+            return AssemblerInstruction( id=InstructionId.CLS)
+
+        raise ValueError( f"Unsupported Classic CHIP-8 instruction: {mnemonic}")
+
+    def encode(self, instruction: AssemblerInstruction) -> int:
+        """
+        @brief Encode an assembler instruction as a Classic CHIP-8 opcode.
+
+        @param instruction
+            Instruction to encode.
+
+        @return
+            Raw 16-bit CHIP-8 opcode.
+
+        @exception ValueError
+            If the instruction is not supported or a required operand
+            is missing or outside its valid range.
+        """
+        match instruction.id:
+            case InstructionId.SYS:
+                return self._encode_nnn(0x0000, instruction.nnn)
+
+            case InstructionId.CLS:
+                return 0x00E0
+
+            case InstructionId.RET:
+                return 0x00EE
+
+            case InstructionId.JP:
+                return self._encode_nnn(0x1000, instruction.nnn)
+
+            case InstructionId.CALL:
+                return self._encode_nnn(0x2000, instruction.nnn)
+
+            case InstructionId.SE_BYTE:
+                return self._encode_x_nn(0x3000, instruction.x, instruction.nn)
+
+            case InstructionId.SNE_BYTE:
+                return self._encode_x_nn(0x4000, instruction.x, instruction.nn)
+
+            case InstructionId.SE_REGISTER:
+                return self._encode_x_y_nibble( 0x5000, instruction.x, instruction.y, 0x0,)
+
+            case InstructionId.LD_BYTE:
+                return self._encode_x_nn(0x6000, instruction.x, instruction.nn)
+
+            case InstructionId.ADD_BYTE:
+                return self._encode_x_nn(0x7000, instruction.x, instruction.nn)
+
+            case InstructionId.LD_REGISTER:
+                return self._encode_x_y_nibble( 0x8000, instruction.x, instruction.y, 0x0,)
+
+            case InstructionId.OR:
+                return self._encode_x_y_nibble( 0x8000, instruction.x, instruction.y, 0x1,)
+
+            case InstructionId.AND:
+                return self._encode_x_y_nibble( 0x8000, instruction.x, instruction.y, 0x2,)
+
+            case InstructionId.XOR:
+                return self._encode_x_y_nibble( 0x8000, instruction.x, instruction.y, 0x3,)
+
+            case InstructionId.ADD_REGISTER:
+                return self._encode_x_y_nibble( 0x8000, instruction.x, instruction.y, 0x4,)
+
+            case InstructionId.SUB:
+                return self._encode_x_y_nibble( 0x8000, instruction.x, instruction.y, 0x5,)
+
+            case InstructionId.SHR:
+                return self._encode_x_y_nibble( 0x8000, instruction.x, instruction.y, 0x6,)
+
+            case InstructionId.SUBN:
+                return self._encode_x_y_nibble( 0x8000, instruction.x, instruction.y, 0x7,)
+
+            case InstructionId.SHL:
+                return self._encode_x_y_nibble( 0x8000, instruction.x, instruction.y, 0xE,)
+
+            case InstructionId.SNE_REGISTER:
+                return self._encode_x_y_nibble( 0x9000, instruction.x, instruction.y, 0x0,)
+
+            case InstructionId.LD_I:
+                return self._encode_nnn(0xA000, instruction.nnn)
+
+            case InstructionId.JP_V0:
+                return self._encode_nnn(0xB000, instruction.nnn)
+
+            case InstructionId.RND:
+                return self._encode_x_nn(0xC000, instruction.x, instruction.nn)
+
+            case InstructionId.DRW:
+                return self._encode_x_y_nibble( 0xD000, instruction.x, instruction.y, self._require_n(instruction.n),)
+
+            case InstructionId.SKP:
+                return self._encode_x_fixed(instruction.x, 0xE09E)
+
+            case InstructionId.SKNP:
+                return self._encode_x_fixed(instruction.x, 0xE0A1)
+
+            case InstructionId.LD_VX_DT:
+                return self._encode_x_fixed(instruction.x, 0xF007)
+
+            case InstructionId.LD_VX_K:
+                return self._encode_x_fixed(instruction.x, 0xF00A)
+
+            case InstructionId.LD_DT_VX:
+                return self._encode_x_fixed(instruction.x, 0xF015)
+
+            case InstructionId.LD_ST_VX:
+                return self._encode_x_fixed(instruction.x, 0xF018)
+
+            case InstructionId.ADD_I_VX:
+                return self._encode_x_fixed(instruction.x, 0xF01E)
+
+            case InstructionId.LD_F_VX:
+                return self._encode_x_fixed(instruction.x, 0xF029)
+
+            case InstructionId.LD_B_VX:
+                return self._encode_x_fixed(instruction.x, 0xF033)
+
+            case InstructionId.LD_I_VX:
+                return self._encode_x_fixed(instruction.x, 0xF055)
+
+            case InstructionId.LD_VX_I:
+                return self._encode_x_fixed(instruction.x, 0xF065)
+
+            case InstructionId.UNKNOWN:
+                raise ValueError("Cannot encode an unknown instruction.")
+
+        raise ValueError(
+            f"Unsupported instruction ID: {instruction.id!s}."
         )
 
 
@@ -357,6 +511,184 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
 
             case _:
                 return InstructionId.UNKNOWN
+
+
+    @staticmethod
+    def _require_operand( value: int | None, name: str, maximum: int) -> int:
+        """
+        @brief Validate and return an assembler operand.
+
+        @param value
+            Operand value.
+
+        @param name
+            Operand name used in the error message.
+
+        @param maximum
+            Maximum valid operand value.
+
+        @return
+            Validated operand.
+
+        @exception ValueError
+            If the operand is missing or outside its valid range.
+        """
+        if value is None:
+            raise ValueError(f"Missing operand: {name}.")
+
+        if not 0 <= value <= maximum:
+            raise ValueError(
+                f"Operand {name} is outside its valid range: {value}."
+            )
+
+        return value
+
+
+    @classmethod
+    def _require_x(cls, value: int | None) -> int:
+        """
+        @brief Validate a register X operand.
+
+        @param value
+            Register number.
+
+        @return
+            Validated register number.
+        """
+        return cls._require_operand(value, "x", NIBBLE_MASK)
+
+
+    @classmethod
+    def _require_y(cls, value: int | None) -> int:
+        """
+        @brief Validate a register Y operand.
+
+        @param value
+            Register number.
+
+        @return
+            Validated register number.
+        """
+        return cls._require_operand(value, "y", NIBBLE_MASK)
+
+
+    @classmethod
+    def _require_n(cls, value: int | None) -> int:
+        """
+        @brief Validate a nibble operand.
+
+        @param value
+            Nibble value.
+
+        @return
+            Validated nibble value.
+        """
+        return cls._require_operand(value, "n", NIBBLE_MASK)
+
+
+    @classmethod
+    def _require_nn(cls, value: int | None) -> int:
+        """
+        @brief Validate a byte operand.
+
+        @param value
+            Byte value.
+
+        @return
+            Validated byte value.
+        """
+        return cls._require_operand(value, "nn", BYTE_MASK)
+
+
+    @classmethod
+    def _require_nnn(cls, value: int | None) -> int:
+        """
+        @brief Validate a 12-bit address operand.
+
+        @param value
+            Address value.
+
+        @return
+            Validated address value.
+        """
+        return cls._require_operand(value, "nnn", ADDRESS_MASK)
+
+
+    @classmethod
+    def _encode_nnn( cls, base: int, nnn: int | None) -> int:
+        """
+        @brief Encode an instruction containing a 12-bit address.
+
+        @param base
+            Opcode base.
+
+        @param nnn
+            12-bit address operand.
+
+        @return
+            Encoded opcode.
+        """
+        return base | cls._require_nnn(nnn)
+
+
+    @classmethod
+    def _encode_x_nn( cls, base: int, x: int | None, nn: int | None) -> int:
+        """
+        @brief Encode an instruction containing X and byte operands.
+
+        @param base
+            Opcode base.
+
+        @param x
+            X register.
+
+        @param nn
+            Byte operand.
+
+        @return
+            Encoded opcode.
+        """
+        return ( base | (cls._require_x(x) << 8) | cls._require_nn(nn))
+
+
+    @classmethod
+    def _encode_x_y_nibble( cls, base: int, x: int | None, y: int | None, n: int) -> int:
+        """
+        @brief Encode an instruction containing X, Y and nibble operands.
+
+        @param base
+            Opcode base.
+
+        @param x
+            X register.
+
+        @param y
+            Y register.
+
+        @param n
+            Low-order opcode nibble.
+
+        @return
+            Encoded opcode.
+        """
+        return ( base | (cls._require_x(x) << 8) | (cls._require_y(y) << 4) | n)
+
+
+    @classmethod
+    def _encode_x_fixed( cls, x: int | None, suffix: int) -> int:
+        """
+        @brief Encode an instruction containing X and a fixed suffix.
+
+        @param x
+            X register.
+
+        @param suffix
+            Fixed opcode suffix.
+
+        @return
+            Encoded opcode.
+        """
+        return (cls._require_x(x) << 8) | suffix
 
 
     ###############################################################################

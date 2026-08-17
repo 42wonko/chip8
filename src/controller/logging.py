@@ -10,6 +10,7 @@ import platform
 from datetime import datetime
 from enum import Enum, auto
 
+from chip8.isa.isa import InstructionSetArchitecture
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.bufferedfilesink import BufferedFileSink
 from controller.diagnostic import DiagnosticSource, format_source
@@ -18,7 +19,6 @@ from controller.executiontracereporter import ExecutionTraceReporter
 from controller.sessionheader import SessionHeader
 from emulator.constants import APPLICATION_NAME, APPLICATION_VERSION
 from emulator.tracerecord import KeyExecutionEvent, TraceRecord
-from chip8.isa.isa import InstructionSetArchitecture
 
 
 class LogSeverity(Enum):
@@ -187,7 +187,7 @@ class ExecutionTracer:
         self._sink = BufferedFileSink()
         self._filename = ""
         self._trace_level = TraceLevel.BASIC
-        self._isa: InstructionSetArchitecture | None = None 
+        self._isa: InstructionSetArchitecture | None = None
 
 
     def write_header(self, header: SessionHeader) -> None:

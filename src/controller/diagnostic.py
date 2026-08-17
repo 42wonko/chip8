@@ -23,6 +23,7 @@ class DiagnosticSource(StrEnum):
     EMULATOR    = auto()
     AUDIO       = auto()
     GUI         = auto()
+    ASSEMBLER   = auto()
     UNIT_TEST   = auto()
 
 def format_severity(severity: DiagnosticSeverity) -> str:
@@ -66,6 +67,8 @@ def format_source(source: DiagnosticSource) -> str:
             return "AUDIO"
         case DiagnosticSource.GUI:
             return "GUI"
+        case DiagnosticSource.ASSEMBLER:
+            return "ASSEMB"
     raise AssertionError("Unhandled diagnostic source.")
 
 

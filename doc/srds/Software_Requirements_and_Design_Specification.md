@@ -2185,6 +2185,8 @@ The initial implementation targets the original COSMAC CHIP-8 architecture. The 
 
 The assembler subsystem shall provide the following functionality.
 
+- Target discovery
+- Target selection
 - Lexical analysis
 - Syntax analysis
 - Semantic analysis
@@ -2202,37 +2204,78 @@ The assembler shall be implemented as a reusable software component. It shall no
 
 The assembler follows a traditional compiler architecture consisting of independent compilation stages.
 
-```
-                    Source File
-                         │
-                         ▼
-                 Lexical Analysis
-                         │
-                         ▼
+The target architecture must be determined before the architecture-specific
+assembly language can be parsed.
+
+Assembly source may specify its target using a `TARGET` directive. Source
+files that do not contain a target directive must receive their target
+architecture externally from the caller.
+
+A target specified by the source takes precedence over the externally supplied
+target.
+
+Target discovery is intentionally separate from normal lexical and syntactic
+analysis. It does not parse instructions, operands, labels, expressions or
+other architecture-specific constructs. It only determines whether the source
+contains a target declaration and, if so, which architecture it specifies.
+
+The effective target is then used to select the architecture definition.
+The selected architecture definition supplies the grammar and other
+architecture-specific language information to the parser framework.
+
+The complete assembly pipeline is therefore:
+
+```text
+                    Assembly Source
+                           │
+                           ▼
+                 +-------------------+
+                 | Target Discovery  |
+                 +---------+---------+
+                           │
+             +-------------+-------------+
+             │                           │
+       TARGET directive             No TARGET
+             │                           │
+             ▼                           ▼
+       Target from source         External target
+             │                           │
+             +-------------+-------------+
+                           │
+                           ▼
+                  Effective Target
+                           │
+                           ▼
+              Architecture Definition
+                           │
+                           ▼
                  Parser Framework
-                  ▲            │
-                  │            ▼
-      Architecture Definition  AST
-                               │
-                               ▼
-                    Semantic Analysis
-                               │
-                               ▼
-                     Code Generation
-                               │
-                               ▼
-                         Binary ROM
+                           │
+                           ▼
+                          AST
+                           │
+                           ▼
+                 Semantic Analysis
+                           │
+                           ▼
+                    Code Generation
+                           │
+                           ▼
+                       Binary ROM
 ```
 
 Each stage performs exactly one well-defined task.
 
 The parser framework is architecture independent.
 
-The architecture definition describes the assembly language accepted by the selected target architecture.
+The architecture definition describes the assembly language accepted by the
+selected target architecture.
 
-The parser framework and the architecture definition together produce the Abstract Syntax Tree.
+The parser framework and the selected architecture definition together
+produce the Abstract Syntax Tree.
 
-The semantic analyser validates the AST independently from machine code generation.
+The semantic analyser validates the AST independently from machine code
+generation.
 
 ---
 
@@ -2240,7 +2283,7 @@ The semantic analyser validates the AST independently from machine code generati
 
 The assembler is owned by the application controller in the same way as the emulator subsystem.
 
-```
+```text
 Chip8Controller
     │
     ├── MainWindow
@@ -2266,13 +2309,28 @@ The assembler shall not directly communicate with the emulator. Both subsystems 
 
 Assembly is performed in a sequence of independent phases.
 
-1. Lexical analysis
-2. Parsing
-3. Abstract Syntax Tree construction
-4. Semantic analysis
-5. Code generation
+1. Target discovery
+2. Target selection
+3. Architecture definition selection
+4. Lexical analysis
+5. Parsing
+6. Abstract Syntax Tree construction
+7. Semantic analysis
+8. Code generation
 
-Each compilation phase shall only depend on the output produced by the previous phase.
+Target discovery and target selection precede architecture-specific parsing.
+
+The target may be specified in the source or supplied externally.
+
+If the source contains a target directive, the source target is used. If the
+source does not contain a target directive, the externally supplied target is
+used.
+
+After the effective target has been determined, the corresponding
+architecture definition is selected and supplied to the parser framework.
+
+Each subsequent compilation phase shall only depend on the output produced by
+the previous applicable phase.
 
 No compilation phase shall perform work that belongs to a later stage.
 
@@ -2298,6 +2356,9 @@ The lexer shall recognise
 
 The lexer is independent of instruction encoding.
 
+Target discovery occurs before normal lexical analysis and therefore does not
+depend on the selected architecture's lexical rules.
+
 ---
 
 ## 7.7 Parser Framework
@@ -2308,6 +2369,10 @@ The parser framework contains no architecture-specific knowledge.
 
 Instead, parsing behaviour is determined entirely by the active architecture definition.
 
+The parser is initialized only after the effective target architecture has been determined.
+
+The architecture definition supplies the grammar used by the parser framework.
+
 The parser framework is responsible for
 
 - validating grammar rules
@@ -2316,6 +2381,10 @@ The parser framework is responsible for
 - reporting syntax errors
 
 The parser framework shall not perform semantic validation or machine code generation.
+
+The parser shall recognize only constructs defined by the active architecture
+grammar, together with any architecture-independent source constructs
+defined by the assembler language itself.
 
 ---
 
@@ -2337,7 +2406,15 @@ An architecture definition consists of
 
 The active target architecture determines the grammar accepted by the parser.
 
-Instructions or directives that are not defined by the active architecture are not part of the language and therefore result in syntax errors.
+Instructions or directives that are not defined by the active architecture are
+not part of that assembly language and therefore result in syntax errors.
+
+For example, `PLANE 1` is a syntax error when the active target is the original
+COSMAC CHIP-8 architecture if `PLANE` is not defined by the COSMAC grammar.
+
+The assembler shall not parse the union of all supported architecture
+languages and defer target-specific instruction or directive checks to
+semantic analysis.
 
 Architecture definitions may reuse common functionality through inheritance while remaining independent objects.
 
@@ -2381,6 +2458,10 @@ Semantic analysis operates exclusively on the AST.
 
 It shall not generate executable machine code.
 
+Semantic analysis shall not be used to determine whether an instruction or
+directive belongs to the selected architecture language. Such constructs
+must already have been rejected by the parser as syntax errors.
+
 ---
 
 ## 7.11 Code Generation
@@ -2419,7 +2500,9 @@ Compilation should continue after recoverable errors whenever practical to maxim
 
 The assembler extends the emulator into a complete CHIP-8 development environment.
 
-Its architecture is based on a strict separation between lexical analysis, parsing, semantic analysis and code generation.
+Its architecture is based on a strict separation between target discovery, target selection, lexical analysis, parsing, semantic analysis and code generation.
+
+The target architecture is determined before architecture-specific parsing begins. A source `TARGET` directive takes precedence over an externally supplied target, while the external target provides the required fallback for source files that do not contain a target declaration.
 
 The parser framework is architecture independent and derives its behaviour from the selected architecture definition.
 
