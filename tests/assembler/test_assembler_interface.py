@@ -45,3 +45,38 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
         isa = ClassicInstructionSetArchitecture(machine)
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction( "NOT_AN_INSTRUCTION", ())
+
+
+    def test_create_ret_instruction(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        instruction = isa.create_assembler_instruction( "RET", ())
+
+        self.assertEqual( instruction.id, InstructionId.RET)
+        self.assertIsNone( instruction.x)
+        self.assertIsNone( instruction.y)
+        self.assertIsNone( instruction.n)
+        self.assertIsNone( instruction.nn)
+        self.assertIsNone( instruction.nnn)
+
+    def test_create_ret_is_case_insensitive(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+        instruction = isa.create_assembler_instruction( "ret", ())
+        self.assertEqual( instruction.id, InstructionId.RET)
+
+    def test_create_ret_rejects_operands(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+        operands = ( AssemblerOperand( type=AssemblerOperandType.VALUE, value=0))
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction( "RET", operands)
+
+    def test_create_ret_instruction_can_be_encoded(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+        instruction = isa.create_assembler_instruction( "RET", ())
+        opcode = isa.encode(instruction)
+        self.assertEqual( opcode, 0x00EE)
+

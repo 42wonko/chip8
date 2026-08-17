@@ -184,6 +184,11 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
                 raise ValueError( "CLS does not accept operands.")
             return AssemblerInstruction( id=InstructionId.CLS)
 
+        if name == "RET":
+            if operands:
+                raise ValueError( "RET does not accept operands.")
+            return AssemblerInstruction( id=InstructionId.RET)
+
         raise ValueError( f"Unsupported Classic CHIP-8 instruction: {mnemonic}")
 
     def encode(self, instruction: AssemblerInstruction) -> int:
