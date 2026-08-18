@@ -33,3 +33,23 @@ class AssemblerOperandTest(unittest.TestCase):
         operand = AssemblerOperand( type=AssemblerOperandType.VALUE, value=42)
         with self.assertRaises(AttributeError):
             operand.value = 43
+
+    def test_index_register_operand(self) -> None:
+        operand = AssemblerOperand( type=AssemblerOperandType.INDEX_REGISTER, value=0)
+        self.assertEqual( operand.type, AssemblerOperandType.INDEX_REGISTER)
+        self.assertEqual( operand.value, 0)
+
+    def test_delay_register_operand(self) -> None:
+        operand = AssemblerOperand( type=AssemblerOperandType.DELAY_REGISTER, value=0)
+        self.assertEqual( operand.type, AssemblerOperandType.DELAY_REGISTER)
+        self.assertEqual( operand.value, 0)
+
+    def test_sound_register_operand(self) -> None:
+        operand = AssemblerOperand( type=AssemblerOperandType.SOUND_REGISTER, value=0)
+        self.assertEqual( operand.type, AssemblerOperandType.SOUND_REGISTER)
+        self.assertEqual( operand.value, 0)
+
+    def test_key_operand(self) -> None:
+        operand = AssemblerOperand( type=AssemblerOperandType.KEY, value=0)
+        self.assertEqual( operand.type, AssemblerOperandType.KEY)
+        self.assertEqual( operand.value, 0)

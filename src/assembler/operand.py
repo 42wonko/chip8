@@ -12,9 +12,13 @@ class AssemblerOperandType(Enum):
     """
     @brief Types of evaluated assembler operands.
     """
-    REGISTER = "REGISTER"
-    VALUE = "VALUE"
-    ADDRESS = "ADDRESS"
+    REGISTER        = "REGISTER"
+    INDEX_REGISTER  = "INDEX_REGISTER"
+    DELAY_REGISTER  = "DELAY_REGISTER"
+    SOUND_REGISTER  = "SOUND_REGISTER"
+    KEY             = "KEY"
+    VALUE           = "VALUE"
+    ADDRESS         = "ADDRESS"
 
 
 @dataclass(frozen=True, slots=True)

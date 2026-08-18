@@ -199,14 +199,27 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
                 raise ValueError( "SYS address must be in the range 0x000 to 0xFFF.")
             return AssemblerInstruction( id=InstructionId.SYS, nnn=operand.value)
         if name == "JP":
-            if len(operands) != 1:
-                raise ValueError( "JP requires exactly one operand.")
-            operand = operands[0]
-            if operand.type != AssemblerOperandType.ADDRESS:
-                raise ValueError( "JP requires an address operand.")
-            if not 0 <= operand.value <= 0xFFF:
-                raise ValueError( "JP address must be in the range 0x000 to 0xFFF.")
-            return AssemblerInstruction( id=InstructionId.JP, nnn=operand.value)
+            if len(operands) == 1:
+                operand = operands[0]
+                if operand.type != AssemblerOperandType.ADDRESS:
+                    raise ValueError( "JP requires an address operand.")
+                if not 0 <= operand.value <= 0xFFF:
+                    raise ValueError( "JP address must be in the range 0x000 to 0xFFF.")
+                return AssemblerInstruction( id=InstructionId.JP, nnn=operand.value)
+            if len(operands) == 2:
+                register = operands[0]
+                address = operands[1]
+                if register.type != AssemblerOperandType.REGISTER:
+                    raise ValueError( "JP V0, nnn requires V0 as the first operand.")
+                if register.value != 0:
+                    raise ValueError( "JP V0, nnn requires V0 as the first operand.")
+                if address.type != AssemblerOperandType.ADDRESS:
+                    raise ValueError( "JP V0, nnn requires an address as the second operand.")
+                if not 0 <= address.value <= 0xFFF:
+                    raise ValueError( "JP address must be in the range 0x000 to 0xFFF.")
+                return AssemblerInstruction( id=InstructionId.JP_V0, nnn=address.value)
+            raise ValueError( "JP requires one or two operands.")
+
         if name == "CALL":
             if len(operands) != 1:
                 raise ValueError( "CALL requires exactly one operand.")
@@ -216,6 +229,45 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
             if not 0 <= operand.value <= 0xFFF:
                 raise ValueError( "CALL address must be in the range 0x000 to 0xFFF.")
             return AssemblerInstruction( id=InstructionId.CALL, nnn=operand.value)
+
+        if name == "LD":
+            if len(operands) != 2:
+                raise ValueError( "LD requires exactly two operands.")
+            first = operands[0]
+            second = operands[1]
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.LD_REGISTER, x=first.value, y=second.value)
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.VALUE):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                if not 0 <= second.value <= 0xFF:
+                    raise ValueError( "LD immediate value must be in the range 0x00 to 0xFF.")
+                return AssemblerInstruction( id=InstructionId.LD_BYTE, x=first.value, nn=second.value)
+            if ( first.type == AssemblerOperandType.INDEX_REGISTER and second.type == AssemblerOperandType.ADDRESS):
+                if not 0 <= second.value <= 0xFFF:
+                    raise ValueError( "LD I address must be in the range 0x000 to 0xFFF.")
+                return AssemblerInstruction( id=InstructionId.LD_I, nnn=second.value)
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.DELAY_REGISTER):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.LD_VX_DT, x=first.value)
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.KEY):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.LD_VX_K, x=first.value)
+            if ( first.type == AssemblerOperandType.DELAY_REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.LD_DT_VX, x=second.value)
+            if ( first.type == AssemblerOperandType.SOUND_REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.LD_ST_VX, x=second.value)
+            raise ValueError( "Invalid operand combination for LD.")
 
         raise ValueError( f"Unsupported Classic CHIP-8 instruction: {mnemonic}")
 
