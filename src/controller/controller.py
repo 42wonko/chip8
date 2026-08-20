@@ -489,18 +489,24 @@ class Chip8Controller:
         temporary_breakpoint_hit = ( self._debugger.temporary_breakpoint == self._machine.registers.pc)
         if (not self._debugger.has_any_breakpoint(self._machine.registers.pc)) or self._stopped_on_breakpoint:
             self._stopped_on_breakpoint = False
-            result = self._machine.execute_cycle()
-            refresh_code = False
-            if result.bnnn_target is not None:
-                instruction_address, target = result.bnnn_target
-                refresh_code = self._code_analysis.analyze_observed_bnnn_target(
-                    instruction_address,
-                    target,
-                )
-            self.update_gui(result)
-            if refresh_code:
-                self._code_model.refresh()
-                self._update_code_view()
+            try:
+                result = self._machine.execute_cycle()
+                refresh_code = False
+                result = StepResult()
+                if result.bnnn_target is not None:
+                    instruction_address, target = result.bnnn_target
+                    refresh_code = self._code_analysis.analyze_observed_bnnn_target(
+                        instruction_address,
+                        target,
+                    )
+                self.update_gui(result)
+                if refresh_code:
+                    self._code_model.refresh()
+                    self._update_code_view()
+            except NotImplementedError as error:
+                self.stop()
+                self._diagnostics_reporter.error(f"Instruction @0x{self.machine.registers.pc-2:04X} Not implemented!")
+                self.update_gui()
         else:
             self.stop()
             self._stopped_on_breakpoint = True
