@@ -492,7 +492,6 @@ class Chip8Controller:
             try:
                 result = self._machine.execute_cycle()
                 refresh_code = False
-                result = StepResult()
                 if result.bnnn_target is not None:
                     instruction_address, target = result.bnnn_target
                     refresh_code = self._code_analysis.analyze_observed_bnnn_target(
@@ -503,7 +502,7 @@ class Chip8Controller:
                 if refresh_code:
                     self._code_model.refresh()
                     self._update_code_view()
-            except NotImplementedError as error:
+            except NotImplementedError:
                 self.stop()
                 self._diagnostics_reporter.error(f"Instruction @0x{self.machine.registers.pc-2:04X} Not implemented!")
                 self.update_gui()
