@@ -267,7 +267,161 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
                 if not 0 <= second.value <= 0xF:
                     raise ValueError( "Register must be in the range V0 to VF.")
                 return AssemblerInstruction( id=InstructionId.LD_ST_VX, x=second.value)
+            if ( first.type == AssemblerOperandType.BCD_REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.LD_B_VX, x=second.value)
+            if ( first.type == AssemblerOperandType.FONT_REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.LD_F_VX, x=second.value)
+            if ( first.type == AssemblerOperandType.INDEX_REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.LD_I_VX, x=second.value)
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.INDEX_REGISTER):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.LD_VX_I, x=first.value)
             raise ValueError( "Invalid operand combination for LD.")
+
+        if name == "ADD":
+            if len(operands) != 2:
+                raise ValueError( "ADD requires exactly two operands.")
+            first = operands[0]
+            second = operands[1]
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.VALUE):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                if not 0 <= second.value <= 0xFF:
+                    raise ValueError( "ADD immediate value must be in the range 0x00 to 0xFF.")
+                return AssemblerInstruction( id=InstructionId.ADD_BYTE, x=first.value, nn=second.value)
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.ADD_REGISTER, x=first.value, y=second.value)
+            if ( first.type == AssemblerOperandType.INDEX_REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.ADD_I_VX, x=second.value)
+
+        if name in ("OR", "AND", "XOR", "SUB", "SHR", "SUBN", "SHL"):
+            if len(operands) != 2:
+                raise ValueError( f"{name} requires exactly two operands.")
+            first = operands[0]
+            second = operands[1]
+            if first.type != AssemblerOperandType.REGISTER:
+                raise ValueError( f"{name} requires register operands.")
+            if second.type != AssemblerOperandType.REGISTER:
+                raise ValueError( f"{name} requires register operands.")
+            if not 0 <= first.value <= 0xF:
+                raise ValueError( "Register must be in the range V0 to VF.")
+            if not 0 <= second.value <= 0xF:
+                raise ValueError( "Register must be in the range V0 to VF.")
+            instruction_ids = {
+                "OR": InstructionId.OR,
+                "AND": InstructionId.AND,
+                "XOR": InstructionId.XOR,
+                "SUB": InstructionId.SUB,
+                "SHR": InstructionId.SHR,
+                "SUBN": InstructionId.SUBN,
+                "SHL": InstructionId.SHL
+            }
+            return AssemblerInstruction( id=instruction_ids[name], x=first.value, y=second.value)
+
+        if name == "SKP":
+            if len(operands) != 1:
+                raise ValueError( "SKP requires exactly one operand.")
+            operand = operands[0]
+            if operand.type != AssemblerOperandType.REGISTER:
+                raise ValueError( "SKP requires a register operand.")
+            if not 0 <= operand.value <= 0xF:
+                raise ValueError( "Register must be in the range V0 to VF.")
+            return AssemblerInstruction( id=InstructionId.SKP, x=operand.value)
+
+        if name == "SKNP":
+            if len(operands) != 1:
+                raise ValueError( "SKNP requires exactly one operand.")
+            operand = operands[0]
+            if operand.type != AssemblerOperandType.REGISTER:
+                raise ValueError( "SKNP requires a register operand.")
+            if not 0 <= operand.value <= 0xF:
+                raise ValueError( "Register must be in the range V0 to VF.")
+            return AssemblerInstruction( id=InstructionId.SKNP, x=operand.value)
+
+        if name == "SE":
+            if len(operands) != 2:
+                raise ValueError( "SE requires exactly two operands.")
+            first = operands[0]
+            second = operands[1]
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.VALUE):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                if not 0 <= second.value <= 0xFF:
+                    raise ValueError( "SE immediate value must be in the range 0x00 to 0xFF.")
+                return AssemblerInstruction( id=InstructionId.SE_BYTE, x=first.value, nn=second.value)
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.SE_REGISTER, x=first.value, y=second.value)
+            raise ValueError( "Invalid operand combination for SE.")
+        if name == "SNE":
+            if len(operands) != 2:
+                raise ValueError( "SNE requires exactly two operands.")
+            first = operands[0]
+            second = operands[1]
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.VALUE):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                if not 0 <= second.value <= 0xFF:
+                    raise ValueError( "SNE immediate value must be in the range 0x00 to 0xFF.")
+                return AssemblerInstruction( id=InstructionId.SNE_BYTE, x=first.value, nn=second.value)
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.REGISTER):
+                if not 0 <= first.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                if not 0 <= second.value <= 0xF:
+                    raise ValueError( "Register must be in the range V0 to VF.")
+                return AssemblerInstruction( id=InstructionId.SNE_REGISTER, x=first.value, y=second.value)
+            raise ValueError( "Invalid operand combination for SNE.")
+
+        if name == "RND":
+            if len(operands) != 2:
+                raise ValueError( "RND requires exactly two operands.")
+            register = operands[0]
+            value = operands[1]
+            if register.type != AssemblerOperandType.REGISTER:
+                raise ValueError( "RND requires a register as the first operand.")
+            if value.type != AssemblerOperandType.VALUE:
+                raise ValueError( "RND requires a byte value as the second operand.")
+            if not 0 <= register.value <= 0xF:
+                raise ValueError( "Register must be in the range V0 to VF.")
+            if not 0 <= value.value <= 0xFF:
+                raise ValueError( "RND value must be in the range 0x00 to 0xFF.")
+            return AssemblerInstruction( id=InstructionId.RND, x=register.value, nn=value.value)
+
+        if name == "DRW":
+            if len(operands) != 3:
+                raise ValueError( "DRW requires exactly three operands.")
+            x_register = operands[0]
+            y_register = operands[1]
+            height = operands[2]
+            if x_register.type != AssemblerOperandType.REGISTER:
+                raise ValueError( "DRW requires a register as the first operand.")
+            if y_register.type != AssemblerOperandType.REGISTER:
+                raise ValueError( "DRW requires a register as the second operand.")
+            if height.type != AssemblerOperandType.VALUE:
+                raise ValueError( "DRW requires a value as the third operand.")
+            if not 0 <= x_register.value <= 0xF:
+                raise ValueError( "Register must be in the range V0 to VF.")
+            if not 0 <= y_register.value <= 0xF:
+                raise ValueError( "Register must be in the range V0 to VF.")
+            if not 0 <= height.value <= 0xF:
+                raise ValueError( "DRW height must be in the range 0x0 to 0xF.")
+            return AssemblerInstruction( id=InstructionId.DRW, x=x_register.value, y=y_register.value, n=height.value)
 
         raise ValueError( f"Unsupported Classic CHIP-8 instruction: {mnemonic}")
 
@@ -975,7 +1129,8 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
     # Private format methods
     ###############################################################################
     def _format_sys(self, instruction: Instruction) -> str:
-        raise ValueError(f"Opcode {instruction.opcode:04X} cannot be formatted.")
+#        raise ValueError(f"Opcode {instruction.opcode:04X} cannot be formatted.")
+        return f"DW #0{instruction.nnn:03X}"
 
     def _format_cls(self, instruction: Instruction) -> str:
         return "CLS"

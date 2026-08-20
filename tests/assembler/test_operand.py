@@ -53,3 +53,15 @@ class AssemblerOperandTest(unittest.TestCase):
         operand = AssemblerOperand( type=AssemblerOperandType.KEY, value=0)
         self.assertEqual( operand.type, AssemblerOperandType.KEY)
         self.assertEqual( operand.value, 0)
+
+    def test_bcd_register_operand(self) -> None:
+        operand = AssemblerOperand( type=AssemblerOperandType.BCD_REGISTER, value=0)
+        self.assertEqual( operand.type, AssemblerOperandType.BCD_REGISTER)
+        self.assertEqual( operand.value, 0)
+
+    def test_font_register_operand(self) -> None:
+        operand = AssemblerOperand( type=AssemblerOperandType.FONT_REGISTER, value=0)
+        self.assertEqual( operand.type, AssemblerOperandType.FONT_REGISTER)
+        self.assertEqual( operand.value, 0)
+
+

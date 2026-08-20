@@ -17,6 +17,8 @@ class AssemblerOperandType(Enum):
     DELAY_REGISTER  = "DELAY_REGISTER"
     SOUND_REGISTER  = "SOUND_REGISTER"
     KEY             = "KEY"
+    BCD_REGISTER    = "BCD_REGISTER"
+    FONT_REGISTER   = "FONT_REGISTER"
     VALUE           = "VALUE"
     ADDRESS         = "ADDRESS"
 
