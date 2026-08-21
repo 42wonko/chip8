@@ -1813,3 +1813,173 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SKNP", operands)
 
+    def test_create_se_rejects_value_as_first_operand(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        operands = (
+            AssemblerOperand(
+                type=AssemblerOperandType.VALUE,
+                value=3
+            ),
+            AssemblerOperand(
+                type=AssemblerOperandType.VALUE,
+                value=5
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction("SE", operands)
+
+
+    def test_create_se_rejects_register_as_second_operand_when_invalid_first(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        operands = (
+            AssemblerOperand(
+                type=AssemblerOperandType.VALUE,
+                value=3
+            ),
+            AssemblerOperand(
+                type=AssemblerOperandType.REGISTER,
+                value=5
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction("SE", operands)
+
+
+    def test_create_se_rejects_byte_above_ff(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        operands = (
+            AssemblerOperand(
+                type=AssemblerOperandType.REGISTER,
+                value=3
+            ),
+            AssemblerOperand(
+                type=AssemblerOperandType.VALUE,
+                value=0x100
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction("SE", operands)
+
+
+    def test_create_se_rejects_second_register_above_vf(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        operands = (
+            AssemblerOperand(
+                type=AssemblerOperandType.REGISTER,
+                value=3
+            ),
+            AssemblerOperand(
+                type=AssemblerOperandType.REGISTER,
+                value=0x10
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction("SE", operands)
+
+    def test_create_sne_rejects_value_as_first_operand(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        operands = (
+            AssemblerOperand(
+                type=AssemblerOperandType.VALUE,
+                value=3
+            ),
+            AssemblerOperand(
+                type=AssemblerOperandType.VALUE,
+                value=5
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction("SNE", operands)
+
+
+    def test_create_sne_rejects_address_operand(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        operands = (
+            AssemblerOperand(
+                type=AssemblerOperandType.REGISTER,
+                value=3
+            ),
+            AssemblerOperand(
+                type=AssemblerOperandType.ADDRESS,
+                value=0x234
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction("SNE", operands)
+
+
+    def test_create_sne_rejects_register_above_vf(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        operands = (
+            AssemblerOperand(
+                type=AssemblerOperandType.REGISTER,
+                value=0x10
+            ),
+            AssemblerOperand(
+                type=AssemblerOperandType.VALUE,
+                value=5
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction("SNE", operands)
+
+
+    def test_create_sne_rejects_byte_above_ff(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        operands = (
+            AssemblerOperand(
+                type=AssemblerOperandType.REGISTER,
+                value=3
+            ),
+            AssemblerOperand(
+                type=AssemblerOperandType.VALUE,
+                value=0x100
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction("SNE", operands)
+
+
+    def test_create_sne_rejects_second_register_above_vf(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+
+        operands = (
+            AssemblerOperand(
+                type=AssemblerOperandType.REGISTER,
+                value=3
+            ),
+            AssemblerOperand(
+                type=AssemblerOperandType.REGISTER,
+                value=0x10
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            isa.create_assembler_instruction("SNE", operands)
+
+
