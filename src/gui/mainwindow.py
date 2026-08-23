@@ -37,12 +37,19 @@ from typing import TYPE_CHECKING, cast
 from PyQt6 import uic
 from PyQt6.QtCore import QModelIndex, QPoint, QSettings, Qt, pyqtSignal
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import QAbstractItemView, QDialog, QHeaderView, QMainWindow, QMessageBox, QStatusBar
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QDialog,
+    QHeaderView,
+    QMainWindow,
+    QMessageBox,
+    QStatusBar,
+)
 
 from chip8.settingsmanager import SettingsManager
+from gui.assemblerdialog import AssemblerDialog
 from gui.codetablemodel import CodeTableModel
 from gui.configdialog import ConfigDialog
-from gui.assemblerdialog import AssemblerDialog
 from gui.displaywidget import DisplayWidget
 
 if TYPE_CHECKING:
@@ -308,7 +315,7 @@ class MainWindow(QMainWindow):
         """
         return self._config_dialog.exec() == QDialog.DialogCode.Accepted
 
-    
+
     def assemble(self) -> int:
         """
         @brief Open the Assembler Window/dialog

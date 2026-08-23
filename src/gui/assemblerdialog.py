@@ -5,12 +5,12 @@
 """
 
 from __future__ import annotations
-from pathlib import Path
-from PyQt6 import uic
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
-from controller.emulatorconfiguration import EmulatorConfiguration
+from pathlib import Path
+
+from PyQt6 import uic
+from PyQt6.QtWidgets import QDialog, QWidget
+
 
 class AssemblerDialog(QDialog):
     """

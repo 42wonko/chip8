@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>826</width>
-    <height>777</height>
+    <width>730</width>
+    <height>637</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -69,7 +69,7 @@
           <item>
            <widget class="QComboBox" name="asmTargetComboBox">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -170,12 +170,9 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="asmAssembleLoadpushButton">
-          <property name="toolTip">
-           <string>Assemble current source code into a ROM image and load it ito the VM</string>
-          </property>
+         <widget class="QPushButton" name="asmRunPushButton">
           <property name="text">
-           <string>Assemble + Load</string>
+           <string>Run</string>
           </property>
          </widget>
         </item>
@@ -186,6 +183,13 @@
           </property>
           <property name="text">
            <string>Save</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="asmLoadPushButton">
+          <property name="text">
+           <string>Load</string>
           </property>
          </widget>
         </item>
