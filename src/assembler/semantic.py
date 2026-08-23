@@ -17,6 +17,7 @@ from assembler.ast import (
     IdentifierExpression,
     InstructionNode,
     LiteralExpression,
+    SourceLine,
 )
 from assembler.instruction import AssemblerInstruction
 from assembler.operand import AssemblerOperand, AssemblerOperandType
@@ -47,19 +48,72 @@ class SymbolCollector:
             Parsed assembly source.
         """
         address = PROGRAM_START
+        evaluator = ExpressionEvaluator(self._symbols)
+
         for source_line in assembly.lines:
+            statement = source_line.statement
+
+            if isinstance(statement, DirectiveNode):
+                name = statement.name.upper()
+                if name == "EQU":
+                    self._define_equ(source_line, evaluator)
+                    continue
+                if name == "ORG":
+                    address = self._resolve_org(statement, evaluator)
+                    continue
+                if source_line.label is not None:
+                    self._symbols.define( source_line.label.name, address, source_line.label.location)
+                if name == "TARGET":
+                    continue
+                raise ValueError( f"Unsupported directive '{statement.name}'.")
             if source_line.label is not None:
                 self._symbols.define( source_line.label.name, address, source_line.label.location)
-            if source_line.statement is None:
+            if statement is None:
                 continue
-            if isinstance(source_line.statement, InstructionNode):
+            if isinstance(statement, InstructionNode):
                 address += INSTRUCTION_SIZE
                 continue
-            if isinstance(source_line.statement, DirectiveNode):
-                if source_line.statement.name.upper() == "TARGET":
-                    continue
-                raise ValueError( f"Unsupported directive " f"'{source_line.statement.name}'.")
-            raise ValueError( f"Unsupported statement type: " f"{type(source_line.statement).__name__}")
+            raise ValueError( f"Unsupported statement type: {type(statement).__name__}")
+
+    ###########################################################################
+    # private helper functions
+    ###########################################################################
+    def _resolve_org( self, directive: DirectiveNode, evaluator: ExpressionEvaluator) -> int:
+        """
+        @brief Resolve an ORG directive.
+
+        @param directive
+            ORG directive.
+
+        @param evaluator
+            Expression evaluator used to resolve the address.
+
+        @return
+            New assembly address.
+        """
+        if len(directive.operands) != 1:
+            raise ValueError("ORG requires exactly one operand.")
+        try:
+            address = evaluator.evaluate(directive.operands[0])
+        except ValueError as error:
+            raise ValueError( "ORG operand must be an evaluatable integer expression.") from error
+        if not 0 <= address <= 0xFFFF:
+            raise ValueError( "ORG address must be in the range 0x0000 to 0xFFFF.")
+        return address
+
+    def _define_equ( self, source_line: SourceLine, evaluator: ExpressionEvaluator) -> None:
+        """
+        @brief Define a symbol using an EQU directive.
+        """
+        statement = source_line.statement
+        if not isinstance(statement, DirectiveNode):
+            raise ValueError("EQU requires a directive statement.")
+        if source_line.label is None:
+            raise ValueError("EQU requires a label.")
+        if len(statement.operands) != 1:
+            raise ValueError("EQU requires exactly one operand.")
+        value = evaluator.evaluate(statement.operands[0])
+        self._symbols.define( source_line.label.name, value, source_line.label.location)
 
 
 class ExpressionEvaluationError(ValueError):

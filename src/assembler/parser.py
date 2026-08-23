@@ -11,7 +11,7 @@ from assembler.ast import (
     BinaryExpression,
     BinaryOperator,
     DirectiveNode,
-    Expression,
+     Expression,
     IdentifierExpression,
     InstructionNode,
     LabelNode,
@@ -143,7 +143,7 @@ class Parser:
             "Expected instruction or directive."
         )
 
-        if token.value.upper() == "TARGET":
+        if token.value.upper() in ("TARGET", "ORG", "EQU"):
             return self._parse_directive(token)
 
         return self._parse_instruction(token)
