@@ -988,6 +988,13 @@
           </widget>
          </item>
          <item>
+          <widget class="QPushButton" name="assemblerPushButton">
+           <property name="text">
+            <string>Assembler</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <spacer name="horizontalSpacer_2">
            <property name="orientation">
             <enum>Qt::Orientation::Horizontal</enum>

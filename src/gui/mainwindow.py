@@ -37,18 +37,12 @@ from typing import TYPE_CHECKING, cast
 from PyQt6 import uic
 from PyQt6.QtCore import QModelIndex, QPoint, QSettings, Qt, pyqtSignal
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QDialog,
-    QHeaderView,
-    QMainWindow,
-    QMessageBox,
-    QStatusBar,
-)
+from PyQt6.QtWidgets import QAbstractItemView, QDialog, QHeaderView, QMainWindow, QMessageBox, QStatusBar
 
 from chip8.settingsmanager import SettingsManager
 from gui.codetablemodel import CodeTableModel
 from gui.configdialog import ConfigDialog
+from gui.assemblerdialog import AssemblerDialog
 from gui.displaywidget import DisplayWidget
 
 if TYPE_CHECKING:
@@ -76,7 +70,10 @@ class MainWindow(QMainWindow):
         ui_file = ( Path(__file__).parent / "ui" / "mainwindow.ui")
         uic.loadUi(str(ui_file), self)
         self._initialize()
-        self._config_dialog = ConfigDialog(self)
+        self._config_dialog     = ConfigDialog(self)
+        self._assembler_dialog  = AssemblerDialog(self)
+        flags = self._assembler_dialog.windowFlags() | Qt.WindowType.CustomizeWindowHint | Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowMaximizeButtonHint
+        self._assembler_dialog.setWindowFlags(flags)
 
     ###########################################################################
     # Public interface
@@ -311,6 +308,14 @@ class MainWindow(QMainWindow):
         """
         return self._config_dialog.exec() == QDialog.DialogCode.Accepted
 
+    
+    def assemble(self) -> int:
+        """
+        @brief Open the Assembler Window/dialog
+        .
+        """
+        return self._assembler_dialog.exec() == QDialog.DialogCode.Accepted
+
 
     @property
     def register_labels(self) -> list:
@@ -320,6 +325,10 @@ class MainWindow(QMainWindow):
     @property
     def config_dialog(self) -> ConfigDialog:
         return self._config_dialog
+
+    @property
+    def assembler_dialog(self) -> AssemblerDialog:
+        return self._assembler_dialog
 
     def _connect_signals(self) -> None:
         """
@@ -343,6 +352,7 @@ class MainWindow(QMainWindow):
 
         self.keyboardButton.clicked.connect( self._controller.configure_keyboard)   # type: ignore[attr-defined]
         self.configButton.clicked.connect(self._controller.configure)               # type: ignore[attr-defined]
+        self.assemblerPushButton.clicked.connect(self._controller.assembler)
 
         self.codeTableView.doubleClicked.connect(self._code_table_double_clicked)
         self.codeTableView.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
