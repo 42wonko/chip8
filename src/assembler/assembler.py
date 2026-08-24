@@ -6,33 +6,39 @@
 
 from __future__ import annotations
 
+from assembler.ast import AssemblyNode
+from assembler.codegen import CodeGenerator
+from assembler.lexer import Lexer
 from assembler.options import AssemblyOptions
+from assembler.parser import Parser
 from assembler.result import AssemblyResult
+from assembler.semantic import InstructionResolver, SymbolCollector
+from assembler.symbol import SymbolTable
 from assembler.target import Target
+from chip8.isa.isa import InstructionSetArchitecture
 from controller.diagnostics import DiagnosticReporter
 
 
 class Assembler:
     """
     @brief Entry point for the assembler.
-
-    @details
-    The assembler provides the public interface to the assembly
-    pipeline. Parsing, semantic analysis and code generation are
-    introduced in later development phases.
     """
 
-    def __init__(self, diagnostics: DiagnosticReporter) -> None:
+    def __init__( self, diagnostics: DiagnosticReporter, isa: InstructionSetArchitecture) -> None:
         """
         @brief Construct an assembler.
 
         @param diagnostics
             Diagnostic reporter configured for the assembler subsystem.
+
+        @param isa
+            Instruction-set architecture supplied by the controller.
         """
         self._diagnostics = diagnostics
+        self._isa = isa
 
 
-    def assemble( self, source: str, target: Target, options: AssemblyOptions | None = None,) -> AssemblyResult:
+    def assemble( self, source: str, target: Target, options: AssemblyOptions | None = None) -> AssemblyResult:
         """
         @brief Assemble source code.
 
@@ -43,15 +49,58 @@ class Assembler:
             Target architecture.
 
         @param options
-            Assembly output options. Default options are used when None.
+            Assembly output options.
 
         @return
             Assembly result.
         """
-        del source
-        del target
         if options is None:
             options = AssemblyOptions()
-        del options
-        self._diagnostics.info( "Assembler implementation is not yet available.")
-        return AssemblyResult( success=False,)
+
+        try:
+            assembly = self._parse(source)
+            if not assembly.lines:
+                self._diagnostics.error("Assembly source is empty.")
+                return AssemblyResult(success=False)
+            symbols = SymbolTable()
+
+            SymbolCollector(symbols).collect(assembly)
+
+            if not options.generate_binary:
+                return AssemblyResult(
+                    success=True
+                )
+
+            resolver = InstructionResolver(
+                symbols,
+                self._isa
+            )
+
+            generator = CodeGenerator(
+                symbols,
+                resolver,
+                self._isa
+            )
+
+            binary_image = generator.generate(assembly)
+
+            return AssemblyResult(
+                success=True,
+                binary_image=binary_image
+            )
+
+        except (ValueError, TypeError) as error:
+            self._diagnostics.error(str(error))
+
+            return AssemblyResult(
+                success=False
+            )
+
+
+    @staticmethod
+    def _parse(source: str) -> AssemblyNode:
+        """
+        @brief Lex and parse assembler source.
+        """
+        tokens = Lexer(source).tokenize()
+        return Parser(tokens).parse()

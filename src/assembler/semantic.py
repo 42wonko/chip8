@@ -63,6 +63,9 @@ class SymbolCollector:
                     continue
                 if source_line.label is not None:
                     self._symbols.define( source_line.label.name, address, source_line.label.location)
+                if name == "DB":
+                    address += self._resolve_db_size(statement, evaluator)
+                    continue
                 if name == "TARGET":
                     continue
                 raise ValueError( f"Unsupported directive '{statement.name}'.")
@@ -114,6 +117,28 @@ class SymbolCollector:
             raise ValueError("EQU requires exactly one operand.")
         value = evaluator.evaluate(statement.operands[0])
         self._symbols.define( source_line.label.name, value, source_line.label.location)
+
+
+    def _resolve_db_size( self, directive: DirectiveNode, evaluator: ExpressionEvaluator) -> int:
+        """
+        @brief Validate a DB directive and return its emitted byte count.
+        """
+        if len(directive.operands) == 0:
+            raise ValueError("DB requires at least one operand.")
+        size = 0
+        for operand in directive.operands:
+            if isinstance(operand, LiteralExpression):
+                if isinstance(operand.value, str):
+                    for character in operand.value:
+                        if ord(character) > 0xFF:
+                            raise ValueError( "DB string contains a character outside the byte range.")
+                    size += len(operand.value)
+                    continue
+            value = evaluator.evaluate(operand)
+            if not 0 <= value <= 0xFF:
+                raise ValueError( f"DB value {value} is outside the range 0x00 to 0xFF.")
+            size += 1
+        return size
 
 
 class ExpressionEvaluationError(ValueError):

@@ -7,9 +7,12 @@
 import unittest
 
 from assembler.assembler import Assembler
+from assembler.options import AssemblyOptions
 from assembler.target import Target
+from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from controller.diagnostic import DiagnosticSource
 from controller.diagnostics import Diagnostics
+from tests.helpers import create_machine
 
 
 class TestAssembler(unittest.TestCase):
@@ -18,11 +21,10 @@ class TestAssembler(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        """
-        @brief Create the diagnostics infrastructure and assembler.
-        """
         self._diagnostics = Diagnostics()
-        self._assembler = Assembler( self._diagnostics.reporter(DiagnosticSource.ASSEMBLER))
+        machine = create_machine()
+        self._isa = ClassicInstructionSetArchitecture(machine)
+        self._assembler = Assembler( self._diagnostics.reporter(DiagnosticSource.ASSEMBLER), self._isa)
 
 
     def test_assembler_can_be_instantiated(self) -> None:
@@ -42,6 +44,63 @@ class TestAssembler(unittest.TestCase):
         self.assertEqual(len(self._diagnostics), 1)
         diagnostic = self._diagnostics[0]
         self.assertEqual( diagnostic.source, DiagnosticSource.ASSEMBLER)
+
+
+    def test_assemble_db(self) -> None:
+        result = self._assembler.assemble(
+            "DB 0x12, 0x34",
+            Target.COSMAC
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x12\x34")
+
+
+    def test_assemble_cls(self) -> None:
+        result = self._assembler.assemble(
+            "CLS",
+            Target.COSMAC
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x00\xE0")
+
+
+    def test_assemble_instruction_with_label(self) -> None:
+        result = self._assembler.assemble(
+            "START:\nJP START",
+            Target.COSMAC
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x12\x00")
+
+
+    def test_assemble_org_and_gap(self) -> None:
+        result = self._assembler.assemble(
+            "ORG 0x300\n"
+            "DB 1\n"
+            "ORG 0x303\n"
+            "DB 2",
+            Target.COSMAC
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(
+            result.binary_image,
+            b"\x01\x00\x00\x02"
+        )
+
+
+    def test_generate_binary_can_be_disabled(self) -> None:
+        result = self._assembler.assemble(
+            "CLS",
+            Target.COSMAC,
+            AssemblyOptions(generate_binary=False)
+        )
+
+        self.assertTrue(result.success)
+        self.assertIsNone(result.binary_image)
 
 
 if __name__ == "__main__":

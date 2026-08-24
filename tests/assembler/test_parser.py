@@ -80,7 +80,7 @@ class ParserTest(unittest.TestCase):
     def test_character_operand(self) -> None:
         assembly = self._parse("DB 'A'")
         statement = assembly.lines[0].statement
-        self.assertIsInstance( statement, InstructionNode)
+        self.assertIsInstance( statement, DirectiveNode)
         operand = statement.operands[0]
         self.assertIsInstance( operand, LiteralExpression)
         self.assertEqual( operand.value, ord("A"))
@@ -88,7 +88,7 @@ class ParserTest(unittest.TestCase):
     def test_string_operand(self) -> None:
         assembly = self._parse('DB "Hello"')
         statement = assembly.lines[0].statement
-        self.assertIsInstance( statement, InstructionNode)
+        self.assertIsInstance( statement, DirectiveNode)
         operand = statement.operands[0]
         self.assertIsInstance( operand, LiteralExpression)
         self.assertEqual( operand.value, "Hello")

@@ -6,9 +6,25 @@
 
 import unittest
 
-from assembler.ast import AssemblyNode, BinaryExpression, BinaryOperator, DirectiveNode, IdentifierExpression, InstructionNode, LabelNode, LiteralExpression, SourceLine
+from assembler.ast import (
+    AssemblyNode,
+    BinaryExpression,
+    BinaryOperator,
+    DirectiveNode,
+    IdentifierExpression,
+    InstructionNode,
+    LabelNode,
+    LiteralExpression,
+    SourceLine,
+)
 from assembler.operand import AssemblerOperandType
-from assembler.semantic import ExpressionEvaluationError, ExpressionEvaluator, InstructionResolver, OperandResolver, SymbolCollector
+from assembler.semantic import (
+    ExpressionEvaluationError,
+    ExpressionEvaluator,
+    InstructionResolver,
+    OperandResolver,
+    SymbolCollector,
+)
 from assembler.symbol import SymbolTable
 from assembler.token import SourceLocation
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
@@ -384,6 +400,215 @@ class SymbolCollectorTest(unittest.TestCase):
         )
         symbols = SymbolTable()
         collector = SymbolCollector(symbols)
+        with self.assertRaises(ValueError):
+            collector.collect(assembly)
+
+
+    def test_db_advances_address_by_one(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(
+                                value=0x42,
+                                location=self.location
+                            ),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=LabelNode(
+                        name="NEXT",
+                        location=self.location
+                    ),
+                    statement=None
+                )
+            )
+        )
+
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols)
+
+        collector.collect(assembly)
+
+        self.assertEqual(
+            symbols.lookup("NEXT").value,
+            PROGRAM_START + 1
+        )
+
+    def test_db_advances_address_for_multiple_bytes(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(value=1, location=self.location),
+                            LiteralExpression(value=2, location=self.location),
+                            LiteralExpression(value=3, location=self.location)
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=LabelNode(
+                        name="NEXT",
+                        location=self.location
+                    ),
+                    statement=None
+                )
+            )
+        )
+
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols)
+
+        collector.collect(assembly)
+
+        self.assertEqual(
+            symbols.lookup("NEXT").value,
+            PROGRAM_START + 3
+        )
+
+    def test_db_label_uses_first_byte_address(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(
+                        name="DATA",
+                        location=self.location
+                    ),
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(value=1, location=self.location),
+                            LiteralExpression(value=2, location=self.location),
+                            LiteralExpression(value=3, location=self.location)
+                        ),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols)
+
+        collector.collect(assembly)
+
+        self.assertEqual(
+            symbols.lookup("DATA").value,
+            PROGRAM_START
+        )
+
+    def test_db_string_advances_address_by_string_length(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(
+                                value="ABC",
+                                location=self.location
+                            ),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=LabelNode(
+                        name="NEXT",
+                        location=self.location
+                    ),
+                    statement=None
+                )
+            )
+        )
+
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols)
+
+        collector.collect(assembly)
+
+        self.assertEqual(
+            symbols.lookup("NEXT").value,
+            PROGRAM_START + 3
+        )
+
+    def test_db_rejects_missing_operand(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols)
+
+        with self.assertRaises(ValueError):
+            collector.collect(assembly)
+
+    def test_db_rejects_negative_value(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(
+                                value=-1,
+                                location=self.location
+                            ),
+                        ),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols)
+
+        with self.assertRaises(ValueError):
+            collector.collect(assembly)
+
+    def test_db_rejects_value_above_ff(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(
+                                value=0x100,
+                                location=self.location
+                            ),
+                        ),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols)
+
         with self.assertRaises(ValueError):
             collector.collect(assembly)
 
