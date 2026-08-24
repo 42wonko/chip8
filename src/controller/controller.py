@@ -36,6 +36,7 @@ from PyQt6.QtCore import QPoint, QTimer
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
 
+from assembler.assembler import Assembler
 from audio.beeper import Beeper
 from chip8.debugger import Debugger
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
@@ -85,6 +86,7 @@ class Chip8Controller:
         self._machine                           = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
         self._isa                               = ClassicInstructionSetArchitecture(self._machine)
         self._machine.set_isa(self._isa)
+        self._assembler                          = Assembler( self._diagnostics.reporter(DiagnosticSource.ASSEMBLER), self._isa)
         self._log_manager.set_isa(self._isa)
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)

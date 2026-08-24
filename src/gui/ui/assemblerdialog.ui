@@ -104,19 +104,6 @@
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_3">
            <item>
-            <widget class="QCheckBox" name="asmOutputRomCheckBox">
-             <property name="toolTip">
-              <string>Create the binary ROM for the VM</string>
-             </property>
-             <property name="text">
-              <string>Binary ROM</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
             <widget class="QCheckBox" name="asmOutputListingCheckBox">
              <property name="toolTip">
               <string>Create a listing file</string>
