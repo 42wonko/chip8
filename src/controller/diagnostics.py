@@ -1,8 +1,17 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
-from controller.diagnostic import Diagnostic, DiagnosticSeverity, DiagnosticSource
+from controller.diagnostic import (
+    AssemblerDiagnostic,
+    Diagnostic,
+    DiagnosticSeverity,
+    DiagnosticSource,
+)
+
+if TYPE_CHECKING:
+    from assembler.token import SourceLocation
 
 
 class DiagnosticReporter:
@@ -48,6 +57,45 @@ class DiagnosticReporter:
         @brief Report an error.
         """
         self._diagnostics._report( DiagnosticSeverity.ERROR , self._source , message , address)
+
+
+class AssemblerDiagnosticsReporter:
+    """
+    @brief Reports diagnostics for the assembler.
+
+    @details
+    Assembler diagnostics additionally carry source-location information.
+    Diagnostics are never coalesced.
+    """
+    def __init__( self, diagnostics: "AssemblerDiagnostics",) -> None:
+        """
+        @brief Construct an assembler diagnostics reporter.
+
+        @param diagnostics
+            Owning assembler diagnostics collection.
+        """
+        self._diagnostics = diagnostics
+
+
+    def info( self, message: str, location: "SourceLocation | None" = None) -> None:
+        """
+        @brief Report an informational assembler message.
+        """
+        self._diagnostics._report( DiagnosticSeverity.INFO, message, location,)
+
+
+    def warning( self, message: str, location: "SourceLocation | None" = None) -> None:
+        """
+        @brief Report an assembler warning.
+        """
+        self._diagnostics._report( DiagnosticSeverity.WARNING, message, location,)
+
+
+    def error( self, message: str, location: "SourceLocation | None" = None) -> None:
+        """
+        @brief Report an assembler error.
+        """
+        self._diagnostics._report( DiagnosticSeverity.ERROR, message, location)
 
 
 class Diagnostics:
@@ -118,3 +166,37 @@ class Diagnostics:
         diagnostic = Diagnostic( severity=severity , source=source , message=message , address=address)
         self._lookup[key] = diagnostic          ## add a new entry
         self._diagnostics.append(diagnostic)
+
+class AssemblerDiagnostics(Diagnostics):
+    """
+    @brief Collection of assembler diagnostics.
+
+    @details
+    Unlike normal diagnostics, assembler diagnostics are not coalesced and
+    therefore have no lookup table or occurrence counting.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def clear(self) -> None:
+        """
+        @brief Remove all assembler diagnostics.
+        """
+        self._diagnostics.clear()
+
+    def reporter(self) -> AssemblerDiagnosticsReporter: # type: ignore[override]
+        """
+        @brief Return an assembler diagnostics reporter.
+        """
+        return AssemblerDiagnosticsReporter(self)
+
+    def _report( self, severity: DiagnosticSeverity, message: str, location: SourceLocation | None = None) -> None:  # type: ignore[override]
+        """
+        @brief Add an assembler diagnostic.
+
+        @details
+        Every diagnostic is retained. Duplicate diagnostics are not
+        coalesced and occurrence counts are not incremented.
+        """
+        self._diagnostics.append( AssemblerDiagnostic( severity=severity, source=DiagnosticSource.ASSEMBLER, message=message, location=location))

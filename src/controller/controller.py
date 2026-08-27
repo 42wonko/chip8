@@ -44,7 +44,7 @@ from chip8.settingsmanager import SettingsManager
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.codeanalysis import CodeAnalysis
 from controller.diagnostic import DiagnosticSource, format_severity, format_source
-from controller.diagnostics import Diagnostics
+from controller.diagnostics import AssemblerDiagnostics, Diagnostics
 from controller.emulatorconfiguration import EmulatorConfiguration
 from controller.keyboardmap import KeyboardMap
 from controller.logging import LogManager
@@ -75,6 +75,7 @@ class Chip8Controller:
         self._debugger.read_settings( self._settings_manager.settings())
         self._diagnostics                       = Diagnostics()
         self._diagnostics_reporter              = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
+        self._assembler_diagnostics             = AssemblerDiagnostics()
         self._log_manager                       = LogManager()
         self._log_manager.configure(self._configuration)
         self._logger: ApplicationLogReporter    = ( self._log_manager.application_logger( DiagnosticSource.CONTROLLER))
@@ -86,11 +87,13 @@ class Chip8Controller:
         self._machine                           = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
         self._isa                               = ClassicInstructionSetArchitecture(self._machine)
         self._machine.set_isa(self._isa)
-        self._assembler                          = Assembler( self._diagnostics.reporter(DiagnosticSource.ASSEMBLER), self._isa)
+        self._assembler                          = Assembler( self._assembler_diagnostics.reporter(), self._isa)
         self._log_manager.set_isa(self._isa)
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)
         self._main_window.breakpoint_context_menu_requested.connect( self._show_breakpoint_context_menu)
+        self._main_window.assembler_dialog.set_assembler(self._assembler)
+        self._main_window.assembler_dialog.set_diagnostics(self._assembler_diagnostics)
         self._cpu_timer = QTimer()
         self._cpu_timer.timeout.connect(self._cpu_tick)
         self._hardware_timer = QTimer()

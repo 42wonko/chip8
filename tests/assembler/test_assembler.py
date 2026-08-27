@@ -7,7 +7,6 @@
 import unittest
 
 from assembler.assembler import Assembler
-from assembler.options import AssemblyOptions
 from assembler.target import Target
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from controller.diagnostic import DiagnosticSource
@@ -90,17 +89,6 @@ class TestAssembler(unittest.TestCase):
             result.binary_image,
             b"\x01\x00\x00\x02"
         )
-
-
-    def test_generate_binary_can_be_disabled(self) -> None:
-        result = self._assembler.assemble(
-            "CLS",
-            Target.COSMAC,
-            AssemblyOptions(generate_binary=False)
-        )
-
-        self.assertTrue(result.success)
-        self.assertIsNone(result.binary_image)
 
 
 if __name__ == "__main__":

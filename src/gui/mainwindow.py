@@ -78,7 +78,7 @@ class MainWindow(QMainWindow):
         uic.loadUi(str(ui_file), self)
         self._initialize()
         self._config_dialog     = ConfigDialog(self)
-        self._assembler_dialog  = AssemblerDialog(self)
+        self._assembler_dialog  = AssemblerDialog(self._controller, self)
         flags = self._assembler_dialog.windowFlags() | Qt.WindowType.CustomizeWindowHint | Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowMaximizeButtonHint
         self._assembler_dialog.setWindowFlags(flags)
 

@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum, auto
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from assembler.token import SourceLocation
 
 
 class DiagnosticSeverity(StrEnum):
@@ -91,3 +95,15 @@ class Diagnostic:
     address: int | None = None
     count: int = 1
 
+
+@dataclass(slots=True)
+class AssemblerDiagnostic(Diagnostic):
+    """
+    @brief One assembler diagnostic message.
+
+    @details
+    An assembler diagnostic carries source-location information. Unlike
+    normal controller diagnostics, assembler diagnostics are not coalesced
+    and do not maintain an occurrence count.
+    """
+    location: SourceLocation | None = None

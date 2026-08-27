@@ -19,7 +19,6 @@ class TestAssemblyOptions(unittest.TestCase):
         @brief Verify the default output configuration.
         """
         options = AssemblyOptions()
-        self.assertTrue(options.generate_binary)
         self.assertFalse(options.generate_listing)
         self.assertFalse(options.generate_cross_reference)
 
@@ -29,11 +28,9 @@ class TestAssemblyOptions(unittest.TestCase):
         @brief Verify that optional output products can be enabled.
         """
         options = AssemblyOptions(
-            generate_binary=True,
             generate_listing=True,
             generate_cross_reference=True,
         )
-        self.assertTrue(options.generate_binary)
         self.assertTrue(options.generate_listing)
         self.assertTrue(options.generate_cross_reference)
 

@@ -19,7 +19,6 @@ class AssemblyOptions:
     cross-reference generation are optional.
     """
 
-    generate_binary: bool = True
     generate_listing: bool = False
     generate_cross_reference: bool = False
 

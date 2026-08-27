@@ -15,6 +15,7 @@ from assembler.result import AssemblyResult
 from assembler.semantic import InstructionResolver, SymbolCollector
 from assembler.symbol import SymbolTable
 from assembler.target import Target
+from assembler.target_selector import TargetSelector
 from chip8.isa.isa import InstructionSetArchitecture
 from controller.diagnostics import DiagnosticReporter
 
@@ -38,7 +39,7 @@ class Assembler:
         self._isa = isa
 
 
-    def assemble( self, source: str, target: Target, options: AssemblyOptions | None = None) -> AssemblyResult:
+    def assemble( self, source: str, target: Target | None, options: AssemblyOptions | None = None) -> AssemblyResult:
         """
         @brief Assemble source code.
 
@@ -46,7 +47,7 @@ class Assembler:
             Assembly source text.
 
         @param target
-            Target architecture.
+            Target architecture selected externally, or None.
 
         @param options
             Assembly output options.
@@ -56,45 +57,21 @@ class Assembler:
         """
         if options is None:
             options = AssemblyOptions()
-
         try:
             assembly = self._parse(source)
             if not assembly.lines:
                 self._diagnostics.error("Assembly source is empty.")
                 return AssemblyResult(success=False)
+            TargetSelector().select(source, target)
             symbols = SymbolTable()
-
             SymbolCollector(symbols).collect(assembly)
-
-            if not options.generate_binary:
-                return AssemblyResult(
-                    success=True
-                )
-
-            resolver = InstructionResolver(
-                symbols,
-                self._isa
-            )
-
-            generator = CodeGenerator(
-                symbols,
-                resolver,
-                self._isa
-            )
-
+            resolver = InstructionResolver( symbols, self._isa)
+            generator = CodeGenerator( symbols, resolver, self._isa)
             binary_image = generator.generate(assembly)
-
-            return AssemblyResult(
-                success=True,
-                binary_image=binary_image
-            )
-
+            return AssemblyResult( success=True, binary_image=binary_image)
         except (ValueError, TypeError) as error:
             self._diagnostics.error(str(error))
-
-            return AssemblyResult(
-                success=False
-            )
+            return AssemblyResult( success=False)
 
 
     @staticmethod
