@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PyQt6 import uic
-from PyQt6.QtWidgets import QDialog, QFileDialog, QListWidgetItem, QMessageBox, QWidget
+from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
+from assembler.result import AssemblyResult
 from assembler.target import Target
-from controller.diagnostic import format_severity, format_source
 from controller.diagnostics import AssemblerDiagnostics
 
 if TYPE_CHECKING:
@@ -106,8 +106,6 @@ class AssemblerDialog(QDialog):
         @return
             True if a source filename is available.
         """
-        if self._source_file is not None:
-            return True
         return self._save()
 
 
@@ -148,14 +146,18 @@ class AssemblerDialog(QDialog):
         self.asmSourceCodeTextEdit.setPlainText(source)
         self._clear_diagnostics()
 
+
     def _assemble(self) -> None:
         """
         @brief Save and assemble the current source.
         """
         if not self._ensure_source_file():
             return
-        self._controller.assemble_source( self._source_file, self._selected_target(), self._options())
+        result = self._assembler.assemble( self._source_file, self._selected_target(), self._options())
+        if result.success:
+            self._save_binary(result)
         self._display_diagnostics()
+
 
     def _run(self) -> None:
         """
@@ -168,28 +170,39 @@ class AssemblerDialog(QDialog):
         if success:
             self._controller.run_assembled_source(self._source_file)
 
+
     def _clear_diagnostics(self) -> None:
         """
         @brief Clear the assembler diagnostics view.
         """
         self.asmDiagnosticsListWidget.clear()
 
+
     def _display_diagnostics(self) -> None:
         """
         @brief Display assembler diagnostics.
         """
-        self._clear_diagnostics()
+        self.asmDiagnosticsListWidget.clear()
 
-        for diagnostic in self._controller.assembler_diagnostics:
-            address = "---"
-            if diagnostic.address is not None:
-                address = f"{diagnostic.address:03X}"
-            text = (
-                f"{format_severity(diagnostic.severity):<3} "
-                f"{format_source(diagnostic.source):<8} "
-                f"{address} "
-                f"{diagnostic.message}"
-            )
-            if diagnostic.count > 1:
-                text += f" (x{diagnostic.count})"
-            self.asmDiagnosticsListWidget.addItem( QListWidgetItem(text))
+        if self._diagnostics is None:
+            return
+
+        for diagnostic in self._diagnostics:
+            text = diagnostic.message
+
+            if diagnostic.location is not None:
+                text = f"ERR  line {diagnostic.location.line}: {text}"
+
+            self.asmDiagnosticsListWidget.addItem(text)
+
+
+    def _save_binary(self, result: AssemblyResult) -> None:
+        """
+        @brief Save the assembled ROM image to disk.
+        """
+        if result.binary_image is None:
+            return
+
+        rom_file = self._source_file.with_suffix(".ch8")
+        rom_file.write_bytes(result.binary_image)
+
