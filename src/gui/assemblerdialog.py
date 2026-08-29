@@ -153,9 +153,15 @@ class AssemblerDialog(QDialog):
         """
         if not self._ensure_source_file():
             return
-        result = self._assembler.assemble( self._source_file, self._selected_target(), self._options())
+        if self._assembler is None:
+            return
+        source_file = self._source_file
+        if source_file is None:
+            return
+        source = source_file.read_text()
+        result = self._assembler.assemble( source, self._selected_target(), self._options())
         if result.success:
-            self._save_binary(result)
+            self._save_binary(source_file, result)
         self._display_diagnostics()
 
 
@@ -196,13 +202,13 @@ class AssemblerDialog(QDialog):
             self.asmDiagnosticsListWidget.addItem(text)
 
 
-    def _save_binary(self, result: AssemblyResult) -> None:
+    def _save_binary(self, source_file: Path, result: AssemblyResult) -> None:
         """
         @brief Save the assembled ROM image to disk.
         """
         if result.binary_image is None:
             return
 
-        rom_file = self._source_file.with_suffix(".ch8")
+        rom_file = source_file.with_suffix(".ch8")
         rom_file.write_bytes(result.binary_image)
 

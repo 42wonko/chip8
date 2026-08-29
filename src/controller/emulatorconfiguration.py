@@ -54,6 +54,13 @@ class EmulatorConfiguration:
     function_trace_enabled: bool        = False
 
     ###########################################################################
+    # Assembler settings
+    ###########################################################################
+    assembler_source_file: str       = ""
+    assembler_rom_file: str          = ""
+    assembler_listing_file: str      = ""
+
+    ###########################################################################
     # CHIP-8 Execution Trace
     ###########################################################################
     execution_trace_enabled: bool       = False
@@ -75,6 +82,10 @@ class EmulatorConfiguration:
         self.logging_enabled_info = settings.value( "logging/info", self.logging_enabled_info, bool)
         self.logging_enabled_warning = settings.value( "logging/warning", self.logging_enabled_warning, bool)
         self.disable_display_updates = settings.value( "display/disable_updates", self.disable_display_updates, bool)
+        self.assembler_source_file = settings.value( "assembler/source_file", self.assembler_source_file, str)
+        self.assembler_rom_file = settings.value( "assembler/rom_file", self.assembler_rom_file, str)
+        self.assembler_listing_file = settings.value( "assembler/listing_file", self.assembler_listing_file, str)
+
 
     def write_settings(self, settings: QSettings) -> None:
         """
@@ -91,4 +102,7 @@ class EmulatorConfiguration:
         settings.setValue( "logging/info", self.logging_enabled_info)
         settings.setValue( "logging/warning", self.logging_enabled_warning)
         settings.setValue( "display/disable_updates", self.disable_display_updates)
+        settings.setValue("assembler/source_file", self.assembler_source_file)
+        settings.setValue("assembler/rom_file", self.assembler_rom_file)
+        settings.setValue("assembler/listing_file", self.assembler_listing_file)
         settings.sync()
