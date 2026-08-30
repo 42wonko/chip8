@@ -9,7 +9,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from PyQt6.QtWidgets import QApplication
 
@@ -33,37 +33,37 @@ class TestAssemblerDialog(unittest.TestCase):
         @brief Create the Qt application required by the dialog tests.
         """
         cls._application = QApplication.instance()
-
         if cls._application is None:
             cls._application = QApplication([])
+
 
     def setUp(self) -> None:
         self.controller = Mock(spec=Chip8Controller)
         self.dialog = AssemblerDialog(self.controller)
 
+
     def tearDown(self) -> None:
         self.dialog.close()
         self.dialog.deleteLater()
+
 
     def test_set_assembler(self) -> None:
         """
         @brief Verify that set_assembler() stores the assembler.
         """
         assembler = Mock(spec=Assembler)
-
         self.dialog.set_assembler(assembler)
-
         self.assertIs(self.dialog._assembler, assembler)
+
 
     def test_set_diagnostics(self) -> None:
         """
         @brief Verify that set_diagnostics() stores the diagnostics collection.
         """
         diagnostics = AssemblerDiagnostics()
-
         self.dialog.set_diagnostics(diagnostics)
-
         self.assertIs(self.dialog._diagnostics, diagnostics)
+
 
     def test_setters_are_independent(self) -> None:
         """
@@ -71,103 +71,12 @@ class TestAssemblerDialog(unittest.TestCase):
         """
         assembler = Mock(spec=Assembler)
         diagnostics = AssemblerDiagnostics()
-
         self.dialog.set_assembler(assembler)
-
         self.assertIs(self.dialog._assembler, assembler)
         self.assertIsNone(self.dialog._diagnostics)
-
         self.dialog.set_diagnostics(diagnostics)
-
         self.assertIs(self.dialog._assembler, assembler)
         self.assertIs(self.dialog._diagnostics, diagnostics)
-
-
-    def test_save_writes_source_to_existing_file(self) -> None:
-        """
-        @brief Verify that Save writes the editor contents to the current file.
-        """
-        with tempfile.TemporaryDirectory() as directory:
-            source_file = Path(directory) / "test.asm"
-            source = "CLS\nJP 0200\n"
-
-            self.dialog._source_file = source_file
-            self.dialog.asmSourceCodeTextEdit.setPlainText(source)
-
-            result = self.dialog._save()
-
-            self.assertTrue(result)
-            self.assertTrue(source_file.exists())
-            self.assertEqual(source_file.read_text(encoding="utf-8"), source)
-
-
-    def test_save_preserves_source_file(self) -> None:
-        """
-        @brief Verify that Save does not change the current source filename.
-        """
-        with tempfile.TemporaryDirectory() as directory:
-            source_file = Path(directory) / "test.asm"
-
-            self.dialog._source_file = source_file
-            self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
-
-            self.dialog._save()
-
-            self.assertEqual(self.dialog.source_file, source_file)
-
-
-    @patch("gui.assemblerdialog.QFileDialog.getSaveFileName")
-    def test_save_prompts_for_filename_when_no_source_file(
-        self,
-        get_save_file_name: Mock
-    ) -> None:
-        """
-        @brief Verify that Save requests a filename when none is selected.
-        """
-        with tempfile.TemporaryDirectory() as directory:
-            source_file = Path(directory) / "test.asm"
-            source = "CLS\n"
-
-            get_save_file_name.return_value = (str(source_file), "")
-
-            self.dialog.asmSourceCodeTextEdit.setPlainText(source)
-
-            result = self.dialog._save()
-
-            self.assertTrue(result)
-            self.assertEqual(self.dialog.source_file, source_file)
-            self.assertEqual(source_file.read_text(encoding="utf-8"), source)
-            get_save_file_name.assert_called_once()
-
-
-    @patch("gui.assemblerdialog.QFileDialog.getSaveFileName")
-    def test_save_cancelled_by_user(
-        self,
-        get_save_file_name: Mock
-    ) -> None:
-        """
-        @brief Verify that cancelling the Save dialog aborts the operation.
-        """
-        get_save_file_name.return_value = ("", "")
-
-        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
-
-        result = self.dialog._save()
-
-        self.assertFalse(result)
-        self.assertIsNone(self.dialog.source_file)
-
-
-    @patch("gui.assemblerdialog.QMessageBox.critical")
-    def test_save_reports_file_error( self, critical: Mock) -> None:
-        """
-        @brief Verify that a filesystem error is reported to the user.
-        """
-        self.dialog._source_file = Path("/this/path/does/not/exist/test.asm")
-        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
-        result = self.dialog._save()
-        self.assertFalse(result)
-        critical.assert_called_once()
 
 
     def test_display_diagnostics_uses_injected_diagnostics(self) -> None:
@@ -255,20 +164,19 @@ class TestAssemblerDialog(unittest.TestCase):
         self.assertTrue(options.generate_cross_reference)
 
 
-    def test_assemble_uses_injected_assembler(self) -> None:
+    def test_assemble_uses_controller(self) -> None:
         """
-        @brief Verify that Assemble invokes the injected assembler.
+        @brief Verify that Assemble delegates assembly to the controller.
         """
-        assembler = Mock()
-        assembler.assemble.return_value = AssemblyResult(success=True)
-        self.dialog.set_assembler(assembler)
-        self.dialog._source_file = Path("/home/micky/Projects/boot.dev/chip8/asm_src/unit_test.asm")
+        self.dialog.set_diagnostics(AssemblerDiagnostics())
+        self.controller.ensure_assembler_source_file.return_value = True
+        self.controller.assemble_source.return_value = True
         source = "CLS\n"
         self.dialog.asmSourceCodeTextEdit.setPlainText(source)
         self.dialog.asmTargetComboBox.setCurrentIndex(1)
         self.dialog._assemble()
-        assembler.assemble.assert_called_once()
-        args = assembler.assemble.call_args.args
+        self.controller.assemble_source.assert_called_once()
+        args = self.controller.assemble_source.call_args.args
         self.assertEqual(args[0], source)
         self.assertEqual(args[1], Target.COSMAC)
         options = args[2]
@@ -278,77 +186,21 @@ class TestAssemblerDialog(unittest.TestCase):
 
     def test_assemble_passes_output_options(self) -> None:
         """
-        @brief Verify that Assemble passes the selected output options.
+        @brief Verify that Assemble passes the selected output options to
+        the controller.
         """
-        assembler = Mock()
-        assembler.assemble.return_value = AssemblyResult(success=True)
-        self.dialog.set_assembler(assembler)
-        self.dialog._source_file = Path("/home/micky/Projects/boot.dev/chip8/asm_src/unit_test.asm")
+        self.dialog.set_diagnostics(AssemblerDiagnostics())
+        self.controller.ensure_assembler_source_file.return_value = True
+        self.controller.assemble_source.return_value = True
         self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
         self.dialog.asmTargetComboBox.setCurrentIndex(1)
         self.dialog.asmOutputListingCheckBox.setChecked(True)
         self.dialog.asmOutputSaveCheckBox.setChecked(True)
         self.dialog._assemble()
-        options = assembler.assemble.call_args.args[2]
+        self.controller.assemble_source.assert_called_once()
+        options = self.controller.assemble_source.call_args.args[2]
         self.assertTrue(options.generate_listing)
         self.assertTrue(options.generate_cross_reference)
-
-
-    def test_assemble_saves_current_source_before_assembling(self) -> None:
-        """
-        @brief Verify that Assemble saves the current source before invoking
-        the assembler.
-        """
-        with tempfile.TemporaryDirectory() as directory:
-            source_file = Path(directory) / "test.asm"
-
-            assembler = Mock()
-            assembler.assemble.return_value = AssemblyResult(success=True)
-
-            self.dialog.set_assembler(assembler)
-            self.dialog._source_file = source_file
-
-            source = "CLS\n"
-            self.dialog.asmSourceCodeTextEdit.setPlainText(source)
-
-            self.dialog._assemble()
-
-            self.assertTrue(source_file.exists())
-            self.assertEqual(source_file.read_text(), source)
-
-            assembler.assemble.assert_called_once()
-            args = assembler.assemble.call_args.args
-            self.assertEqual(args[0], source)
-
-
-    def test_assemble_saves_binary_rom(self) -> None:
-        """
-        @brief Verify that a successful assembly writes the ROM image to a
-        .ch8 file beside the source file.
-        """
-        with tempfile.TemporaryDirectory() as directory:
-            source_file = Path(directory) / "test.asm"
-            source_file.write_text("CLS\n")
-
-            assembler = Mock()
-            assembler.assemble.return_value = AssemblyResult(
-                success=True,
-                binary_image=bytes([0x00, 0xE0])
-            )
-
-            self.dialog.set_assembler(assembler)
-            self.dialog._source_file = source_file
-            self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
-
-            self.dialog._assemble()
-
-            rom_file = source_file.with_suffix(".ch8")
-
-            self.assertTrue(rom_file.exists())
-            self.assertEqual(
-                rom_file.read_bytes(),
-                bytes([0x00, 0xE0])
-            )
 
 
     def test_assemble_does_not_save_binary_when_assembly_fails(self) -> None:

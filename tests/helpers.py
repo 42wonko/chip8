@@ -4,9 +4,13 @@
 @brief Helper functions for emulator unit tests.
 """
 
+from unittest.mock import MagicMock, patch
+
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
+from controller.controller import Chip8Controller
 from controller.diagnostic import DiagnosticSource
 from controller.diagnostics import Diagnostics
+from controller.emulatorconfiguration import EmulatorConfiguration
 from controller.logging import LogManager
 from emulator.chip8framebuffer import Chip8Framebuffer
 from emulator.chip8keyboard import Chip8Keyboard
@@ -90,3 +94,33 @@ def create_timers() -> Chip8Timers:
     return Chip8Timers(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST))
 
 
+
+def create_controller( configuration: EmulatorConfiguration | None = None) -> Chip8Controller:
+    """
+    @brief Create a Chip8Controller suitable for unit tests.
+
+    @param configuration
+        Optional emulator configuration.
+
+    @return
+        Fully initialized controller with GUI and settings isolated.
+    """
+    if configuration is None:
+        configuration = EmulatorConfiguration()
+
+    settings_manager = MagicMock()
+    main_window = MagicMock()
+
+    with patch(
+        "controller.controller.EmulatorConfiguration",
+        return_value=configuration
+    ), patch(
+        "controller.controller.SettingsManager",
+        return_value=settings_manager
+    ), patch(
+        "controller.controller.MainWindow",
+        return_value=main_window
+    ):
+        controller = Chip8Controller()
+
+    return controller

@@ -37,6 +37,8 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
 
 from assembler.assembler import Assembler
+from assembler.options import AssemblyOptions
+from assembler.target import Target
 from audio.beeper import Beeper
 from chip8.debugger import Debugger
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
@@ -257,6 +259,120 @@ class Chip8Controller:
         self._settings_manager.save_configuration( self._configuration)
         self._keyboard_map.write_settings( self._settings_manager.settings())
         self._debugger.write_settings( self._settings_manager.settings())
+
+
+    def load_assembler_source(self) -> str | None:
+        """
+        @brief Load an assembler source file.
+
+        @return
+            Source text, or None if the user cancelled or the file could
+            not be loaded.
+        """
+        filename, _ = QFileDialog.getOpenFileName(
+            self._main_window,
+            "Open Assembly Source",
+            "",
+            "CHIP-8 Assembly (*.asm *.s);;All files (*)"
+        )
+        if not filename:
+            return None
+        path = Path(filename)
+        try:
+            source = path.read_text(encoding="utf-8")
+        except OSError as error:
+            self._diagnostics_reporter.error( f"Unable to load assembly source '{path.name}': {error}")
+            return None
+        self._assembler_source_file = path
+        self._configuration.assembler_source_file = str(path)
+        if self._assembler_rom_file is None:
+            self._assembler_rom_file = path.with_suffix(".ch8")
+            self._configuration.assembler_rom_file = str( self._assembler_rom_file)
+        if self._assembler_listing_file is None:
+            self._assembler_listing_file = path.with_suffix(".lst")
+            self._configuration.assembler_listing_file = str( self._assembler_listing_file)
+        self._assembler_diagnostics.clear()
+        return source
+
+
+    def save_assembler_source(self, source: str) -> bool:
+        """
+        @brief Save assembler source code.
+
+        @param source
+            Assembly source text.
+
+        @return
+            True if the source was saved successfully.
+        """
+        if self._assembler_source_file is None:
+            filename, _ = QFileDialog.getSaveFileName(
+                self._main_window,
+                "Save Assembly Source",
+                "",
+                "CHIP-8 Assembly (*.asm *.s);;All files (*)"
+            )
+            if not filename:
+                return False
+            self._assembler_source_file = Path(filename)
+            self._configuration.assembler_source_file = filename
+            if self._assembler_rom_file is None:
+                self._assembler_rom_file = ( self._assembler_source_file.with_suffix(".ch8"))
+                self._configuration.assembler_rom_file = str( self._assembler_rom_file)
+            if self._assembler_listing_file is None:
+                self._assembler_listing_file = ( self._assembler_source_file.with_suffix(".lst"))
+                self._configuration.assembler_listing_file = str( self._assembler_listing_file)
+        try:
+            self._assembler_source_file.write_text( source, encoding="utf-8")
+        except OSError as error:
+            self._diagnostics_reporter.error( f"Unable to save assembly source '{self._assembler_source_file.name}': {error}")
+            return False
+        return True
+
+
+    def ensure_assembler_source_file(self, source: str) -> bool:
+        """
+        @brief Ensure that an assembler source file exists.
+
+        @param source
+            Current assembly source text.
+
+        @return
+            True if a source file is available and has been saved.
+        """
+        return self.save_assembler_source(source)
+
+
+    def assemble_source( self, source: str, target: Target | None, options: AssemblyOptions) -> bool:
+        """
+        @brief Assemble source code and write the requested output files.
+
+        @param source
+            Assembly source text.
+
+        @param target
+            Target architecture.
+
+        @param options
+            Assembler output options.
+
+        @return
+            True if assembly succeeded.
+        """
+        if not self.ensure_assembler_source_file(source):
+            return False
+        result = self._assembler.assemble(source, target, options)
+        if not result.success:
+            return False
+        if result.binary_image is not None:
+            if self._assembler_rom_file is None:
+                return False
+            try:
+                self._assembler_rom_file.write_bytes(result.binary_image)
+            except OSError as error:
+                self._assembler_diagnostics.reporter().error( f"Unable to save assembler ROM '{self._assembler_rom_file.name}': {error}")
+                return False
+        return True
 
 
     ###########################################################################

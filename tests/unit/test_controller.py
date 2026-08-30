@@ -4,13 +4,21 @@
 @brief Unit tests for the application controller.
 """
 
+import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
+
 from PyQt6.QtCore import QSettings
-from emulator.stepresult import StepResult
-from controller.emulatorconfiguration import EmulatorConfiguration
+
+from assembler.options import AssemblyOptions
+from assembler.result import AssemblyResult
+from assembler.target import Target
 from controller.controller import Chip8Controller
+from controller.emulatorconfiguration import EmulatorConfiguration
+from emulator.stepresult import StepResult
+from tests.helpers import create_controller
+
 
 class Chip8ControllerTest(unittest.TestCase):
     """
@@ -139,3 +147,128 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertEqual( controller.assembler_source_file, Path("/tmp/test.asm"))
         self.assertEqual( controller.assembler_rom_file, Path("/tmp/test.ch8"))
         self.assertEqual( controller.assembler_listing_file, Path("/tmp/test.lst"))
+
+
+    def test_assemble_source_saves_binary_rom(self) -> None:
+        """
+        @brief Verify that a successful assembly writes the binary ROM.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            rom_file = Path(directory) / "test.ch8"
+#            controller = self._create_test_controller()
+            with patch.object(Chip8Controller, "__init__", return_value=None):
+                controller = Chip8Controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            controller._assembler = MagicMock()
+            controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
+            self.assertTrue(result)
+            self.assertEqual( rom_file.read_bytes(), bytes([0x00, 0xE0]))
+
+
+    def test_assemble_source_does_not_save_rom_when_assembly_fails(self) -> None:
+        """
+        @brief Verify that a failed assembly does not write a ROM.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            rom_file = Path(directory) / "test.ch8"
+            rom_file.write_bytes(bytes([0xAA, 0x55]))
+
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file     = str(Path(directory) / "test.asm")
+            configuration.assembler_rom_file        = str(rom_file)
+            configuration.assembler_listing_file    = str(Path(directory) / "test.lst")
+            controller = create_controller(configuration)
+            controller._assembler = MagicMock()
+            controller._assembler.assemble.return_value = AssemblyResult( success=False)
+            result = controller.assemble_source( "INVALID\n", Target.COSMAC, AssemblyOptions())
+            self.assertFalse(result)
+            self.assertEqual( rom_file.read_bytes(), bytes([0xAA, 0x55]))
+
+
+    def test_save_assembler_source_writes_existing_file(self) -> None:
+        """
+        @brief Verify that the controller saves assembler source text.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            with patch.object(Chip8Controller, "__init__", return_value=None):
+                controller = Chip8Controller()
+            controller._assembler_source_file = source_file
+            controller._configuration = EmulatorConfiguration()
+            controller._diagnostics_reporter = MagicMock()
+            result = controller.save_assembler_source("CLS\n")
+            self.assertTrue(result)
+            self.assertEqual( source_file.read_text(encoding="utf-8"), "CLS\n")
+
+    @patch("controller.controller.QFileDialog.getSaveFileName")
+    def test_save_assembler_source_establishes_output_files( self, get_save_file_name: Mock) -> None:
+        """
+        @brief Verify that selecting a source filename establishes the
+        default assembler output filenames.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            get_save_file_name.return_value         = (str(source_file), "")
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file     = Path(directory) / "test.asm"
+            configuration.assembler_rom_file        = Path(directory) / "test.ch8"
+            configuration.assembler_listing_file    = Path(directory) / "test.lst"
+            controller = create_controller(configuration)
+            result = controller.save_assembler_source("CLS\n")
+            self.assertTrue(result)
+            self.assertEqual(controller.assembler_source_file, source_file)
+            self.assertEqual( controller.assembler_rom_file, source_file.with_suffix(".ch8"))
+            self.assertEqual( controller.assembler_listing_file, source_file.with_suffix(".lst"))
+
+
+    @patch("controller.controller.QFileDialog.getSaveFileName")
+    def test_save_assembler_source_can_be_cancelled( self, get_save_file_name: Mock) -> None:
+        """
+        @brief Verify that cancelling the source-file selection aborts Save.
+        """
+        get_save_file_name.return_value = ("", "")
+        configuration = EmulatorConfiguration()
+        configuration.assembler_source_file     = None
+        configuration.assembler_rom_file        = None
+        configuration.assembler_listing_file    = None
+        controller = create_controller(configuration)
+        result = controller.save_assembler_source("CLS\n")
+        self.assertFalse(result)
+        self.assertIsNone(controller.assembler_source_file)
+
+
+    @patch("controller.controller.QFileDialog.getOpenFileName")
+    def test_load_assembler_source_reads_source_file( self, get_open_file_name: Mock) -> None:
+        """
+        @brief Verify that the controller loads assembler source text.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            source_file.write_text("CLS\n", encoding="utf-8")
+            get_open_file_name.return_value = (str(source_file), "")
+            configuration = EmulatorConfiguration()
+            configuration.assembler_rom_file        = None
+            configuration.assembler_listing_file    = None
+            controller = create_controller(configuration)
+            source = controller.load_assembler_source()
+            self.assertEqual(source, "CLS\n")
+            self.assertEqual(controller.assembler_source_file, source_file)
+            self.assertEqual( controller.assembler_rom_file, source_file.with_suffix(".ch8"))
+            self.assertEqual( controller.assembler_listing_file, source_file.with_suffix(".lst"))
+
+
+    @patch("controller.controller.QFileDialog.getOpenFileName")
+    def test_load_assembler_source_can_be_cancelled( self, get_open_file_name: Mock) -> None:
+        """
+        @brief Verify that cancelling Open leaves the assembler source unset.
+        """
+        get_open_file_name.return_value = ("", "")
+        configuration = EmulatorConfiguration()
+        configuration.assembler_source_file     = None
+        controller = create_controller(configuration)
+        self.assertIsNone(controller.load_assembler_source())
+        self.assertIsNone(controller.assembler_source_file)
+

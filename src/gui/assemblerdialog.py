@@ -10,11 +10,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PyQt6 import uic
-from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
+from PyQt6.QtWidgets import QDialog, QWidget
 
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
-from assembler.result import AssemblyResult
 from assembler.target import Target
 from controller.diagnostics import AssemblerDiagnostics
 
@@ -29,7 +28,6 @@ class AssemblerDialog(QDialog):
     def __init__( self, controller: Chip8Controller, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._controller = controller
-        self._source_file: Path | None = None
         ui_file = Path(__file__).resolve().parent / "ui" / "assemblerdialog.ui"
         uic.loadUi(str(ui_file), self)
         self._initialize()
@@ -53,13 +51,6 @@ class AssemblerDialog(QDialog):
     ###########################################################################
     # Public interface
     ###########################################################################
-    @property
-    def source_file(self) -> Path | None:
-        """
-        @brief Return the currently loaded source file.
-        """
-        return self._source_file
-
 
     ###########################################################################
     # Private helpers
@@ -106,43 +97,25 @@ class AssemblerDialog(QDialog):
         @return
             True if a source filename is available.
         """
-        return self._save()
+        source = self.asmSourceCodeTextEdit.toPlainText()
+        return self._controller.ensure_assembler_source_file(source)
 
 
     def _save(self) -> bool:
         """
-        @brief Save the current source code to disk.
-
-        @return
-            True if the source was saved successfully.
+        @brief Save the current source code.
         """
-        if self._source_file is None:
-            filename, _ = QFileDialog.getSaveFileName( self, "Save Assembly Source", "", "CHIP-8 Assembly (*.asm *.s);;All files (*)")
-            if not filename:
-                return False
-            self._source_file = Path(filename)
-        try:
-            self._source_file.write_text( self.asmSourceCodeTextEdit.toPlainText(), encoding="utf-8")
-        except OSError as error:
-            QMessageBox.critical( self, "Save Assembly Source", f"Unable to save '{self._source_file}': {error}")
-            return False
-        return True
+        source = self.asmSourceCodeTextEdit.toPlainText()
+        return self._controller.save_assembler_source(source)
 
 
     def _load(self) -> None:
         """
-        @brief Load an assembly source file from disk.
+        @brief Load an assembly source file.
         """
-        filename, _ = QFileDialog.getOpenFileName( self, "Open Assembly Source", "", "CHIP-8 Assembly (*.asm *.s);;All files (*)")
-        if not filename:
+        source = self._controller.load_assembler_source()
+        if source is None:
             return
-        path = Path(filename)
-        try:
-            source = path.read_text(encoding="utf-8")
-        except OSError as error:
-            QMessageBox.critical( self, "Load Assembly Source", f"Unable to load '{path}': {error}")
-            return
-        self._source_file = path
         self.asmSourceCodeTextEdit.setPlainText(source)
         self._clear_diagnostics()
 
@@ -153,15 +126,7 @@ class AssemblerDialog(QDialog):
         """
         if not self._ensure_source_file():
             return
-        if self._assembler is None:
-            return
-        source_file = self._source_file
-        if source_file is None:
-            return
-        source = source_file.read_text()
-        result = self._assembler.assemble( source, self._selected_target(), self._options())
-        if result.success:
-            self._save_binary(source_file, result)
+        self._controller.assemble_source( self.asmSourceCodeTextEdit.toPlainText(), self._selected_target(), self._options())
         self._display_diagnostics()
 
 
@@ -169,12 +134,13 @@ class AssemblerDialog(QDialog):
         """
         @brief Save, assemble and run the current source.
         """
-        if not self._ensure_source_file():
+        source = self.asmSourceCodeTextEdit.toPlainText()
+        if not self._controller.ensure_assembler_source_file(source):
             return
-        success = self._controller.assemble_source( self._source_file, self._selected_target(), self._options())
+        success = self._controller.assemble_source( source, self._selected_target(), self._options())
         self._display_diagnostics()
         if success:
-            self._controller.run_assembled_source(self._source_file)
+            self._controller.run_assembled_source()
 
 
     def _clear_diagnostics(self) -> None:
@@ -201,14 +167,4 @@ class AssemblerDialog(QDialog):
 
             self.asmDiagnosticsListWidget.addItem(text)
 
-
-    def _save_binary(self, source_file: Path, result: AssemblyResult) -> None:
-        """
-        @brief Save the assembled ROM image to disk.
-        """
-        if result.binary_image is None:
-            return
-
-        rom_file = source_file.with_suffix(".ch8")
-        rom_file.write_bytes(result.binary_image)
 
