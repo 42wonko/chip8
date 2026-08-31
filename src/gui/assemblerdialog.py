@@ -62,6 +62,7 @@ class AssemblerDialog(QDialog):
         self.asmAssemblePushButton.clicked.connect(self._assemble)
         self.asmRunPushButton.clicked.connect(self._run)
         self.asmSavePushButton.clicked.connect(self._save)
+        self.asmSaveAsPushButton.clicked.connect(self._save_as)
         self.asmLoadPushButton.clicked.connect(self._load)
         self.asmOutputSaveCheckBox.setChecked(False)
 
@@ -109,6 +110,13 @@ class AssemblerDialog(QDialog):
         return self._controller.save_assembler_source(source)
 
 
+    def _save_as(self) -> bool:
+        """
+        @brief Save the current assembler source under a new filename.
+        """
+        return self._controller.save_assembler_source_as( self.asmSourceCodeTextEdit.toPlainText())
+
+
     def _load(self) -> None:
         """
         @brief Load an assembly source file.
@@ -117,7 +125,7 @@ class AssemblerDialog(QDialog):
         if source is None:
             return
         self.asmSourceCodeTextEdit.setPlainText(source)
-        self._clear_diagnostics()
+#        self._clear_diagnostics()
 
 
     def _assemble(self) -> None:

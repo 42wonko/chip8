@@ -36,9 +36,10 @@ class SymbolTable:
         @exception ValueError
             If the symbol has already been defined.
         """
-        if name in self._symbols:
-            raise ValueError( f"Symbol '{name}' is already defined.")
-        self._symbols[name] = Symbol( name=name, value=value, location=location)
+        canonical_name = self._canonical_name(name)
+        if canonical_name in self._symbols:
+            raise ValueError(f"Symbol '{name}' is already defined.")
+        self._symbols[canonical_name] = Symbol( name=name, value=value, location=location)
 
 
     def lookup(self, name: str) -> Symbol:
@@ -51,8 +52,9 @@ class SymbolTable:
         @exception ValueError
             If the symbol does not exist.
         """
+        canonical_name = self._canonical_name(name)
         try:
-            return self._symbols[name]
+            return self._symbols[canonical_name]
         except KeyError as error:
             raise ValueError( f"Undefined symbol '{name}'.") from error
 
@@ -61,7 +63,7 @@ class SymbolTable:
         """
         @brief Determine whether a symbol exists.
         """
-        return name in self._symbols
+        return self._canonical_name(name) in self._symbols
 
 
     def clear(self) -> None:
@@ -69,6 +71,17 @@ class SymbolTable:
         @brief Remove all symbols.
         """
         self._symbols.clear()
+
+
+###############################################################################
+# private helpers
+###############################################################################
+    @staticmethod
+    def _canonical_name(name: str) -> str:
+        """
+        @brief Return the canonical representation of a symbol name.
+        """
+        return name.upper()
 
 
     def __len__(self) -> int:

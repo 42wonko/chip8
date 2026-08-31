@@ -106,3 +106,27 @@ class SymbolTableTest(unittest.TestCase):
         self.assertFalse(
             self.symbols.contains("START")
         )
+
+
+    def test_symbol_lookup_is_case_insensitive(self) -> None:
+        """
+        @brief Verify that symbol lookup is case-insensitive.
+        """
+        location = SourceLocation(line=1, column=1)
+        self.symbols.define("Start", 0x200, location)
+        self.assertEqual(self.symbols.lookup("Start").value, 0x200)
+        self.assertEqual(self.symbols.lookup("START").value, 0x200)
+        self.assertEqual(self.symbols.lookup("start").value, 0x200)
+
+
+    def test_symbol_definition_is_case_insensitive(self) -> None:
+        """
+        @brief Verify that symbol definitions differing only by case conflict.
+        """
+        location = SourceLocation(line=1, column=1)
+        self.symbols.define("Start", 0x200, location)
+        with self.assertRaises(ValueError):
+            self.symbols.define("START", 0x202, location)
+
+
+

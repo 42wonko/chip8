@@ -156,11 +156,11 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
-#            controller = self._create_test_controller()
-            with patch.object(Chip8Controller, "__init__", return_value=None):
-                controller = Chip8Controller()
-            controller._assembler_source_file = source_file
-            controller._assembler_rom_file = rom_file
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file     = str(source_file)
+            configuration.assembler_rom_file        = str(rom_file)
+            configuration.assembler_listing_file    = None
+            controller = create_controller(configuration)
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
             result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
@@ -271,4 +271,85 @@ class Chip8ControllerTest(unittest.TestCase):
         controller = create_controller(configuration)
         self.assertIsNone(controller.load_assembler_source())
         self.assertIsNone(controller.assembler_source_file)
+
+
+    def test_assemble_source_clears_previous_assembler_diagnostics(self) -> None:
+        """
+        @brief Verify that a new assembly starts with an empty diagnostics
+        collection.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file     = str(source_file)
+            controller = create_controller(configuration)
+            controller._assembler_diagnostics.reporter().error( "Old diagnostic.")
+            self.assertEqual( len(controller._assembler_diagnostics._diagnostics), 1)
+            controller._assembler = MagicMock()
+            controller._assembler.assemble.return_value = AssemblyResult( success=True)
+            controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
+            self.assertEqual( len(controller._assembler_diagnostics._diagnostics), 0)
+
+
+    @patch("controller.controller.QFileDialog.getSaveFileName")
+    def test_save_assembler_source_as_can_be_cancelled( self, get_save_file_name: Mock) -> None:
+        """
+        @brief Verify that cancelling Save As leaves the source unchanged.
+        """
+        get_save_file_name.return_value = ("", "")
+
+        controller = create_controller()
+
+        result = controller.save_assembler_source_as("CLS\n")
+
+        self.assertFalse(result)
+
+    @patch("controller.controller.QFileDialog.getSaveFileName")
+    def test_save_assembler_source_as_establishes_output_files( self, get_save_file_name: Mock) -> None:
+        """
+        @brief Verify that Save As establishes the source and output filenames.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "new_source.asm"
+
+            get_save_file_name.return_value = (str(source_file), "")
+
+            controller = create_controller()
+
+            result = controller.save_assembler_source_as("CLS\n")
+
+            self.assertTrue(result)
+            self.assertEqual(
+                controller.assembler_source_file,
+                source_file
+            )
+            self.assertEqual(
+                controller.assembler_rom_file,
+                source_file.with_suffix(".ch8")
+            )
+            self.assertEqual(
+                controller.assembler_listing_file,
+                source_file.with_suffix(".lst")
+            )
+
+    @patch("controller.controller.QFileDialog.getSaveFileName")
+    def test_save_assembler_source_as_writes_source( self, get_save_file_name: Mock) -> None:
+        """
+        @brief Verify that Save As writes the supplied source text.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "new_source.asm"
+
+            get_save_file_name.return_value = (str(source_file), "")
+
+            controller = create_controller()
+
+            result = controller.save_assembler_source_as("CLS\n")
+
+            self.assertTrue(result)
+            self.assertEqual(
+                source_file.read_text(encoding="utf-8"),
+                "CLS\n"
+            )
+
 

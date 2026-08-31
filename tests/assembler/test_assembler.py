@@ -91,5 +91,18 @@ class TestAssembler(unittest.TestCase):
         )
 
 
+    def test_label_can_be_referenced_after_case_change(self) -> None:
+        """
+        @brief Verify that a label can be resolved regardless of its case.
+        """
+        source = (
+            "org 0x200\n"
+            "Start:\tCLS\n"
+            "jp Start\n"
+        )
+        result = self._assembler.assemble( source, Target.COSMAC)
+        self.assertTrue(result.success)
+
+
 if __name__ == "__main__":
     unittest.main()

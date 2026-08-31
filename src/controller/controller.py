@@ -34,7 +34,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QPoint, QTimer
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu, QMessageBox
 
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
@@ -291,7 +291,6 @@ class Chip8Controller:
         if self._assembler_listing_file is None:
             self._assembler_listing_file = path.with_suffix(".lst")
             self._configuration.assembler_listing_file = str( self._assembler_listing_file)
-        self._assembler_diagnostics.clear()
         return source
 
 
@@ -329,6 +328,40 @@ class Chip8Controller:
             return False
         return True
 
+    def save_assembler_source_as(self, source: str) -> bool:
+        """
+        @brief Save assembler source to a user-selected filename.
+
+        @param source
+            Assembly source text.
+
+        @return
+            True if the source was saved successfully, otherwise False.
+        """
+        filename, _ = QFileDialog.getSaveFileName(
+            self._main_window,
+            "Save Assembly Source As",
+            str(self._assembler_source_file.parent)
+            if self._assembler_source_file is not None
+            else "",
+            "CHIP-8 Assembly (*.asm *.s);;All files (*)"
+        )
+        if not filename:
+            return False
+        source_file = Path(filename)
+        try:
+            source_file.write_text(source, encoding="utf-8")
+        except OSError as error:
+            QMessageBox.critical( self._main_window, "Save Assembly Source", f"Unable to save '{source_file}': {error}")
+            return False
+        self._assembler_source_file = source_file
+        self._assembler_rom_file = source_file.with_suffix(".ch8")
+        self._assembler_listing_file = source_file.with_suffix(".lst")
+        self._configuration.assembler_source_file = str(source_file)
+        self._configuration.assembler_rom_file = str( self._assembler_rom_file)
+        self._configuration.assembler_listing_file = str( self._assembler_listing_file)
+        return True
+
 
     def ensure_assembler_source_file(self, source: str) -> bool:
         """
@@ -359,6 +392,7 @@ class Chip8Controller:
         @return
             True if assembly succeeded.
         """
+        self._assembler_diagnostics.clear()
         if not self.ensure_assembler_source_file(source):
             return False
         result = self._assembler.assemble(source, target, options)
