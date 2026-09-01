@@ -7,6 +7,7 @@
 import unittest
 
 from assembler.assembler import Assembler
+from assembler.options import AssemblyOptions
 from assembler.target import Target
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from controller.diagnostic import DiagnosticSource
@@ -46,31 +47,19 @@ class TestAssembler(unittest.TestCase):
 
 
     def test_assemble_db(self) -> None:
-        result = self._assembler.assemble(
-            "DB 0x12, 0x34",
-            Target.COSMAC
-        )
-
+        result = self._assembler.assemble( "DB 0x12, 0x34", Target.COSMAC)
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\x12\x34")
 
 
     def test_assemble_cls(self) -> None:
-        result = self._assembler.assemble(
-            "CLS",
-            Target.COSMAC
-        )
-
+        result = self._assembler.assemble( "CLS", Target.COSMAC)
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\x00\xE0")
 
 
     def test_assemble_instruction_with_label(self) -> None:
-        result = self._assembler.assemble(
-            "START:\nJP START",
-            Target.COSMAC
-        )
-
+        result = self._assembler.assemble( "START:\nJP START", Target.COSMAC)
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\x12\x00")
 
@@ -83,12 +72,8 @@ class TestAssembler(unittest.TestCase):
             "DB 2",
             Target.COSMAC
         )
-
         self.assertTrue(result.success)
-        self.assertEqual(
-            result.binary_image,
-            b"\x01\x00\x00\x02"
-        )
+        self.assertEqual( result.binary_image, b"\x01\x00\x00\x02")
 
 
     def test_label_can_be_referenced_after_case_change(self) -> None:
@@ -104,5 +89,27 @@ class TestAssembler(unittest.TestCase):
         self.assertTrue(result.success)
 
 
+    def test_assemble_can_generate_listing(self) -> None:
+        """
+        @brief Verify that assembly can produce an in-memory listing.
+        """
+        source = (
+            "ORG 0x200\n"
+            "Start: CLS\n"
+            "JP Start\n"
+        )
+        result = self._assembler.assemble( source, Target.COSMAC, AssemblyOptions(generate_listing=True))
+        self.assertTrue(result.success)
+        self.assertIsNotNone(result.listing)
+        assert result.listing is not None
+        self.assertIn("Start: CLS", result.listing)
+        self.assertIn("JP Start", result.listing)
+        self.assertIn("0200", result.listing)
+        self.assertIn("00 E0", result.listing)
+        self.assertIn("12 00", result.listing)
+
 if __name__ == "__main__":
     unittest.main()
+
+
+

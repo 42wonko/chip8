@@ -9,6 +9,7 @@ from __future__ import annotations
 from assembler.ast import AssemblyNode
 from assembler.codegen import CodeGenerator
 from assembler.lexer import Lexer
+from assembler.listing import ListingGenerator
 from assembler.options import AssemblyOptions
 from assembler.parser import Parser
 from assembler.result import AssemblyResult
@@ -68,7 +69,10 @@ class Assembler:
             resolver = InstructionResolver( symbols, self._isa)
             generator = CodeGenerator( symbols, resolver, self._isa)
             binary_image = generator.generate(assembly)
-            return AssemblyResult( success=True, binary_image=binary_image)
+            listing = None
+            if options.generate_listing:
+                listing = ListingGenerator().generate( source, generator.records)
+            return AssemblyResult( success=True, binary_image=binary_image, listing=listing)
         except (ValueError, TypeError) as error:
             self._diagnostics.error(str(error))
             return AssemblyResult( success=False)
