@@ -406,6 +406,14 @@ class Chip8Controller:
             except OSError as error:
                 self._assembler_diagnostics.reporter().error( f"Unable to save assembler ROM '{self._assembler_rom_file.name}': {error}")
                 return False
+        if result.listing is not None:
+            if self._assembler_listing_file is None:
+                return False
+            try:
+                self._assembler_listing_file.write_text( result.listing, encoding="utf-8")
+            except OSError as error:
+                self._assembler_diagnostics.reporter().error( f"Unable to save assembler listing '{self._assembler_listing_file.name}': {error}")
+                return False
         return True
 
 

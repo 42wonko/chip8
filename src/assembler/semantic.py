@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import unittest
 from typing import Protocol
 
 from assembler.ast import (
@@ -22,6 +23,7 @@ from assembler.ast import (
 from assembler.instruction import AssemblerInstruction
 from assembler.operand import AssemblerOperand, AssemblerOperandType
 from assembler.symbol import SymbolTable
+from assembler.token import SourceLocation
 from emulator.constants import INSTRUCTION_SIZE, PROGRAM_START
 
 
@@ -139,6 +141,63 @@ class SymbolCollector:
                 raise ValueError( f"DB value {value} is outside the range 0x00 to 0xFF.")
             size += 1
         return size
+
+
+class SymbolReferenceCollector:
+    """
+    @brief Collects references to symbols used by an assembly AST.
+    """
+
+    def __init__(self, symbols: SymbolTable) -> None:
+        """
+        @brief Construct a symbol reference collector.
+
+        @param symbols
+            Symbol table containing the defined symbols.
+        """
+        self._symbols = symbols
+
+
+    def collect(self, assembly: AssemblyNode) -> None:
+        """
+        @brief Collect symbol references from an assembly AST.
+
+        @param assembly
+            Parsed assembly source.
+        """
+        for source_line in assembly.lines:
+            statement = source_line.statement
+            if isinstance(statement, InstructionNode):
+                for operand in statement.operands:
+                    self._collect_expression(operand)
+                continue
+            if isinstance(statement, DirectiveNode):
+                name = statement.name.upper()
+                if name == "EQU":
+                    for operand in statement.operands:
+                        self._collect_expression(operand)
+                    continue
+                if name == "ORG":
+                    for operand in statement.operands:
+                        self._collect_expression(operand)
+                    continue
+                if name == "DB":
+                    for operand in statement.operands:
+                        self._collect_expression(operand)
+                    continue
+
+
+    def _collect_expression(self, expression: Expression) -> None:
+        """
+        @brief Collect symbol references from an expression.
+        """
+        if isinstance(expression, IdentifierExpression):
+            if self._symbols.contains(expression.name):
+                self._symbols.add_reference( expression.name, expression.location)
+            return
+        if isinstance(expression, BinaryExpression):
+            self._collect_expression(expression.left)
+            self._collect_expression(expression.right)
 
 
 class ExpressionEvaluationError(ValueError):
@@ -420,3 +479,35 @@ class InstructionResolver:
         return tuple( signature for signature in signatures if len(signature) == operand_count)
 
 
+class SymbolReferenceCollectorTest(unittest.TestCase):
+    """
+    @brief Tests for SymbolReferenceCollector.
+    """
+
+    def setUp(self) -> None:
+        self.location = SourceLocation( line=1, column=1)
+
+
+    def test_collects_instruction_symbol_reference(self) -> None:
+        symbols = SymbolTable()
+        symbols.define( "START", 0x300, SourceLocation( line=1, column=1))
+
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=InstructionNode(
+                        mnemonic="JP",
+                        operands=(
+                            IdentifierExpression(
+                                name="START",
+                                location=SourceLocation( line=4, column=4)
+                            ),
+                        ),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+        SymbolReferenceCollector(symbols).collect(assembly)
+        self.assertEqual( symbols.references("START"), ( SourceLocation( line=4, column=4),))

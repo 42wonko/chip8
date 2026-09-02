@@ -129,4 +129,22 @@ class SymbolTableTest(unittest.TestCase):
             self.symbols.define("START", 0x202, location)
 
 
+    def test_add_reference(self) -> None:
+        self.symbols.define( "START", 0x200, self.location)
+        reference = SourceLocation( line=5, column=10)
+        self.symbols.add_reference( "START", reference)
+        self.assertEqual( self.symbols.references("START"), (reference,))
 
+
+    def test_add_multiple_references(self) -> None:
+        self.symbols.define( "START", 0x200, self.location)
+        first = SourceLocation( line=5, column=10)
+        second = SourceLocation( line=8, column=10)
+        self.symbols.add_reference("START", first)
+        self.symbols.add_reference("START", second)
+        self.assertEqual( self.symbols.references("START"), (first, second))
+
+
+    def test_references_unknown_symbol_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.symbols.references("MISSING")

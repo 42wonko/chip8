@@ -164,6 +164,16 @@ class TestAssemblerDialog(unittest.TestCase):
         self.assertTrue(options.generate_cross_reference)
 
 
+    def test_cross_reference_checks_listing(self) -> None:
+        """
+        @brief Verify that selecting cross-reference also selects listing.
+        """
+        self.dialog.asmOutputListingCheckBox.setChecked(False)
+        self.dialog.asmOutputSaveCheckBox.setChecked(True)
+
+        self.assertTrue(self.dialog.asmOutputListingCheckBox.isChecked())
+
+
     def test_assemble_uses_controller(self) -> None:
         """
         @brief Verify that Assemble delegates assembly to the controller.

@@ -64,8 +64,15 @@ class AssemblerDialog(QDialog):
         self.asmSavePushButton.clicked.connect(self._save)
         self.asmSaveAsPushButton.clicked.connect(self._save_as)
         self.asmLoadPushButton.clicked.connect(self._load)
+        self.asmOutputSaveCheckBox.toggled.connect(self._cross_reference_toggled)
         self.asmOutputSaveCheckBox.setChecked(False)
 
+    def _cross_reference_toggled(self, checked: bool) -> None:
+        """
+        @brief Enable listing generation when cross-reference generation is selected.
+        """
+        if checked:
+            self.asmOutputListingCheckBox.setChecked(True)
 
     def _selected_target(self) -> Target | None:
         """

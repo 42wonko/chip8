@@ -297,11 +297,8 @@ class Chip8ControllerTest(unittest.TestCase):
         @brief Verify that cancelling Save As leaves the source unchanged.
         """
         get_save_file_name.return_value = ("", "")
-
         controller = create_controller()
-
         result = controller.save_assembler_source_as("CLS\n")
-
         self.assertFalse(result)
 
     @patch("controller.controller.QFileDialog.getSaveFileName")
@@ -311,26 +308,13 @@ class Chip8ControllerTest(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "new_source.asm"
-
             get_save_file_name.return_value = (str(source_file), "")
-
             controller = create_controller()
-
             result = controller.save_assembler_source_as("CLS\n")
-
             self.assertTrue(result)
-            self.assertEqual(
-                controller.assembler_source_file,
-                source_file
-            )
-            self.assertEqual(
-                controller.assembler_rom_file,
-                source_file.with_suffix(".ch8")
-            )
-            self.assertEqual(
-                controller.assembler_listing_file,
-                source_file.with_suffix(".lst")
-            )
+            self.assertEqual( controller.assembler_source_file, source_file)
+            self.assertEqual( controller.assembler_rom_file, source_file.with_suffix(".ch8"))
+            self.assertEqual( controller.assembler_listing_file, source_file.with_suffix(".lst"))
 
     @patch("controller.controller.QFileDialog.getSaveFileName")
     def test_save_assembler_source_as_writes_source( self, get_save_file_name: Mock) -> None:
@@ -339,17 +323,78 @@ class Chip8ControllerTest(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "new_source.asm"
-
             get_save_file_name.return_value = (str(source_file), "")
-
             controller = create_controller()
-
             result = controller.save_assembler_source_as("CLS\n")
-
             self.assertTrue(result)
-            self.assertEqual(
-                source_file.read_text(encoding="utf-8"),
-                "CLS\n"
+            self.assertEqual( source_file.read_text(encoding="utf-8"), "CLS\n")
+
+    def test_assemble_source_saves_listing(self) -> None:
+        """
+        @brief Verify that a successful assembly writes the generated listing.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            rom_file = Path(directory) / "test.ch8"
+            listing_file = Path(directory) / "test.lst"
+
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file = str(source_file)
+            configuration.assembler_rom_file = str(rom_file)
+            configuration.assembler_listing_file = str(listing_file)
+
+            controller = create_controller(configuration)
+            controller._assembler = MagicMock()
+            controller._assembler.assemble.return_value = AssemblyResult(
+                success=True,
+                binary_image=bytes([0x00, 0xE0]),
+                listing="   1 0200 00 E0    CLS\n",
             )
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions(generate_listing=True),)
+            self.assertTrue(result)
+            self.assertEqual( listing_file.read_text(encoding="utf-8"), "   1 0200 00 E0    CLS\n",)
+
+    def test_assemble_source_does_not_save_listing_when_not_generated(self) -> None:
+        """
+        @brief Verify that assembly without a listing does not modify an
+        existing listing file.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            rom_file = Path(directory) / "test.ch8"
+            listing_file = Path(directory) / "test.lst"
+            listing_file.write_text( "old listing\n", encoding="utf-8")
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file = str(source_file)
+            configuration.assembler_rom_file = str(rom_file)
+            configuration.assembler_listing_file = str(listing_file)
+            controller = create_controller(configuration)
+            controller._assembler = MagicMock()
+            controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
+            self.assertTrue(result)
+            self.assertEqual( listing_file.read_text(encoding="utf-8"), "old listing\n")
+
+    def test_assemble_source_does_not_save_listing_when_assembly_fails(self) -> None:
+        """
+        @brief Verify that a failed assembly does not modify an existing
+        listing file.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            rom_file = Path(directory) / "test.ch8"
+            listing_file = Path(directory) / "test.lst"
+            listing_file.write_text( "old listing\n", encoding="utf-8")
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file = str(source_file)
+            configuration.assembler_rom_file = str(rom_file)
+            configuration.assembler_listing_file = str(listing_file)
+            controller = create_controller(configuration)
+            controller._assembler = MagicMock()
+            controller._assembler.assemble.return_value = AssemblyResult(success=False)
+            result = controller.assemble_source( "INVALID\n", Target.COSMAC, AssemblyOptions(generate_listing=True))
+            self.assertFalse(result)
+            self.assertEqual( listing_file.read_text(encoding="utf-8"), "old listing\n")
+
 
 

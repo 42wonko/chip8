@@ -13,7 +13,11 @@ from assembler.listing import ListingGenerator
 from assembler.options import AssemblyOptions
 from assembler.parser import Parser
 from assembler.result import AssemblyResult
-from assembler.semantic import InstructionResolver, SymbolCollector
+from assembler.semantic import (
+    InstructionResolver,
+    SymbolCollector,
+    SymbolReferenceCollector,
+)
 from assembler.symbol import SymbolTable
 from assembler.target import Target
 from assembler.target_selector import TargetSelector
@@ -66,6 +70,7 @@ class Assembler:
             TargetSelector().select(source, target)
             symbols = SymbolTable()
             SymbolCollector(symbols).collect(assembly)
+            SymbolReferenceCollector(symbols).collect(assembly)
             resolver = InstructionResolver( symbols, self._isa)
             generator = CodeGenerator( symbols, resolver, self._isa)
             binary_image = generator.generate(assembly)

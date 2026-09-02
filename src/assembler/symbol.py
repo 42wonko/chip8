@@ -27,6 +27,7 @@ class SymbolTable:
     """
     def __init__(self) -> None:
         self._symbols: dict[str, Symbol] = {}
+        self._references: dict[str, list[SourceLocation]] = {}
 
 
     def define( self, name: str, value: int, location: SourceLocation) -> None:
@@ -64,6 +65,29 @@ class SymbolTable:
         @brief Determine whether a symbol exists.
         """
         return self._canonical_name(name) in self._symbols
+
+
+    def add_reference(self, name: str, location: SourceLocation) -> None:
+        """
+        @brief Record a reference to a defined symbol.
+
+        @exception ValueError
+            If the symbol does not exist.
+        """
+        canonical_name = self._canonical_name(name)
+        if canonical_name not in self._symbols:
+            raise ValueError(f"Undefined symbol '{name}'.")
+        self._references.setdefault(canonical_name, []).append(location)
+
+
+    def references(self, name: str) -> tuple[SourceLocation, ...]:
+        """
+        @brief Return all references to a symbol.
+        """
+        canonical_name = self._canonical_name(name)
+        if canonical_name not in self._symbols:
+            raise ValueError(f"Undefined symbol '{name}'.")
+        return tuple(self._references.get(canonical_name, []))
 
 
     def clear(self) -> None:
