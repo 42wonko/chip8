@@ -8,6 +8,10 @@ import unittest
 
 from assembler.codegen import CodeGenerationRecord
 from assembler.listing import ListingGenerator
+from assembler.semantic import Reference
+from assembler.symbol import SymbolTable
+from assembler.token import SourceLocation
+from chip8.isa.reference import ReferenceAccess
 
 
 class ListingGeneratorTest(unittest.TestCase):
@@ -17,6 +21,7 @@ class ListingGeneratorTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self._generator = ListingGenerator()
+
 
     def test_listing_contains_line_address_opcode_and_source(self) -> None:
         """
@@ -28,10 +33,10 @@ class ListingGeneratorTest(unittest.TestCase):
             "JP Start\n"
         )
         records = (
-            CodeGenerationRecord( line=2, address=0x0200, data=b"\x00\xE0"),
-            CodeGenerationRecord( line=3, address=0x0202, data=b"\x12\x00"),
+            CodeGenerationRecord(line=2, address=0x0200, data=b"\x00\xE0"),
+            CodeGenerationRecord(line=3, address=0x0202, data=b"\x12\x00"),
         )
-        listing = self._generator.generate(source, records)
+        listing = self._generator.generate(source, records, SymbolTable(), (), False)
         self.assertEqual(
             listing,
             "   1                  ORG 0x200\n"
@@ -44,10 +49,13 @@ class ListingGeneratorTest(unittest.TestCase):
         """
         @brief Verify that long labels are preserved in the source column.
         """
-        source = ( "VeryLongLabelNameThatMustNotBeTruncated: CLS\n")
-        records = ( CodeGenerationRecord( line=1, address=0x0200, data=b"\x00\xE0"),)
-        listing = self._generator.generate(source, records)
-        self.assertIn( "VeryLongLabelNameThatMustNotBeTruncated: CLS", listing)
+        source = ("VeryLongLabelNameThatMustNotBeTruncated: CLS\n")
+        records = (CodeGenerationRecord(line=1, address=0x0200, data=b"\x00\xE0"),)
+        listing = self._generator.generate(source, records, SymbolTable(), (), False)
+        self.assertIn(
+            "VeryLongLabelNameThatMustNotBeTruncated: CLS",
+            listing
+        )
 
 
     def test_listing_preserves_unemitted_source_lines(self) -> None:
@@ -60,12 +68,153 @@ class ListingGeneratorTest(unittest.TestCase):
             "ORG 0x200\n"
             "CLS\n"
         )
-        records = ( CodeGenerationRecord( line=3, address=0x0200, data=b"\x00\xE0"),)
-        listing = self._generator.generate(source, records)
+        records = (CodeGenerationRecord(line=3, address=0x0200, data=b"\x00\xE0"),)
+        listing = self._generator.generate(source, records, SymbolTable(), (), False)
         lines = listing.splitlines()
         self.assertEqual(len(lines), 3)
         self.assertIn("; comment", lines[0])
         self.assertIn("ORG 0x200", lines[1])
         self.assertIn("CLS", lines[2])
+
+
+    def test_cross_reference_is_not_generated_when_disabled(self) -> None:
+        """
+        @brief Verify that disabling cross-reference leaves the listing unchanged.
+        """
+        source = "CLS\n"
+        records = (CodeGenerationRecord(line=1, address=0x0200, data=b"\x00\xE0"),)
+
+        listing = self._generator.generate(source, records, SymbolTable(), (), False)
+
+        self.assertEqual(
+            listing,
+            "   1  0200  00 E0     CLS"
+        )
+        self.assertNotIn("Cross-Reference", listing)
+
+
+    def test_cross_reference_is_appended_when_enabled(self) -> None:
+        """
+        @brief Verify that the cross-reference section is appended to the listing.
+        """
+        source = "CLS\n"
+        records = (CodeGenerationRecord(line=1, address=0x0200, data=b"\x00\xE0"),)
+
+        listing = self._generator.generate(source, records, SymbolTable(), (), True)
+
+        self.assertTrue(listing.startswith("   1  0200  00 E0     CLS"))
+        self.assertIn("Cross-Reference", listing)
+        self.assertIn("Name          Type        Access", listing)
+
+
+    def test_cross_reference_contains_symbol_definition_and_references(self) -> None:
+        """
+        @brief Verify symbol definition and use locations in the cross-reference.
+        """
+        source = (
+            "Start: CLS\n"
+            "JP Start\n"
+            "JP Start\n"
+        )
+        records = (
+            CodeGenerationRecord(line=1, address=0x0200, data=b"\x00\xE0"),
+            CodeGenerationRecord(line=2, address=0x0202, data=b"\x12\x00"),
+            CodeGenerationRecord(line=3, address=0x0204, data=b"\x12\x00")
+        )
+        symbols = SymbolTable()
+        symbols.define(
+            "Start",
+            0x0200,
+            SourceLocation(line=1, column=1)
+        )
+        symbols.add_reference(
+            "Start",
+            SourceLocation(line=2, column=4)
+        )
+        symbols.add_reference(
+            "Start",
+            SourceLocation(line=3, column=4)
+        )
+
+        listing = self._generator.generate(source, records, symbols, (), True)
+
+        self.assertIn(
+            "Start         Symbol      --            1           2, 3",
+            listing
+        )
+
+
+    def test_cross_reference_contains_architectural_resource_and_access(self) -> None:
+        """
+        @brief Verify an architectural resource reference and its access mode.
+        """
+        source = "LD V2, 0x42\n"
+        records = (CodeGenerationRecord(line=1, address=0x0200, data=b"\x62\x42"),)
+        references = (
+            Reference(
+                name="V2",
+                access=ReferenceAccess.WRITE,
+                location=SourceLocation(line=1, column=1)
+            ),
+        )
+
+        listing = self._generator.generate(
+            source,
+            records,
+            SymbolTable(),
+            references,
+            True
+        )
+
+        self.assertIn(
+            "V2            Resource    write         --          1",
+            listing
+        )
+
+
+    def test_cross_reference_contains_multiple_resource_references_from_one_instruction(self) -> None:
+        """
+        @brief Verify that multiple architectural references from one instruction are retained.
+        """
+        source = "ADD V2, V3\n"
+        records = (CodeGenerationRecord(line=1, address=0x0200, data=b"\x82\x34"),)
+        references = (
+            Reference(
+                name="V2",
+                access=ReferenceAccess.READ_WRITE,
+                location=SourceLocation(line=1, column=1)
+            ),
+            Reference(
+                name="V3",
+                access=ReferenceAccess.READ,
+                location=SourceLocation(line=1, column=1)
+            ),
+            Reference(
+                name="VF",
+                access=ReferenceAccess.WRITE,
+                location=SourceLocation(line=1, column=1)
+            )
+        )
+
+        listing = self._generator.generate(
+            source,
+            records,
+            SymbolTable(),
+            references,
+            True
+        )
+
+        self.assertIn(
+            "V2            Resource    read_write    --          1",
+            listing
+        )
+        self.assertIn(
+            "V3            Resource    read          --          1",
+            listing
+        )
+        self.assertIn(
+            "VF            Resource    write         --          1",
+            listing
+        )
 
 

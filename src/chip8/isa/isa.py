@@ -18,6 +18,7 @@ from enum import StrEnum
 from assembler.instruction import AssemblerInstruction
 from assembler.operand import AssemblerOperand
 from chip8.isa.instruction import Instruction
+from chip8.isa.reference import InstructionReference
 from emulator.stepresult import StepResult
 
 
@@ -137,3 +138,17 @@ class InstructionSetArchitecture(ABC):
             Static control-flow information for the instruction.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def instruction_references( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        """
+        @brief Determine the architectural resources accessed by an instruction.
+
+        @param instruction
+            Resolved assembler instruction.
+
+        @return
+            Resources accessed by the instruction and their access modes.
+        """
+        raise NotImplementedError
+

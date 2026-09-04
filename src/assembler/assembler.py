@@ -70,13 +70,20 @@ class Assembler:
             TargetSelector().select(source, target)
             symbols = SymbolTable()
             SymbolCollector(symbols).collect(assembly)
-            SymbolReferenceCollector(symbols).collect(assembly)
-            resolver = InstructionResolver( symbols, self._isa)
-            generator = CodeGenerator( symbols, resolver, self._isa)
+            reference_collector = SymbolReferenceCollector(symbols)
+            reference_collector.collect(assembly)
+            resolver = InstructionResolver(symbols, self._isa)
+            generator = CodeGenerator( symbols, resolver, self._isa, reference_collector)
             binary_image = generator.generate(assembly)
             listing = None
             if options.generate_listing:
-                listing = ListingGenerator().generate( source, generator.records)
+                listing = ListingGenerator().generate(
+                    source,
+                    generator.records,
+                    symbols,
+                    reference_collector.references(),
+                    options.generate_cross_reference
+                )
             return AssemblyResult( success=True, binary_image=binary_image, listing=listing)
         except (ValueError, TypeError) as error:
             self._diagnostics.error(str(error))

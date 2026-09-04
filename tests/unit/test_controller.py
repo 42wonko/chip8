@@ -261,6 +261,50 @@ class Chip8ControllerTest(unittest.TestCase):
 
 
     @patch("controller.controller.QFileDialog.getOpenFileName")
+    def test_load_assembler_source_updates_output_files_for_new_source( self, get_open_file_name: Mock) -> None:
+        """
+        @brief Verify that loading a new source file updates the assembler
+        output filenames to match the new source.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            first_source = Path(directory) / "first.asm"
+            second_source = Path(directory) / "second.asm"
+            first_source.write_text("CLS\n", encoding="utf-8")
+            second_source.write_text("RET\n", encoding="utf-8")
+
+            configuration = EmulatorConfiguration()
+            configuration.assembler_rom_file = None
+            configuration.assembler_listing_file = None
+            controller = create_controller(configuration)
+
+            get_open_file_name.return_value = (str(first_source), "")
+            first_result = controller.load_assembler_source()
+
+            self.assertEqual(first_result, "CLS\n")
+            self.assertEqual(controller.assembler_source_file, first_source)
+            self.assertEqual(controller.assembler_rom_file, first_source.with_suffix(".ch8"))
+            self.assertEqual(controller.assembler_listing_file, first_source.with_suffix(".lst"))
+
+            get_open_file_name.return_value = (str(second_source), "")
+            second_result = controller.load_assembler_source()
+
+            self.assertEqual(second_result, "RET\n")
+            self.assertEqual(controller.assembler_source_file, second_source)
+            self.assertEqual(controller.assembler_rom_file, second_source.with_suffix(".ch8"))
+            self.assertEqual(controller.assembler_listing_file, second_source.with_suffix(".lst"))
+            self.assertNotEqual(controller.assembler_rom_file, first_source.with_suffix(".ch8"))
+            self.assertNotEqual(controller.assembler_listing_file, first_source.with_suffix(".lst"))
+            self.assertEqual(
+                configuration.assembler_rom_file,
+                str(second_source.with_suffix(".ch8"))
+            )
+            self.assertEqual(
+                configuration.assembler_listing_file,
+                str(second_source.with_suffix(".lst"))
+            )
+
+
+    @patch("controller.controller.QFileDialog.getOpenFileName")
     def test_load_assembler_source_can_be_cancelled( self, get_open_file_name: Mock) -> None:
         """
         @brief Verify that cancelling Open leaves the assembler source unset.

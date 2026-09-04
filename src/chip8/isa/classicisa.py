@@ -20,6 +20,7 @@ from assembler.operand import AssemblerOperand, AssemblerOperandType
 from chip8.isa.instruction import Instruction
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.isa import ControlFlow, InstructionAnalysis, InstructionSetArchitecture
+from chip8.isa.reference import InstructionReference, ReferenceAccess
 from emulator.chip8machine import Chip8Machine
 from emulator.constants import (
     ADDRESS_MASK,
@@ -39,6 +40,7 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
 
     _ExecuteHandler = Callable[[Instruction], StepResult]
     _FormatHandler = Callable[[Instruction], str]
+    _ReferenceHandler = Callable[ [AssemblerInstruction], tuple[InstructionReference, ...] ]
 
     def __init__(self, machine: Chip8Machine) -> None:
         """
@@ -122,6 +124,44 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
             InstructionId.LD_B_VX: self._format_ld_b_vx,
             InstructionId.LD_I_VX: self._format_ld_i_vx,
             InstructionId.LD_VX_I: self._format_ld_vx_i
+        }
+
+        self._reference_handlers: dict[ InstructionId, ClassicInstructionSetArchitecture._ReferenceHandler ] = {
+            InstructionId.SYS: self._references_none,
+            InstructionId.CLS: self._references_none,
+            InstructionId.RET: self._references_none,
+            InstructionId.JP: self._references_none,
+            InstructionId.CALL: self._references_none,
+            InstructionId.SE_BYTE: self._references_se_byte,
+            InstructionId.SNE_BYTE: self._references_se_byte,
+            InstructionId.SE_REGISTER: self._references_se_register,
+            InstructionId.LD_BYTE: self._references_ld_byte,
+            InstructionId.ADD_BYTE: self._references_add_byte,
+            InstructionId.LD_REGISTER: self._references_ld_register,
+            InstructionId.OR: self._references_vx_vy_read_write,
+            InstructionId.AND: self._references_vx_vy_read_write,
+            InstructionId.XOR: self._references_vx_vy_read_write,
+            InstructionId.ADD_REGISTER: self._references_vx_vy_vf,
+            InstructionId.SUB: self._references_vx_vy_vf,
+            InstructionId.SHR: self._references_vx_vf,
+            InstructionId.SUBN: self._references_vx_vy_vf,
+            InstructionId.SHL: self._references_vx_vf,
+            InstructionId.SNE_REGISTER: self._references_se_register,
+            InstructionId.LD_I: self._references_ld_i,
+            InstructionId.JP_V0: self._references_jp_v0,
+            InstructionId.RND: self._references_rnd,
+            InstructionId.DRW: self._references_drw,
+            InstructionId.SKP: self._references_vx_read,
+            InstructionId.SKNP: self._references_vx_read,
+            InstructionId.LD_VX_DT: self._references_ld_vx_dt,
+            InstructionId.LD_VX_K: self._references_ld_vx_k,
+            InstructionId.LD_DT_VX: self._references_ld_dt_vx,
+            InstructionId.LD_ST_VX: self._references_ld_st_vx,
+            InstructionId.ADD_I_VX: self._references_add_i_vx,
+            InstructionId.LD_F_VX: self._references_ld_f_vx,
+            InstructionId.LD_B_VX: self._references_ld_b_vx,
+            InstructionId.LD_I_VX: self._references_ld_i_vx,
+            InstructionId.LD_VX_I: self._references_ld_vx_i
         }
 
     ###############################################################################
@@ -607,6 +647,21 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
             case _:
                 return InstructionAnalysis( control_flow=ControlFlow.NEXT, targets=(next_address,), is_code = True)
 
+
+    def instruction_references( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        """
+        @brief Determine the resources accessed by an assembler instruction.
+
+        @param instruction
+            Resolved assembler instruction.
+
+        @return
+            Architectural resource references.
+        """
+        handler = self._reference_handlers.get(instruction.id)
+        if handler is None:
+            raise ValueError( f"Unsupported instruction ID: {instruction.id}")
+        return handler(instruction)
 
 
     ###############################################################################
@@ -1236,3 +1291,149 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
     def _format_ld_vx_i(self, instruction: Instruction) -> str:
         return f"LD V{instruction.x:X}, [I]"
 
+
+    ###############################################################################
+    # Private references helpers
+    ###############################################################################
+    def _references_none( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return ()
+
+
+    def _references_vx_read( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return ( InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ),)
+
+
+    def _references_se_byte( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return self._references_vx_read(instruction)
+
+
+    def _references_se_register( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ),
+            InstructionReference( resource=f"V{instruction.y:X}", access=ReferenceAccess.READ)
+        )
+
+
+    def _references_ld_byte( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return ( InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.WRITE),)
+
+
+    def _references_add_byte( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return ( InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ_WRITE),)
+
+
+    def _references_ld_register( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.WRITE),
+            InstructionReference( resource=f"V{instruction.y:X}", access=ReferenceAccess.READ)
+        )
+
+
+    def _references_vx_vy_read_write( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ_WRITE),
+            InstructionReference( resource=f"V{instruction.y:X}", access=ReferenceAccess.READ)
+        )
+
+
+    def _references_vx_vy_vf( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ_WRITE),
+            InstructionReference( resource=f"V{instruction.y:X}", access=ReferenceAccess.READ),
+            InstructionReference( resource="VF", access=ReferenceAccess.WRITE)
+        )
+
+
+    def _references_vx_vf( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ_WRITE),
+            InstructionReference( resource="VF", access=ReferenceAccess.WRITE)
+        )
+
+
+    def _references_ld_i( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return ( InstructionReference( resource="I", access=ReferenceAccess.WRITE),)
+
+
+    def _references_jp_v0( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return ( InstructionReference( resource="V0", access=ReferenceAccess.READ),)
+
+
+    def _references_rnd( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return ( InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.WRITE),)
+
+
+    def _references_drw( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ),
+            InstructionReference( resource=f"V{instruction.y:X}", access=ReferenceAccess.READ),
+            InstructionReference( resource="I", access=ReferenceAccess.READ),
+            InstructionReference( resource="VF", access=ReferenceAccess.WRITE)
+        )
+
+
+    def _references_ld_vx_dt( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.WRITE),
+            InstructionReference( resource="DT", access=ReferenceAccess.READ)
+        )
+
+
+    def _references_ld_vx_k( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.WRITE),
+            InstructionReference( resource="KEY", access=ReferenceAccess.READ)
+        )
+
+
+    def _references_ld_dt_vx( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource="DT", access=ReferenceAccess.WRITE),
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ)
+        )
+
+
+    def _references_ld_st_vx( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource="ST", access=ReferenceAccess.WRITE),
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ)
+        )
+
+
+    def _references_add_i_vx( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource="I", access=ReferenceAccess.READ_WRITE),
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ)
+        )
+
+
+    def _references_ld_f_vx( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource="FONT_REGISTER", access=ReferenceAccess.WRITE),
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ),
+            InstructionReference( resource="I", access=ReferenceAccess.WRITE)
+        )
+
+
+    def _references_ld_b_vx( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        return (
+            InstructionReference( resource="BCD_REGISTER", access=ReferenceAccess.WRITE),
+            InstructionReference( resource=f"V{instruction.x:X}", access=ReferenceAccess.READ),
+            InstructionReference( resource="I", access=ReferenceAccess.READ)
+        )
+
+
+    def _references_ld_i_vx( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        references = [ InstructionReference( resource="I", access=ReferenceAccess.READ) ]
+        if instruction.x is not None:
+            for register in range(instruction.x + 1):
+                references.append( InstructionReference( resource=f"V{register:X}", access=ReferenceAccess.READ))
+        return tuple(references)
+
+
+    def _references_ld_vx_i( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        references = [ InstructionReference( resource="I", access=ReferenceAccess.READ) ]
+        if instruction.x is not None:
+            for register in range(instruction.x + 1):
+                references.append( InstructionReference( resource=f"V{register:X}", access=ReferenceAccess.WRITE))
+        return tuple(references)

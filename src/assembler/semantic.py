@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import dataclass
 from typing import Protocol
 
 from assembler.ast import (
@@ -24,6 +25,7 @@ from assembler.instruction import AssemblerInstruction
 from assembler.operand import AssemblerOperand, AssemblerOperandType
 from assembler.symbol import SymbolTable
 from assembler.token import SourceLocation
+from chip8.isa.reference import InstructionReference, ReferenceAccess
 from emulator.constants import INSTRUCTION_SIZE, PROGRAM_START
 
 
@@ -143,6 +145,16 @@ class SymbolCollector:
         return size
 
 
+@dataclass(frozen=True, slots=True)
+class Reference:
+    """
+    @brief A cross-reference to a symbol or architectural resource.
+    """
+    name: str
+    access: ReferenceAccess
+    location: SourceLocation
+
+
 class SymbolReferenceCollector:
     """
     @brief Collects references to symbols used by an assembly AST.
@@ -156,6 +168,7 @@ class SymbolReferenceCollector:
             Symbol table containing the defined symbols.
         """
         self._symbols = symbols
+        self._references: list[Reference] = []
 
 
     def collect(self, assembly: AssemblyNode) -> None:
@@ -185,6 +198,32 @@ class SymbolReferenceCollector:
                     for operand in statement.operands:
                         self._collect_expression(operand)
                     continue
+
+
+    def add_instruction_references( self, instruction: AssemblerInstruction, location: SourceLocation, references: tuple[InstructionReference, ...]) -> None:
+        """
+        @brief Add architectural resource references for an instruction.
+
+        @param instruction
+            Resolved assembler instruction.
+
+        @param location
+            Source location of the instruction.
+
+        @param references
+            Architectural resources accessed by the instruction.
+        """
+        del instruction
+
+        for reference in references:
+            self._references.append( Reference( name=reference.resource, access=reference.access, location=location))
+
+
+    def references(self) -> tuple[Reference, ...]:
+        """
+        @brief Return collected architectural resource references.
+        """
+        return tuple(self._references)
 
 
     def _collect_expression(self, expression: Expression) -> None:
@@ -356,6 +395,10 @@ class AssemblerInstructionFactory(Protocol):
         @brief Create an assembler instruction from resolved operands.
         """
 
+    def instruction_references( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        """
+        @brief Determine the architectural resources accessed by an instruction.
+        """
 
 class InstructionResolver:
     """
@@ -406,6 +449,18 @@ class InstructionResolver:
         if last_error is not None:
             raise last_error
         raise ExpressionEvaluationError( f"Invalid operands for instruction '{instruction.mnemonic}'.")
+
+    def instruction_references( self, instruction: AssemblerInstruction) -> tuple[InstructionReference, ...]:
+        """
+        @brief Determine architectural resources accessed by an instruction.
+
+        @param instruction
+            Resolved assembler instruction.
+
+        @return
+            Architectural resources accessed by the instruction.
+        """
+        return self._isa.instruction_references(instruction)
 
     def _resolve_operands( self, expressions: tuple[Expression, ...], operand_types: tuple[AssemblerOperandType, ...]) -> tuple[AssemblerOperand, ...]:
         """

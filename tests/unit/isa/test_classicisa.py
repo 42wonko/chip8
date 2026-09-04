@@ -9,6 +9,7 @@ import unittest
 from assembler.instruction import AssemblerInstruction
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.instructionid import InstructionId
+from chip8.isa.reference import ReferenceAccess
 from emulator.constants import FONT_CHARACTER_SIZE, FONT_START
 from tests.helpers import create_machine
 
@@ -1008,6 +1009,89 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.isa.encode(instruction)
 
+
+    ###########################################################################
+    # instruction references tests
+    ###########################################################################
+    def test_instruction_references(self) -> None:
+        test_cases = [
+            (
+                AssemblerInstruction( id=InstructionId.LD_BYTE, x=3),
+                ( ("V3", ReferenceAccess.WRITE),)
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.ADD_BYTE, x=3),
+                ( ("V3", ReferenceAccess.READ_WRITE),)
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.LD_REGISTER, x=3, y=7),
+                ( ("V3", ReferenceAccess.WRITE), ("V7", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.ADD_REGISTER, x=3, y=7),
+                ( ("V3", ReferenceAccess.READ_WRITE), ("V7", ReferenceAccess.READ), ("VF", ReferenceAccess.WRITE))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.SHR, x=3, y=7),
+                ( ("V3", ReferenceAccess.READ_WRITE), ("VF", ReferenceAccess.WRITE))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.LD_I, nnn=0x456),
+                ( ("I", ReferenceAccess.WRITE),)
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.JP_V0, nnn=0x456),
+                ( ("V0", ReferenceAccess.READ),)
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.DRW, x=3, y=7, n=5),
+                ( ("V3", ReferenceAccess.READ), ("V7", ReferenceAccess.READ), ("I", ReferenceAccess.READ), ("VF", ReferenceAccess.WRITE))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.LD_VX_DT, x=3),
+                ( ("V3", ReferenceAccess.WRITE), ("DT", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.LD_VX_K, x=3),
+                ( ("V3", ReferenceAccess.WRITE), ("KEY", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.LD_DT_VX, x=3),
+                ( ("DT", ReferenceAccess.WRITE), ("V3", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.LD_ST_VX, x=3),
+                ( ("ST", ReferenceAccess.WRITE), ("V3", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.ADD_I_VX, x=3),
+                ( ("I", ReferenceAccess.READ_WRITE), ("V3", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.LD_F_VX, x=3),
+                ( ("FONT_REGISTER", ReferenceAccess.WRITE), ("V3", ReferenceAccess.READ), ("I", ReferenceAccess.WRITE))),
+            (
+                AssemblerInstruction( id=InstructionId.LD_B_VX, x=3),
+                ( ("BCD_REGISTER", ReferenceAccess.WRITE), ("V3", ReferenceAccess.READ), ("I", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.LD_I_VX, x=3),
+                ( ("I", ReferenceAccess.READ), ("V0", ReferenceAccess.READ), ("V1", ReferenceAccess.READ), ("V2", ReferenceAccess.READ), ("V3", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction( id=InstructionId.LD_VX_I, x=3),
+                ( ("I", ReferenceAccess.READ), ("V0", ReferenceAccess.WRITE), ("V1", ReferenceAccess.WRITE), ("V2", ReferenceAccess.WRITE), ("V3", ReferenceAccess.WRITE))
+            )
+        ]
+
+        for instruction, expected in test_cases:
+            with self.subTest(instruction=instruction.id):
+                references = self.isa.instruction_references(instruction)
+                actual = tuple(
+                    (reference.resource, reference.access)
+                    for reference in references
+                )
+                self.assertEqual(actual, expected)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

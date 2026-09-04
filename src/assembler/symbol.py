@@ -95,6 +95,11 @@ class SymbolTable:
         @brief Remove all symbols.
         """
         self._symbols.clear()
+        self._references.clear()
+
+    @property
+    def symbols(self) -> tuple[Symbol, ...]:
+        return tuple(self._symbols.values())
 
 
 ###############################################################################

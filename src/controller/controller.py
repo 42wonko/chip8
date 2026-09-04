@@ -284,13 +284,19 @@ class Chip8Controller:
             self._diagnostics_reporter.error( f"Unable to load assembly source '{path.name}': {error}")
             return None
         self._assembler_source_file = path
+        self._assembler_rom_file = path.with_suffix(".ch8")
+        self._assembler_listing_file = path.with_suffix(".lst")
         self._configuration.assembler_source_file = str(path)
-        if self._assembler_rom_file is None:
-            self._assembler_rom_file = path.with_suffix(".ch8")
-            self._configuration.assembler_rom_file = str( self._assembler_rom_file)
-        if self._assembler_listing_file is None:
-            self._assembler_listing_file = path.with_suffix(".lst")
-            self._configuration.assembler_listing_file = str( self._assembler_listing_file)
+        self._configuration.assembler_rom_file = str(self._assembler_rom_file)
+        self._configuration.assembler_listing_file = str(self._assembler_listing_file)
+#        self._assembler_source_file = path
+#        self._configuration.assembler_source_file = str(path)
+#        if self._assembler_rom_file is None:
+#            self._assembler_rom_file = path.with_suffix(".ch8")
+#            self._configuration.assembler_rom_file = str( self._assembler_rom_file)
+#        if self._assembler_listing_file is None:
+#            self._assembler_listing_file = path.with_suffix(".lst")
+#            self._configuration.assembler_listing_file = str( self._assembler_listing_file)
         return source
 
 

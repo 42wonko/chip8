@@ -18,6 +18,8 @@ from assembler.ast import (
 from assembler.instruction import AssemblerInstruction
 from assembler.semantic import ExpressionEvaluator, InstructionResolver
 from assembler.symbol import SymbolTable
+from assembler.token import SourceLocation
+from chip8.isa.reference import InstructionReference
 from emulator.constants import INSTRUCTION_SIZE, PROGRAM_START
 
 
@@ -48,12 +50,23 @@ class InstructionEncoder(Protocol):
         """
 
 
+class InstructionReferenceCollector(Protocol):
+    """
+    @brief Interface for collecting instruction resource references.
+    """
+
+    def add_instruction_references( self, instruction: AssemblerInstruction, location: SourceLocation, references: tuple[InstructionReference, ...]) -> None:
+        """
+        @brief Record architectural resource references for an instruction.
+        """
+
+
 class CodeGenerator:
     """
     @brief Generates a binary ROM image from an assembly AST.
     """
 
-    def __init__( self, symbols: SymbolTable, instruction_resolver: InstructionResolver, encoder: InstructionEncoder) -> None:
+    def __init__( self, symbols: SymbolTable, instruction_resolver: InstructionResolver, encoder: InstructionEncoder, reference_collector: InstructionReferenceCollector | None = None) -> None:
         """
         @brief Construct a code generator.
         """
@@ -61,6 +74,7 @@ class CodeGenerator:
         self._encoder = encoder
         self._evaluator = ExpressionEvaluator(symbols)
         self._records: list[CodeGenerationRecord] = []
+        self._reference_collector = reference_collector
 
 
     def generate(self, assembly: AssemblyNode) -> bytes:
@@ -84,8 +98,12 @@ class CodeGenerator:
 
             if isinstance(statement, InstructionNode):
                 instruction = self._instruction_resolver.resolve(statement)
+                if self._reference_collector is not None:
+                    references = self._instruction_resolver.instruction_references( instruction)
+                    self._reference_collector.add_instruction_references(
+                        instruction, statement.location, references
+                    )
                 opcode = self._encoder.encode(instruction)
-
                 self._write_word(image, address, opcode)
                 self._records.append(
                     CodeGenerationRecord(
