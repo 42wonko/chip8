@@ -261,6 +261,21 @@ class Chip8Controller:
         self._debugger.write_settings( self._settings_manager.settings())
 
 
+    def run_assembled_source(self) -> bool:
+        """
+        @brief Load and run the most recently assembled ROM.
+
+        @return
+            True if the ROM was loaded and execution was started.
+        """
+        if self._assembler_rom_file is None:
+            return False
+        if not self._load_rom(self._assembler_rom_file):
+            return False
+        self.run()
+        return True
+
+
     def load_assembler_source(self) -> str | None:
         """
         @brief Load an assembler source file.
@@ -435,7 +450,6 @@ class Chip8Controller:
         """
         self._logger.enter("set_cpu_frequency")
         self._cpu_frequency = max(1, frequency)
-        self._cpu_frequency = max(1, frequency)
         self._cpu_timer.setInterval(max(1, 1000 // self._cpu_frequency))
         self._logger.info( f"CPU frequency set to {self._cpu_frequency} Hz.")
         self._logger.leave("set_cpu_frequency")
@@ -455,13 +469,6 @@ class Chip8Controller:
         self._hardware_timer.start(1000 // TIMER_FREQUENCY)
         self._main_window.show_status_message("Running")
         self._logger.leave("run")
-
-
-    def pause(self) -> None:
-        """
-        @brief Pause execution.
-        """
-        pass
 
 
     def stop(self) -> None:

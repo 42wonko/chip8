@@ -441,4 +441,67 @@ class Chip8ControllerTest(unittest.TestCase):
             self.assertEqual( listing_file.read_text(encoding="utf-8"), "old listing\n")
 
 
+    def test_run_assembled_source_loads_and_runs_rom(self) -> None:
+        """
+        @brief Verify that running assembled source loads the generated ROM
+        and starts execution.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            rom_file = Path(directory) / "test.ch8"
+            rom_file.write_bytes(bytes([0x00, 0xE0]))
+
+            configuration = EmulatorConfiguration()
+            configuration.assembler_rom_file = str(rom_file)
+            controller = create_controller(configuration)
+
+            controller._load_rom = MagicMock(return_value=True)
+            controller.run = MagicMock()
+
+            result = controller.run_assembled_source()
+
+            self.assertTrue(result)
+            controller._load_rom.assert_called_once_with(rom_file)
+            controller.run.assert_called_once_with()
+
+
+    def test_run_assembled_source_fails_without_rom_file(self) -> None:
+        """
+        @brief Verify that running assembled source fails when no assembler
+        ROM filename is available.
+        """
+        configuration = EmulatorConfiguration()
+        configuration.assembler_rom_file = None
+        controller = create_controller(configuration)
+
+        controller._load_rom = MagicMock()
+        controller.run = MagicMock()
+
+        result = controller.run_assembled_source()
+
+        self.assertFalse(result)
+        controller._load_rom.assert_not_called()
+        controller.run.assert_not_called()
+
+
+    def test_run_assembled_source_does_not_run_when_rom_load_fails(self) -> None:
+        """
+        @brief Verify that execution is not started when the assembled ROM
+        cannot be loaded.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            rom_file = Path(directory) / "test.ch8"
+
+            configuration = EmulatorConfiguration()
+            configuration.assembler_rom_file = str(rom_file)
+            controller = create_controller(configuration)
+
+            controller._load_rom = MagicMock(return_value=False)
+            controller.run = MagicMock()
+
+            result = controller.run_assembled_source()
+
+            self.assertFalse(result)
+            controller._load_rom.assert_called_once_with(rom_file)
+            controller.run.assert_not_called()
+
 

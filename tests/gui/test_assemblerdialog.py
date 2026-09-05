@@ -245,21 +245,49 @@ class TestAssemblerDialog(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             source_file.write_text("CLS\n")
-
             assembler = Mock()
-            assembler.assemble.return_value = AssemblyResult(
-                success=True,
-                binary_image=None
-            )
-
+            assembler.assemble.return_value = AssemblyResult( success=True, binary_image=None)
             self.dialog.set_assembler(assembler)
             self.dialog._source_file = source_file
             self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
-
             self.dialog._assemble()
-
             rom_file = source_file.with_suffix(".ch8")
-
             self.assertFalse(rom_file.exists())
+
+
+    def test_run_assembles_and_runs_successfully(self) -> None:
+        """
+        @brief Verify that Run assembles the source and starts the assembled
+        ROM when assembly succeeds.
+        """
+        self.dialog.set_diagnostics(AssemblerDiagnostics())
+        self.controller.ensure_assembler_source_file.return_value = True
+        self.controller.assemble_source.return_value = True
+
+        source = "CLS\n"
+        self.dialog.asmSourceCodeTextEdit.setPlainText(source)
+        self.dialog.asmTargetComboBox.setCurrentIndex(1)
+
+        self.dialog._run()
+
+        self.controller.ensure_assembler_source_file.assert_called_once_with(source)
+        self.controller.assemble_source.assert_called_once()
+        self.controller.run_assembled_source.assert_called_once_with()
+
+
+    def test_run_does_not_run_when_assembly_fails(self) -> None:
+        """
+        @brief Verify that Run does not start execution when assembly fails.
+        """
+        self.dialog.set_diagnostics(AssemblerDiagnostics())
+        self.controller.ensure_assembler_source_file.return_value = True
+        self.controller.assemble_source.return_value = False
+
+        self.dialog.asmSourceCodeTextEdit.setPlainText("INVALID\n")
+
+        self.dialog._run()
+
+        self.controller.assemble_source.assert_called_once()
+        self.controller.run_assembled_source.assert_not_called()
 
 
