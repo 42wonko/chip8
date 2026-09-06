@@ -16,10 +16,10 @@ class ExpressionType(Enum):
     """
     @brief Types of expressions in the assembler AST.
     """
-
-    LITERAL = "LITERAL"
-    IDENTIFIER = "IDENTIFIER"
-    BINARY = "BINARY"
+    LITERAL     = "LITERAL"
+    IDENTIFIER  = "IDENTIFIER"
+    BINARY      = "BINARY"
+    INDIRECT    = "INDIRECT"
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +27,6 @@ class Expression:
     """
     @brief Base class for assembler expressions.
     """
-
     type: ExpressionType
     location: SourceLocation
 
@@ -46,26 +45,10 @@ class LiteralExpression(Expression):
 
     value: int | str
 
-    def __init__(
-        self,
-        value: int | str,
-        location: SourceLocation
-    ) -> None:
-        object.__setattr__(
-            self,
-            "type",
-            ExpressionType.LITERAL
-        )
-        object.__setattr__(
-            self,
-            "location",
-            location
-        )
-        object.__setattr__(
-            self,
-            "value",
-            value
-        )
+    def __init__( self, value: int | str, location: SourceLocation) -> None:
+        object.__setattr__( self, "type", ExpressionType.LITERAL)
+        object.__setattr__( self, "location", location)
+        object.__setattr__( self, "value", value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,26 +59,24 @@ class IdentifierExpression(Expression):
 
     name: str
 
-    def __init__(
-        self,
-        name: str,
-        location: SourceLocation
-    ) -> None:
-        object.__setattr__(
-            self,
-            "type",
-            ExpressionType.IDENTIFIER
-        )
-        object.__setattr__(
-            self,
-            "location",
-            location
-        )
-        object.__setattr__(
-            self,
-            "name",
-            name
-        )
+    def __init__( self, name: str, location: SourceLocation) -> None:
+        object.__setattr__( self, "type", ExpressionType.IDENTIFIER)
+        object.__setattr__( self, "location", location)
+        object.__setattr__( self, "name", name)
+
+
+@dataclass(frozen=True, slots=True)
+class IndirectExpression(Expression):
+    """
+    @brief Indirect expression.
+    """
+
+    expression: Expression
+
+    def __init__( self, expression: Expression, location: SourceLocation) -> None:
+        object.__setattr__( self, "type", ExpressionType.INDIRECT)
+        object.__setattr__( self, "location", location)
+        object.__setattr__( self, "expression", expression)
 
 
 class BinaryOperator(Enum):
@@ -117,38 +98,12 @@ class BinaryExpression(Expression):
     left: Expression
     right: Expression
 
-    def __init__(
-        self,
-        operator: BinaryOperator,
-        left: Expression,
-        right: Expression,
-        location: SourceLocation
-    ) -> None:
-        object.__setattr__(
-            self,
-            "type",
-            ExpressionType.BINARY
-        )
-        object.__setattr__(
-            self,
-            "location",
-            location
-        )
-        object.__setattr__(
-            self,
-            "operator",
-            operator
-        )
-        object.__setattr__(
-            self,
-            "left",
-            left
-        )
-        object.__setattr__(
-            self,
-            "right",
-            right
-        )
+    def __init__( self, operator: BinaryOperator, left: Expression, right: Expression, location: SourceLocation) -> None:
+        object.__setattr__( self, "type", ExpressionType.BINARY)
+        object.__setattr__( self, "location", location)
+        object.__setattr__( self, "operator", operator)
+        object.__setattr__( self, "left", left)
+        object.__setattr__( self, "right", right)
 
 
 @dataclass(frozen=True, slots=True)

@@ -14,6 +14,7 @@ class AssemblerOperandType(Enum):
     """
     REGISTER        = "REGISTER"
     INDEX_REGISTER  = "INDEX_REGISTER"
+    INDIRECT_INDEX  = "INDIRECT_INDEX"
     DELAY_REGISTER  = "DELAY_REGISTER"
     SOUND_REGISTER  = "SOUND_REGISTER"
     KEY             = "KEY"

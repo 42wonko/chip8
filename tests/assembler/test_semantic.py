@@ -12,6 +12,7 @@ from assembler.ast import (
     BinaryOperator,
     DirectiveNode,
     IdentifierExpression,
+    IndirectExpression,
     InstructionNode,
     LabelNode,
     LiteralExpression,
@@ -721,6 +722,55 @@ class OperandResolverTest(unittest.TestCase):
         expression = LiteralExpression( value="HELLO", location=self.location)
         with self.assertRaises(ExpressionEvaluationError):
             self.resolver.resolve( expression, AssemblerOperandType.VALUE)
+
+
+    def test_resolve_indirect_index(self) -> None:
+        expression = IndirectExpression(
+            expression=IdentifierExpression(
+                name="I",
+                location=self.location
+            ),
+            location=self.location
+        )
+        operand = self.resolver.resolve( expression, AssemblerOperandType.INDIRECT_INDEX)
+        self.assertEqual( operand.type, AssemblerOperandType.INDIRECT_INDEX)
+        self.assertEqual( operand.value, 0)
+
+
+    def test_resolve_indirect_index_is_case_insensitive(self) -> None:
+        expression = IndirectExpression(
+            expression=IdentifierExpression(
+                name="i",
+                location=self.location
+            ),
+            location=self.location
+        )
+        operand = self.resolver.resolve( expression, AssemblerOperandType.INDIRECT_INDEX)
+        self.assertEqual( operand.type, AssemblerOperandType.INDIRECT_INDEX)
+
+
+    def test_resolve_indirect_literal_rejects_operand(self) -> None:
+        expression = IndirectExpression(
+            expression=LiteralExpression(
+                value=0x300,
+                location=self.location
+            ),
+            location=self.location
+        )
+        with self.assertRaises(ExpressionEvaluationError):
+            self.resolver.resolve( expression, AssemblerOperandType.INDIRECT_INDEX)
+
+
+    def test_resolve_indirect_register_rejects_operand(self) -> None:
+        expression = IndirectExpression(
+            expression=IdentifierExpression(
+                name="V3",
+                location=self.location
+            ),
+            location=self.location
+        )
+        with self.assertRaises(ExpressionEvaluationError):
+            self.resolver.resolve( expression, AssemblerOperandType.INDIRECT_INDEX)
 
 
 class InstructionResolverTest(unittest.TestCase):

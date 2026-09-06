@@ -315,11 +315,11 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
                 if not 0 <= second.value <= 0xF:
                     raise ValueError( "Register must be in the range V0 to VF.")
                 return AssemblerInstruction( id=InstructionId.LD_F_VX, x=second.value)
-            if ( first.type == AssemblerOperandType.INDEX_REGISTER and second.type == AssemblerOperandType.REGISTER):
+            if ( first.type == AssemblerOperandType.INDIRECT_INDEX and second.type == AssemblerOperandType.REGISTER):
                 if not 0 <= second.value <= 0xF:
                     raise ValueError( "Register must be in the range V0 to VF.")
                 return AssemblerInstruction( id=InstructionId.LD_I_VX, x=second.value)
-            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.INDEX_REGISTER):
+            if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.INDIRECT_INDEX):
                 if not 0 <= first.value <= 0xF:
                     raise ValueError( "Register must be in the range V0 to VF.")
                 return AssemblerInstruction( id=InstructionId.LD_VX_I, x=first.value)

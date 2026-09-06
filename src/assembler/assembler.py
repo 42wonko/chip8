@@ -63,6 +63,8 @@ class Assembler:
         if options is None:
             options = AssemblyOptions()
         try:
+            self._diagnostics.info("Started assembly.")
+            self._diagnostics.info("Parsing source.")
             assembly = self._parse(source)
             if not assembly.lines:
                 self._diagnostics.error("Assembly source is empty.")
@@ -74,9 +76,13 @@ class Assembler:
             reference_collector.collect(assembly)
             resolver = InstructionResolver(symbols, self._isa)
             generator = CodeGenerator( symbols, resolver, self._isa, reference_collector)
+            self._diagnostics.info("Generating binary image.")
             binary_image = generator.generate(assembly)
             listing = None
             if options.generate_listing:
+                self._diagnostics.info("Generating listing.")
+                if options.generate_cross_reference:
+                    self._diagnostics.info("Creating cross-reference.")
                 listing = ListingGenerator().generate(
                     source,
                     generator.records,
@@ -84,6 +90,7 @@ class Assembler:
                     reference_collector.references(),
                     options.generate_cross_reference
                 )
+            self._diagnostics.info("Assembly complete.")
             return AssemblyResult( success=True, binary_image=binary_image, listing=listing)
         except (ValueError, TypeError) as error:
             self._diagnostics.error(str(error))

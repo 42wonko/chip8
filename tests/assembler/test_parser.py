@@ -11,6 +11,7 @@ from assembler.ast import (
     BinaryOperator,
     DirectiveNode,
     IdentifierExpression,
+    IndirectExpression,
     InstructionNode,
     LabelNode,
     LiteralExpression,
@@ -225,5 +226,27 @@ class ParserTest(unittest.TestCase):
         operand = statement.operands[0]
         self.assertIsInstance(operand, BinaryExpression)
         self.assertEqual(operand.operator, BinaryOperator.ADD)
+
+    def test_indirect_operand(self) -> None:
+        assembly = self._parse("LD V2, [I]")
+        statement = assembly.lines[0].statement
+        self.assertIsInstance( statement, InstructionNode)
+        self.assertEqual( len(statement.operands), 2)
+        operand = statement.operands[1]
+        self.assertIsInstance( operand, IndirectExpression)
+        self.assertIsInstance( operand.expression, IdentifierExpression)
+        self.assertEqual( operand.expression.name, "I")
+
+    def test_missing_closing_bracket(self) -> None:
+        with self.assertRaises(ParserError):
+            self._parse("LD V2, [I")
+
+    def test_index_register_is_not_indirect(self) -> None:
+        assembly = self._parse("LD I, 0x300")
+        statement = assembly.lines[0].statement
+        self.assertIsInstance( statement, InstructionNode)
+        operand = statement.operands[0]
+        self.assertIsInstance( operand, IdentifierExpression)
+        self.assertEqual( operand.name, "I")
 
 

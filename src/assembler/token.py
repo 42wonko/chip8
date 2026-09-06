@@ -27,7 +27,8 @@ class TokenType(Enum):
     MINUS = "MINUS"
     LPAREN = "LPAREN"
     RPAREN = "RPAREN"
-
+    LBRACKET = "LBRACKET"
+    RBRACKET = "RBRACKET"
     END_OF_LINE = "END_OF_LINE"
     END_OF_FILE = "END_OF_FILE"
 

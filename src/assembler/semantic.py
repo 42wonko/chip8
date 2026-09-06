@@ -17,6 +17,7 @@ from assembler.ast import (
     DirectiveNode,
     Expression,
     IdentifierExpression,
+    IndirectExpression,
     InstructionNode,
     LiteralExpression,
     SourceLine,
@@ -327,6 +328,9 @@ class OperandResolver:
         @exception ExpressionEvaluationError
             If the expression cannot represent the requested operand.
         """
+        if isinstance(expression, IndirectExpression):
+            return self._resolve_indirect(expression)
+
         if isinstance(expression, IdentifierExpression):
             return self._resolve_identifier(expression, operand_type)
 
@@ -341,6 +345,13 @@ class OperandResolver:
 
         raise ExpressionEvaluationError( f"Unsupported operand expression type: " f"{type(expression).__name__}")
 
+    def _resolve_indirect( self, expression: IndirectExpression) -> AssemblerOperand:
+        inner = expression.expression
+        if not isinstance(inner, IdentifierExpression):
+            raise ExpressionEvaluationError( "Indirect operand must be [I].")
+        if inner.name.upper() != "I":
+            raise ExpressionEvaluationError( "Indirect operand must be [I].")
+        return AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0)
 
     def _resolve_identifier( self, expression: IdentifierExpression, operand_type: AssemblerOperandType) -> AssemblerOperand:
         """
@@ -508,7 +519,8 @@ class InstructionResolver:
                 (AssemblerOperandType.SOUND_REGISTER, AssemblerOperandType.REGISTER),
                 (AssemblerOperandType.REGISTER, AssemblerOperandType.BCD_REGISTER),
                 (AssemblerOperandType.REGISTER, AssemblerOperandType.FONT_REGISTER),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.INDEX_REGISTER)
+                (AssemblerOperandType.INDIRECT_INDEX, AssemblerOperandType.REGISTER),
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.INDIRECT_INDEX)
             )
         if name == "ADD":
             return self._signatures(

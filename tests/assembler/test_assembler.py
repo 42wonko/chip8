@@ -38,12 +38,21 @@ class TestAssembler(unittest.TestCase):
         """
         @brief Verify that assemble() returns an assembly result.
         """
-        result = self._assembler.assemble( source="", target=Target.COSMAC)
+        result = self._assembler.assemble(source="", target=Target.COSMAC)
         self.assertFalse(result.success)
         self.assertEqual(len(result.diagnostics), 0)
-        self.assertEqual(len(self._diagnostics), 1)
-        diagnostic = self._diagnostics[0]
-        self.assertEqual( diagnostic.source, DiagnosticSource.ASSEMBLER)
+        self.assertEqual(len(self._diagnostics), 3)
+        messages = [diagnostic.message for diagnostic in self._diagnostics]
+        self.assertEqual(
+            messages,
+            [
+                "Started assembly.",
+                "Parsing source.",
+                "Assembly source is empty."
+            ]
+        )
+        diagnostic = self._diagnostics[2]
+        self.assertEqual(diagnostic.source, DiagnosticSource.ASSEMBLER)
 
 
     def test_assemble_db(self) -> None:
@@ -107,6 +116,74 @@ class TestAssembler(unittest.TestCase):
         self.assertIn("0200", result.listing)
         self.assertIn("00 E0", result.listing)
         self.assertIn("12 00", result.listing)
+
+    def test_ld_vx_indirect_i(self) -> None:
+        result = self._assembler.assemble("LD V2, [I]", Target.COSMAC)
+        self.assertTrue(result.success)
+        self.assertEqual( result.binary_image, bytes([0xF2, 0x65]))
+
+    def test_ld_indirect_i_vx(self) -> None:
+        result = self._assembler.assemble("LD [I], V2", Target.COSMAC)
+        self.assertTrue(result.success)
+        self.assertEqual( result.binary_image, bytes([0xF2, 0x55]))
+
+    def test_assemble_reports_progress(self) -> None:
+        result = self._assembler.assemble("CLS", Target.COSMAC)
+
+        self.assertTrue(result.success)
+
+        messages = [diagnostic.message for diagnostic in self._diagnostics]
+
+        self.assertEqual(
+            messages,
+            [
+                "Started assembly.",
+                "Parsing source.",
+                "Generating binary image.",
+                "Assembly complete.",
+            ]
+        )
+
+    def test_assemble_reports_listing_and_cross_reference_progress(self) -> None:
+        options = AssemblyOptions(
+            generate_listing=True,
+            generate_cross_reference=True
+        )
+
+        result = self._assembler.assemble("CLS", Target.COSMAC, options)
+
+        self.assertTrue(result.success)
+
+        messages = [diagnostic.message for diagnostic in self._diagnostics]
+
+        self.assertEqual(
+            messages,
+            [
+                "Started assembly.",
+                "Parsing source.",
+                "Generating binary image.",
+                "Generating listing.",
+                "Creating cross-reference.",
+                "Assembly complete.",
+            ]
+        )
+
+    def test_assemble_reports_progress_before_parse_error(self) -> None:
+        result = self._assembler.assemble("", Target.COSMAC)
+
+        self.assertFalse(result.success)
+
+        messages = [diagnostic.message for diagnostic in self._diagnostics]
+
+        self.assertEqual(
+            messages,
+            [
+                "Started assembly.",
+                "Parsing source.",
+                "Assembly source is empty.",
+            ]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

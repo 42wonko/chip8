@@ -75,7 +75,9 @@ class Lexer:
                 "+": TokenType.PLUS,
                 "-": TokenType.MINUS,
                 "(": TokenType.LPAREN,
-                ")": TokenType.RPAREN
+                ")": TokenType.RPAREN,
+                "[": TokenType.LBRACKET,
+                "]": TokenType.RBRACKET
             }
 
             token_type = punctuation.get(character)

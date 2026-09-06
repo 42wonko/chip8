@@ -13,6 +13,7 @@ from assembler.ast import (
     DirectiveNode,
     ExpressionType,
     IdentifierExpression,
+    IndirectExpression,
     InstructionNode,
     LabelNode,
     LiteralExpression,
@@ -86,3 +87,11 @@ class AstTest(unittest.TestCase):
         expression = LiteralExpression( value=42, location=self.location)
         with self.assertRaises(AttributeError):
             expression.value = 43
+
+
+    def test_indirect_expression(self) -> None:
+        expression = IdentifierExpression( name="I", location=self.location)
+        indirect = IndirectExpression( expression=expression, location=self.location)
+        self.assertEqual( indirect.type, ExpressionType.INDIRECT)
+        self.assertIs( indirect.expression, expression)
+        self.assertEqual( indirect.location, self.location)

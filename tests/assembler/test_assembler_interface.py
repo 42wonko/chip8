@@ -886,206 +886,85 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
     def test_create_ld_i_vx_instruction(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.INDEX_REGISTER,
-                value=0
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            )
+            AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0),
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3)
         )
-
-        instruction = isa.create_assembler_instruction(
-            "LD",
-            operands
-        )
-
-        self.assertEqual(
-            instruction.id,
-            InstructionId.LD_I_VX
-        )
-        self.assertEqual(
-            instruction.x,
-            3
-        )
+        instruction = isa.create_assembler_instruction( "LD", operands)
+        self.assertEqual( instruction.id, InstructionId.LD_I_VX)
+        self.assertEqual( instruction.x, 3)
 
     def test_create_ld_i_vx_instruction_can_be_encoded(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
-        operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.INDEX_REGISTER,
-                value=0
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            )
+        operands = ( AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0),
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3)
         )
-
-        instruction = isa.create_assembler_instruction(
-            "LD",
-            operands
-        )
-
+        instruction = isa.create_assembler_instruction( "LD", operands)
         opcode = isa.encode(instruction)
-
-        self.assertEqual(
-            opcode,
-            0xF355
-        )
+        self.assertEqual( opcode, 0xF355)
 
     def test_create_ld_i_vx_is_case_insensitive(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.INDEX_REGISTER,
-                value=0
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            )
+            AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0),
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3)
         )
-
-        instruction = isa.create_assembler_instruction(
-            "ld",
-            operands
-        )
-
-        self.assertEqual(
-            instruction.id,
-            InstructionId.LD_I_VX
-        )
+        instruction = isa.create_assembler_instruction( "ld", operands)
+        self.assertEqual( instruction.id, InstructionId.LD_I_VX)
 
     def test_create_ld_i_vx_rejects_register_above_vf(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.INDEX_REGISTER,
-                value=0
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=0x10
-            )
+            AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0),
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=0x10)
         )
-
         with self.assertRaises(ValueError):
-            isa.create_assembler_instruction(
-                "LD",
-                operands
-            )
+            isa.create_assembler_instruction( "LD", operands)
 
     def test_create_ld_vx_i_instruction(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.INDEX_REGISTER,
-                value=0
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3),
+            AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0)
         )
-
-        instruction = isa.create_assembler_instruction(
-            "LD",
-            operands
-        )
-
-        self.assertEqual(
-            instruction.id,
-            InstructionId.LD_VX_I
-        )
-        self.assertEqual(
-            instruction.x,
-            3
-        )
+        instruction = isa.create_assembler_instruction( "LD", operands)
+        self.assertEqual( instruction.id, InstructionId.LD_VX_I)
+        self.assertEqual( instruction.x, 3)
 
     def test_create_ld_vx_i_instruction_can_be_encoded(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.INDEX_REGISTER,
-                value=0
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3),
+            AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0)
         )
-
-        instruction = isa.create_assembler_instruction(
-            "LD",
-            operands
-        )
-
+        instruction = isa.create_assembler_instruction( "LD", operands)
         opcode = isa.encode(instruction)
-
-        self.assertEqual(
-            opcode,
-            0xF365
-        )
+        self.assertEqual( opcode, 0xF365)
 
     def test_create_ld_vx_i_is_case_insensitive(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.INDEX_REGISTER,
-                value=0
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3),
+            AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0)
         )
-
-        instruction = isa.create_assembler_instruction(
-            "ld",
-            operands
-        )
-
-        self.assertEqual(
-            instruction.id,
-            InstructionId.LD_VX_I
-        )
+        instruction = isa.create_assembler_instruction( "ld", operands)
+        self.assertEqual( instruction.id, InstructionId.LD_VX_I)
 
     def test_create_ld_vx_i_rejects_register_above_vf(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=0x10
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.INDEX_REGISTER,
-                value=0
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=0x10),
+            AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0)
         )
-
         with self.assertRaises(ValueError):
-            isa.create_assembler_instruction(
-                "LD",
-                operands
-            )
+            isa.create_assembler_instruction( "LD", operands)
 
 
 

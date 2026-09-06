@@ -133,3 +133,12 @@ class LexerTest(unittest.TestCase):
     def test_invalid_escape(self) -> None:
         with self.assertRaises(LexerError):
             Lexer("'\\x'").tokenize()
+
+    def test_brackets(self) -> None:
+        tokens = Lexer("[I]").tokenize()
+        self.assertEqual( tokens[0].type, TokenType.LBRACKET)
+        self.assertEqual( tokens[0].value, "[")
+        self.assertEqual( tokens[1].type, TokenType.IDENTIFIER)
+        self.assertEqual( tokens[1].value, "I")
+        self.assertEqual( tokens[2].type, TokenType.RBRACKET)
+        self.assertEqual( tokens[2].value, "]")

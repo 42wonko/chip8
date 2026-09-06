@@ -11,8 +11,9 @@ from assembler.ast import (
     BinaryExpression,
     BinaryOperator,
     DirectiveNode,
-     Expression,
+    Expression,
     IdentifierExpression,
+    IndirectExpression,
     InstructionNode,
     LabelNode,
     LiteralExpression,
@@ -216,6 +217,11 @@ class Parser:
         if token.type == TokenType.REGISTER:
             self._advance()
             return IdentifierExpression( name=token.value, location=token.location)
+        if token.type == TokenType.LBRACKET:
+            self._advance()
+            expression = self._parse_expression()
+            self._expect( TokenType.RBRACKET, "Expected ']'.")
+            return IndirectExpression( expression=expression, location=token.location)
         if token.type == TokenType.LPAREN:
             self._advance()
             expression = self._parse_expression()
