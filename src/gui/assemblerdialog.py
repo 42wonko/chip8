@@ -98,15 +98,15 @@ class AssemblerDialog(QDialog):
         return AssemblyOptions( generate_listing=listing, generate_cross_reference=cross_reference)
 
 
-    def _ensure_source_file(self) -> bool:
-        """
-        @brief Ensure that the current source has a filename.
-
-        @return
-            True if a source filename is available.
-        """
-        source = self.asmSourceCodeTextEdit.toPlainText()
-        return self._controller.ensure_assembler_source_file(source)
+#    def _ensure_source_file(self) -> bool:
+#        """
+#        @brief Ensure that the current source has a filename.
+#
+#        @return
+#            True if a source filename is available.
+#        """
+#        source = self.asmSourceCodeTextEdit.toPlainText()
+#        return self._controller.ensure_assembler_source_file(source)
 
 
     def _save(self) -> bool:
@@ -139,8 +139,8 @@ class AssemblerDialog(QDialog):
         """
         @brief Save and assemble the current source.
         """
-        if not self._ensure_source_file():
-            return
+#        if not self._ensure_source_file():
+#            return
         self._controller.assemble_source( self.asmSourceCodeTextEdit.toPlainText(), self._selected_target(), self._options())
         self._display_diagnostics()
 
@@ -150,8 +150,8 @@ class AssemblerDialog(QDialog):
         @brief Save, assemble and run the current source.
         """
         source = self.asmSourceCodeTextEdit.toPlainText()
-        if not self._controller.ensure_assembler_source_file(source):
-            return
+#        if not self._controller.ensure_assembler_source_file(source):
+#            return
         success = self._controller.assemble_source( source, self._selected_target(), self._options())
         self._display_diagnostics()
         if success:

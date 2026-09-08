@@ -262,7 +262,7 @@ class TestAssemblerDialog(unittest.TestCase):
         """
         self.dialog.set_diagnostics(AssemblerDiagnostics())
         self.controller.ensure_assembler_source_file.return_value = True
-        self.controller.assemble_source.return_value = True
+#        self.controller.assemble_source.return_value = True
 
         source = "CLS\n"
         self.dialog.asmSourceCodeTextEdit.setPlainText(source)
@@ -270,7 +270,7 @@ class TestAssemblerDialog(unittest.TestCase):
 
         self.dialog._run()
 
-        self.controller.ensure_assembler_source_file.assert_called_once_with(source)
+#        self.controller.ensure_assembler_source_file.assert_called_once_with(source)
         self.controller.assemble_source.assert_called_once()
         self.controller.run_assembled_source.assert_called_once_with()
 
@@ -289,5 +289,17 @@ class TestAssemblerDialog(unittest.TestCase):
 
         self.controller.assemble_source.assert_called_once()
         self.controller.run_assembled_source.assert_not_called()
+
+
+    def test_assemble_does_not_ensure_source_file(self) -> None:
+        """
+        @brief Verify that the controller owns source-file preparation.
+        """
+        self.dialog.set_diagnostics(AssemblerDiagnostics())
+        self.controller.assemble_source.return_value = True
+        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
+        self.dialog._assemble()
+        self.controller.ensure_assembler_source_file.assert_not_called()
+        self.controller.assemble_source.assert_called_once()
 
 

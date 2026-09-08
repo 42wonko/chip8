@@ -34,7 +34,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QPoint, QTimer
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu, QMessageBox
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
 
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
@@ -235,7 +235,6 @@ class Chip8Controller:
         self._load_rom(Path(filename))
 
 
-
     def reload_rom(self) -> None:
         """
         @brief Reload the currently loaded ROM.
@@ -293,10 +292,12 @@ class Chip8Controller:
         if not filename:
             return None
         path = Path(filename)
+        diagnostics = self._assembler_diagnostics.reporter()
+        diagnostics.info(f"Loading assembly source file '{path.name}'.")
         try:
             source = path.read_text(encoding="utf-8")
         except OSError as error:
-            self._diagnostics_reporter.error( f"Unable to load assembly source '{path.name}': {error}")
+            diagnostics.error(f"Unable to load assembly source '{path.name}': {error}")
             return None
         self._assembler_source_file = path
         self._assembler_rom_file = path.with_suffix(".ch8")
@@ -304,14 +305,7 @@ class Chip8Controller:
         self._configuration.assembler_source_file = str(path)
         self._configuration.assembler_rom_file = str(self._assembler_rom_file)
         self._configuration.assembler_listing_file = str(self._assembler_listing_file)
-#        self._assembler_source_file = path
-#        self._configuration.assembler_source_file = str(path)
-#        if self._assembler_rom_file is None:
-#            self._assembler_rom_file = path.with_suffix(".ch8")
-#            self._configuration.assembler_rom_file = str( self._assembler_rom_file)
-#        if self._assembler_listing_file is None:
-#            self._assembler_listing_file = path.with_suffix(".lst")
-#            self._configuration.assembler_listing_file = str( self._assembler_listing_file)
+        diagnostics.info(f"Assembly source file '{path.name}' loaded.")
         return source
 
 
@@ -342,11 +336,14 @@ class Chip8Controller:
             if self._assembler_listing_file is None:
                 self._assembler_listing_file = ( self._assembler_source_file.with_suffix(".lst"))
                 self._configuration.assembler_listing_file = str( self._assembler_listing_file)
+        diagnostics = self._assembler_diagnostics.reporter()
+        diagnostics.info( f"Saving assembly source file '{self._assembler_source_file.name}'.")
         try:
             self._assembler_source_file.write_text( source, encoding="utf-8")
         except OSError as error:
-            self._diagnostics_reporter.error( f"Unable to save assembly source '{self._assembler_source_file.name}': {error}")
+            diagnostics.error( f"Unable to save assembly source '{self._assembler_source_file.name}': {error}")
             return False
+        diagnostics.info( f"Assembly source file '{self._assembler_source_file.name}' saved.")
         return True
 
     def save_assembler_source_as(self, source: str) -> bool:
@@ -370,10 +367,13 @@ class Chip8Controller:
         if not filename:
             return False
         source_file = Path(filename)
+        diagnostics = self._assembler_diagnostics.reporter()
+        diagnostics.info( f"Saving assembly source file '{source_file.name}'.")
         try:
             source_file.write_text(source, encoding="utf-8")
         except OSError as error:
-            QMessageBox.critical( self._main_window, "Save Assembly Source", f"Unable to save '{source_file}': {error}")
+#            QMessageBox.critical( self._main_window, "Save Assembly Source", f"Unable to save '{source_file}': {error}")
+            diagnostics.error( f"Unable to save assembly source '{source_file.name}': {error}")
             return False
         self._assembler_source_file = source_file
         self._assembler_rom_file = source_file.with_suffix(".ch8")
@@ -381,6 +381,7 @@ class Chip8Controller:
         self._configuration.assembler_source_file = str(source_file)
         self._configuration.assembler_rom_file = str( self._assembler_rom_file)
         self._configuration.assembler_listing_file = str( self._assembler_listing_file)
+        diagnostics.info( f"Assembly source file '{source_file.name}' saved.")
         return True
 
 
@@ -414,6 +415,7 @@ class Chip8Controller:
             True if assembly succeeded.
         """
         self._assembler_diagnostics.clear()
+        diagnostics = self._assembler_diagnostics.reporter()
         if not self.ensure_assembler_source_file(source):
             return False
         result = self._assembler.assemble(source, target, options)
@@ -422,19 +424,26 @@ class Chip8Controller:
         if result.binary_image is not None:
             if self._assembler_rom_file is None:
                 return False
+#            diagnostics = self._assembler_diagnostics.reporter()
+            diagnostics.info( f"Saving ROM file '{self._assembler_rom_file.name}'.")
             try:
                 self._assembler_rom_file.write_bytes(result.binary_image)
             except OSError as error:
-                self._assembler_diagnostics.reporter().error( f"Unable to save assembler ROM '{self._assembler_rom_file.name}': {error}")
+#                self._assembler_diagnostics.reporter().error( f"Unable to save assembler ROM '{self._assembler_rom_file.name}': {error}")
+                diagnostics.error( f"Unable to save assembler ROM '{self._assembler_rom_file.name}': {error}")
                 return False
+            diagnostics.info( f"ROM file '{self._assembler_rom_file.name}' saved.")
         if result.listing is not None:
             if self._assembler_listing_file is None:
                 return False
+            diagnostics.info( f"Saving listing file '{self._assembler_listing_file.name}'.")
             try:
                 self._assembler_listing_file.write_text( result.listing, encoding="utf-8")
             except OSError as error:
-                self._assembler_diagnostics.reporter().error( f"Unable to save assembler listing '{self._assembler_listing_file.name}': {error}")
+#                self._assembler_diagnostics.reporter().error( f"Unable to save assembler listing '{self._assembler_listing_file.name}': {error}")
+                diagnostics.error( f"Unable to save assembler listing '{self._assembler_listing_file.name}': {error}")
                 return False
+            diagnostics.info( f"Listing file '{self._assembler_listing_file.name}' saved.")
         return True
 
 
@@ -464,6 +473,8 @@ class Chip8Controller:
             self._logger.leave("run")
             return
         self._running = True
+        if self._current_rom is not None:
+            self._diagnostics_reporter.info( f"Running ROM file '{self._current_rom.name}'.")
         self._logger.info("Execution started.")
         self._cpu_timer.start(1000 // self._cpu_frequency)
         self._hardware_timer.start(1000 // TIMER_FREQUENCY)
@@ -799,19 +810,19 @@ class Chip8Controller:
         @return
             True if the ROM was loaded successfully.
         """
+        self._diagnostics_reporter.info( f"Loading ROM file '{path.name}'.")
         try:
             data = path.read_bytes()
-        except (FileNotFoundError, PermissionError, IsADirectoryError, OSError):
+        except (FileNotFoundError, PermissionError, IsADirectoryError, OSError) as error:
             self._logger.error(f"Failed to load ROM '{path}'.")
-            self._diagnostics_reporter.error(
-                f"Unable to load ROM '{path.name}'."
-            )
+            self._diagnostics_reporter.error( f"Unable to load ROM '{path.name}': {error}")
             return False
 
         self._current_rom = path
         self._current_rom_data = data
         self._settings_manager.settings().setValue( "recent/last_rom", str(path))
         self._logger.info( f"Loaded ROM '{path.name}' ({len(data)} bytes)")
+        self._diagnostics_reporter.info( f"ROM file '{path.name}' loaded.")
         self.reset()
         self._main_window.set_rom_title(path)
         self._main_window.show_status_message( f"Loaded {path.name}")
