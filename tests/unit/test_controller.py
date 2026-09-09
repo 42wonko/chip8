@@ -531,6 +531,9 @@ class Chip8ControllerTest(unittest.TestCase):
             self.assertEqual( messages, [ "Loading assembly source file 'test.asm'.", "Assembly source file 'test.asm' loaded." ])
 
 
+    ###########################################################################
+    # Assemble tests
+    ###########################################################################
     def test_save_assembler_source_reports_diagnostics(self) -> None:
         """
         @brief Verify that saving assembler source reports diagnostics.
@@ -866,6 +869,9 @@ class Chip8ControllerTest(unittest.TestCase):
                 ]
             )
 
+    ###########################################################################
+    # Load ROM tests
+    ###########################################################################
     @patch("controller.controller.QFileDialog.getOpenFileName")
     def test_load_rom_reports_diagnostics( self, get_open_file_name: Mock) -> None:
         """
@@ -878,7 +884,7 @@ class Chip8ControllerTest(unittest.TestCase):
             controller = create_controller()
             controller.load_rom()
             messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
-            self.assertEqual( messages, [ "Resetting registers", "Resetting timers", "Loading ROM file 'PONG.ch8'.", "ROM file 'PONG.ch8' loaded." ])
+            self.assertEqual( messages, [ "Resetting registers", "Resetting timers", "Loading ROM file 'PONG.ch8'.", "ROM file 'PONG.ch8' loaded.", "Emulator reset." ])
 
 
     @patch("controller.controller.QFileDialog.getOpenFileName")
@@ -897,6 +903,9 @@ class Chip8ControllerTest(unittest.TestCase):
             self.assertEqual( messages, [ "Loading ROM file 'PONG.ch8'.", "Unable to load ROM 'PONG.ch8': disk error" ])
 
 
+    ###########################################################################
+    # Run tests
+    ###########################################################################
     def test_run_reports_running_rom(self) -> None:
         """
         @brief Verify that starting ROM execution reports a diagnostic.
@@ -920,3 +929,196 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertEqual(len(controller._diagnostics), 0)
 
 
+    ###########################################################################
+    # Stop tests
+    ###########################################################################
+    def test_stop_reports_execution_stopped(self) -> None:
+        """
+        @brief Verify that stopping execution reports a diagnostic.
+        """
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._running = True
+        controller.stop()
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["Execution stopped."])
+
+
+    def test_stop_when_not_running_does_not_report_diagnostic(self) -> None:
+        """
+        @brief Verify that stopping an already stopped controller does not
+        report a diagnostic.
+        """
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller.stop()
+        self.assertEqual(len(controller._diagnostics), 0)
+
+    ###########################################################################
+    # Reset tests
+    ###########################################################################
+    def test_reset_reports_diagnostic(self) -> None:
+        """
+        @brief Verify that resetting the emulator reports a diagnostic.
+        """
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller.reset()
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertIn("Emulator reset.", messages)
+
+
+    def test_reset_reports_stop_and_reset_diagnostics_when_running(self) -> None:
+        """
+        @brief Verify that resetting a running emulator reports both the stop
+        and reset diagnostics.
+        """
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._running = True
+        controller.reset()
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, [ "Execution stopped.", "Resetting registers", "Resetting timers", "Emulator reset." ])
+
+
+    ###########################################################################
+    # ROM reload tests
+    ###########################################################################
+    def test_reload_rom_reports_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            rom_file = Path(directory) / "PONG.ch8"
+            rom_file.write_bytes(bytes([0x00, 0xE0]))
+            controller = create_controller()
+            controller._current_rom = rom_file
+            controller._current_rom_data = rom_file.read_bytes()
+            controller._diagnostics.clear()
+            controller.reload_rom()
+            messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+            self.assertEqual(
+                messages,
+                [
+                    "Resetting registers",
+                    "Resetting timers",
+                    "Emulator reset.",
+                    "Reloaded ROM file 'PONG.ch8'."
+                ]
+            )
+
+    def test_reload_rom_without_rom_reports_no_diagnostics(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller.reload_rom()
+        self.assertEqual(len(controller._diagnostics), 0)
+
+
+    ###########################################################################
+    # Single step tests
+    ###########################################################################
+    def test_step_reports_diagnostic(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._execute_cycle = MagicMock()
+        controller.step()
+        controller._execute_cycle.assert_called_once_with()
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual(messages, ["Single step."])
+
+
+    def test_step_while_running_reports_no_diagnostic(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._running = True
+        controller._execute_cycle = MagicMock()
+        controller.step()
+        controller._execute_cycle.assert_not_called()
+        self.assertEqual(len(controller._diagnostics), 0)
+
+
+    ###########################################################################
+    # Run-To tests
+    ###########################################################################
+    def test_run_to_address_reports_diagnostic(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._main_window.selected_code_address = MagicMock( return_value=0x300)
+        controller.run = MagicMock()
+        controller.run_to_address()
+        controller.run.assert_called_once_with()
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["Running to address 0x300."])
+
+
+    def test_run_to_address_without_selection_reports_no_diagnostic( self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._main_window.selected_code_address = MagicMock( return_value=None)
+        controller.run = MagicMock()
+        controller.run_to_address()
+        controller.run.assert_not_called()
+        self.assertEqual(len(controller._diagnostics), 0)
+
+
+    def test_run_to_address_at_current_pc_reports_no_diagnostic(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._main_window.selected_code_address = MagicMock( return_value=controller._machine.registers.pc)
+        controller.run = MagicMock()
+        controller.run_to_address()
+        controller.run.assert_not_called()
+        self.assertEqual(len(controller._diagnostics), 0)
+
+
+    ###########################################################################
+    # Step-Over tests
+    ###########################################################################
+    def test_step_over_call_reports_diagnostic(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._machine.registers.pc = 0x300
+        controller._machine.memory.write_byte(0x300, 0x23)
+        controller._machine.memory.write_byte(0x301, 0x45)
+        controller.run = MagicMock()
+        controller.step_over()
+        controller.run.assert_called_once_with()
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["Stepping over call to 0x345."])
+
+
+    def test_step_over_non_call_does_not_report_diagnostic(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._machine.registers.pc = 0x300
+        controller._machine.memory.write_byte(0x300, 0x00)
+        controller._machine.memory.write_byte(0x301, 0xE0)
+        controller.step = MagicMock()
+        controller.step_over()
+        controller.step.assert_called_once_with()
+        self.assertEqual(len(controller._diagnostics), 0)
+
+
+    ###########################################################################
+    # Step-Out tests
+    ###########################################################################
+    def test_step_out_reports_diagnostic(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._machine._stack.push(0x345)
+        controller.run = MagicMock()
+        controller.step_out()
+        controller.run.assert_called_once_with()
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["Stepping out to address 0x345."])
+
+
+    def test_step_out_without_subroutine_reports_no_diagnostic(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller.run = MagicMock()
+        controller.step_out()
+        controller.run.assert_not_called()
+        self.assertEqual(len(controller._diagnostics), 0)
+
+
+    ###########################################################################
+    # Step-Out tests
+    ###########################################################################

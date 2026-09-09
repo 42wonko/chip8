@@ -199,7 +199,7 @@ class AudioDevice:
     ###########################################################################
     # Audio callback
     ###########################################################################
-    def _callback( self, outdata: np.ndarray, frames: int, time, status) -> None:
+    def _callback( self, outdata: np.ndarray, frames: int, time, status) -> None:   # type: ignore[no-untyped-def]
         """
         @brief Generate audio samples.
 

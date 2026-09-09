@@ -42,6 +42,7 @@ from assembler.target import Target
 from audio.beeper import Beeper
 from chip8.debugger import Debugger
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
+from chip8.isa.instructionid import InstructionId
 from chip8.settingsmanager import SettingsManager
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.codeanalysis import CodeAnalysis
@@ -246,6 +247,7 @@ class Chip8Controller:
         self.reset()
         if self._current_rom is not None:
             self._main_window.show_status_message( f"Reloaded {self._current_rom.name}")
+            self._diagnostics_reporter.info( f"Reloaded ROM file '{self._current_rom.name}'.")
             self._logger.info(f"Reloaded ROM '{self._current_rom.name}'.")
         self._logger.leave("reload_rom")
 
@@ -491,6 +493,7 @@ class Chip8Controller:
             self._logger.leave("stop")
             return
         self._running =False
+        self._diagnostics_reporter.info("Execution stopped.")
         self._logger.info("Execution stopped.")
         self._cpu_timer.stop()
         self._hardware_timer.stop()
@@ -507,6 +510,7 @@ class Chip8Controller:
         self._logger.enter("reset")
         self.stop()
         self._machine.reset()
+        self._diagnostics_reporter.info("Emulator reset.")
         rom = self._current_rom_data    # hack to make mypy happy
         if rom is not None:
             self._machine.load_rom(rom)
@@ -534,6 +538,7 @@ class Chip8Controller:
             self._logger.leave("step")
             return
         self._execute_cycle()
+        self._diagnostics_reporter.info("Single step.")
         self._logger.info("Single step")
         self._logger.leave("step")
 
@@ -553,6 +558,7 @@ class Chip8Controller:
             return
         self._debugger.set_temporary_breakpoint(address)
         self._code_model.refresh_address(address)
+        self._diagnostics_reporter.info( f"Running to address 0x{address:03X}.")
         self.run()
         self._logger.leave("run_to_address")
 
@@ -566,16 +572,12 @@ class Chip8Controller:
             self._logger.leave("step_over")
             return
         pc = self._machine.registers.pc
-        # Temporary instruction decoding.
-        # This code exists only until the instruction decoder is unified.
-        # It should be replaced by the shared decoder introduced during the
-        # instruction decoder refactoring.
         opcode = ( (self._machine.memory.read_byte(pc) << 8) | self._machine.memory.read_byte(pc + 1))
-
-        # CALL nnn
-        if (opcode & 0xF000) == 0x2000:
+        instruction = self._isa.decode(pc, opcode)
+        if instruction.id == InstructionId.CALL:
             self._debugger.set_temporary_breakpoint(pc + 2)
             self._code_model.refresh_address(pc + 2)
+            self._diagnostics_reporter.info( f"Stepping over call to 0x{instruction.nnn:03X}.")
             self.run()
             self._logger.info("Step over")
         else:
@@ -598,6 +600,7 @@ class Chip8Controller:
         return_address = self._machine._stack.peek()
         self._debugger.set_temporary_breakpoint(return_address)
         self._code_model.refresh_address(return_address)
+        self._diagnostics_reporter.info( f"Stepping out to address 0x{return_address:03X}.")
         self.run()
         self._logger.info( f"Step out to {return_address:04X}")
         self._logger.leave("step_out")
