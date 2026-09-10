@@ -556,30 +556,15 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
-
             configuration = EmulatorConfiguration()
             configuration.assembler_source_file = str(source_file)
             configuration.assembler_rom_file = str(rom_file)
-
             controller = create_controller(configuration)
             controller._assembler = MagicMock()
-            controller._assembler.assemble.return_value = AssemblyResult(
-                success=True,
-                binary_image=bytes([0x00, 0xE0])
-            )
-
-            result = controller.assemble_source(
-                "CLS\n",
-                Target.COSMAC,
-                AssemblyOptions()
-            )
-
+            controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
             self.assertTrue(result)
-
-            messages = [
-                diagnostic.message
-                for diagnostic in controller._assembler_diagnostics
-            ]
+            messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
             self.assertEqual(
                 messages,
                 [
@@ -602,31 +587,13 @@ class Chip8ControllerTest(unittest.TestCase):
             configuration = EmulatorConfiguration()
             configuration.assembler_source_file = str(source_file)
             configuration.assembler_rom_file = str(rom_file)
-
             controller = create_controller(configuration)
             controller._assembler = MagicMock()
-            controller._assembler.assemble.return_value = AssemblyResult(
-                success=True,
-                binary_image=bytes([0x00, 0xE0])
-            )
-
-            with patch.object(
-                Path,
-                "write_bytes",
-                side_effect=OSError("disk full")
-            ):
-                result = controller.assemble_source(
-                    "CLS\n",
-                    Target.COSMAC,
-                    AssemblyOptions()
-                )
-
+            controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
+            with patch.object( Path, "write_bytes", side_effect=OSError("disk full")):
+                result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
             self.assertFalse(result)
-
-            messages = [
-                diagnostic.message
-                for diagnostic in controller._assembler_diagnostics
-            ]
+            messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
             self.assertEqual(
                 messages,
                 [
@@ -645,30 +612,15 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             listing_file = Path(directory) / "test.lst"
-
             configuration = EmulatorConfiguration()
             configuration.assembler_source_file = str(source_file)
             configuration.assembler_listing_file = str(listing_file)
-
             controller = create_controller(configuration)
             controller._assembler = MagicMock()
-            controller._assembler.assemble.return_value = AssemblyResult(
-                success=True,
-                listing="0000 00E0 CLS\n"
-            )
-
-            result = controller.assemble_source(
-                "CLS\n",
-                Target.COSMAC,
-                AssemblyOptions(generate_listing=True)
-            )
-
+            controller._assembler.assemble.return_value = AssemblyResult( success=True, listing="0000 00E0 CLS\n")
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions(generate_listing=True))
             self.assertTrue(result)
-
-            messages = [
-                diagnostic.message
-                for diagnostic in controller._assembler_diagnostics
-            ]
+            messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
             self.assertEqual(
                 messages,
                 [
@@ -1120,5 +1072,69 @@ class Chip8ControllerTest(unittest.TestCase):
 
 
     ###########################################################################
-    # Step-Out tests
+    # Set CPU frequency tests
     ###########################################################################
+    def test_set_cpu_frequency_reports_diagnostic(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller.set_cpu_frequency(700)
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["CPU frequency set to 700 Hz."])
+
+
+    def test_set_cpu_frequency_reports_effective_frequency(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller.set_cpu_frequency(0)
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["CPU frequency set to 1 Hz."])
+
+
+    ###########################################################################
+    # Configure tests
+    ###########################################################################
+    def test_configure_reports_diagnostic_when_accepted(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._main_window.configure = MagicMock(return_value=True)
+        controller.configure()
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["Emulator configuration updated."])
+
+
+    def test_configure_reports_no_diagnostic_when_cancelled(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._main_window.configure = MagicMock(return_value=False)
+        controller.configure()
+        self.assertEqual(len(controller._diagnostics), 0)
+
+
+    ###########################################################################
+    # Toggle breakpoints tests
+    ###########################################################################
+    def test_toggle_breakpoint_reports_breakpoint_set(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._toggle_breakpoint(0x345)
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["Breakpoint enabled at address 0x345."])
+
+
+    def test_toggle_breakpoint_reports_breakpoint_disabled(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._debugger.set_breakpoint(0x345)
+        controller._toggle_breakpoint(0x345)
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["Breakpoint disabled at address 0x345."])
+
+
+    def test_toggle_breakpoint_reports_breakpoint_enabled(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._debugger.set_breakpoint(0x345)
+        controller._debugger.disable_breakpoint(0x345)
+        controller._toggle_breakpoint(0x345)
+        messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
+        self.assertEqual( messages, ["Breakpoint enabled at address 0x345."])

@@ -462,6 +462,7 @@ class Chip8Controller:
         self._logger.enter("set_cpu_frequency")
         self._cpu_frequency = max(1, frequency)
         self._cpu_timer.setInterval(max(1, 1000 // self._cpu_frequency))
+        self._diagnostics_reporter.info( f"CPU frequency set to {self._cpu_frequency} Hz.")
         self._logger.info( f"CPU frequency set to {self._cpu_frequency} Hz.")
         self._logger.leave("set_cpu_frequency")
 
@@ -644,13 +645,13 @@ class Chip8Controller:
         self._configuration = dialog.configuration
         self._log_manager.configure(self._configuration)        # Reconfigure all subsystems.
         self._beeper.configuration = self._configuration
+        self._diagnostics_reporter.info("Emulator configuration updated.")
         self._logger.info("Emulator configuration updated")
         self._logger.leave("configure")
 
 
     def assembler(self) -> None:
         self._logger.enter("assembler")
-#        dialog = self._main_window.assembler_dialog
         if not self._main_window.assemble():
             self._logger.leave("assembler")
             return
@@ -840,6 +841,10 @@ class Chip8Controller:
             CHIP-8 instruction address.
         """
         self._debugger.toggle_breakpoint(address)
+        if self._debugger.is_breakpoint_enabled(address):
+            self._diagnostics_reporter.info( f"Breakpoint enabled at address 0x{address:03X}.")
+        else:
+            self._diagnostics_reporter.info( f"Breakpoint disabled at address 0x{address:03X}.")
         self._code_model.refresh_address(address)
 
 
@@ -851,9 +856,7 @@ class Chip8Controller:
             Code analysis row.
         """
         address = self._code_analysis.row(row).address
-
         menu = QMenu(self._main_window)
-
         set_action: QAction | None = None
         clear_action: QAction | None = None
         enable_action: QAction | None = None
@@ -868,26 +871,27 @@ class Chip8Controller:
             clear_action = menu.addAction("Clear Breakpoint")
         else:
             set_action = menu.addAction("Set Breakpoint")
-
         if self._debugger.has_breakpoints():
             menu.addSeparator()
             clear_all_action = menu.addAction("Clear All Breakpoints")
-
-#        action = menu.exec(QCursor.pos())
         action = menu.exec( self._main_window.codeTableView.viewport().mapToGlobal(position))
         if action is None:
             return
-
         if action == set_action:
             self._debugger.set_breakpoint(address)
+            self._diagnostics_reporter.info( f"Breakpoint set at address 0x{address:03X}.")
         elif action == clear_action:
             self._debugger.clear_breakpoint(address)
+            self._diagnostics_reporter.info( f"Breakpoint cleared at address 0x{address:03X}.")
         elif action == enable_action:
             self._debugger.enable_breakpoint(address)
+            self._diagnostics_reporter.info( f"Breakpoint enabled at address 0x{address:03X}.")
         elif action == disable_action:
             self._debugger.disable_breakpoint(address)
+            self._diagnostics_reporter.info( f"Breakpoint disabled at address 0x{address:03X}.")
         elif action == clear_all_action:
             self._debugger.clear_all_breakpoints()
+            self._diagnostics_reporter.info("All breakpoints cleared.")
 
         self._code_model.refresh()
 
