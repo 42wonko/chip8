@@ -54,7 +54,7 @@ class Chip8Stack:
             Return address.
         """
         self._stack[self._registers.sp] = address & ADDRESS_MASK  #
-        if self._registers.sp >= STACK_SIZE:
+        if self._registers.sp == STACK_SIZE - 1:
             self._logger.warning("CHIP-8 stack overflow.")
             self._diagnostics.warning("CHIP-8 stack overflow.")
         self._registers.sp = (self._registers.sp + 1) % STACK_SIZE          # modulo addressing allows wrap-around

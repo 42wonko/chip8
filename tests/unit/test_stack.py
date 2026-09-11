@@ -6,10 +6,8 @@
 
 import unittest
 
-from emulator.constants import (
-    ADDRESS_MASK,
-    STACK_SIZE,
-)
+from controller.diagnostics import Diagnostics
+from emulator.constants import ADDRESS_MASK, STACK_SIZE
 from tests.helpers import create_stack
 
 
@@ -38,18 +36,14 @@ class TestcreateStack(unittest.TestCase):
 
     def test_push_pop(self) -> None:
         stack = create_stack()
-
         stack.push(0x456)
-
         self.assertEqual(stack.pop(), 0x456)
 
     def test_lifo(self) -> None:
         stack = create_stack()
-
         stack.push(0x111)
         stack.push(0x222)
         stack.push(0x333)
-
         self.assertEqual(stack.pop(), 0x333)
         self.assertEqual(stack.pop(), 0x222)
         self.assertEqual(stack.pop(), 0x111)
@@ -65,46 +59,32 @@ class TestcreateStack(unittest.TestCase):
     ###########################################################################
     # Address masking
     ###########################################################################
-
     def test_address_masking(self) -> None:
         stack = create_stack()
-
         stack.push(0xFFFF)
-
         self.assertEqual(stack.pop(), ADDRESS_MASK)
 
     ###########################################################################
     # Wrap-around
     ###########################################################################
-
     def test_stack_pointer_wraps_on_push(self) -> None:
-        stack = create_stack()
-
-        #
+        diagnostics = Diagnostics()
+        stack = create_stack(diagnostics)
         # Push more values than the hardware stack can hold.
-        #
         for address in range(STACK_SIZE + 1):
             stack.push(address)
-
-        #
         # The oldest entry has been overwritten.
-        #
         self.assertEqual(stack.pop(), STACK_SIZE)
+        messages = [diagnostic.message for diagnostic in diagnostics]
+        self.assertEqual(messages, ["CHIP-8 stack overflow."])
 
     def test_stack_pointer_wraps_on_pop(self) -> None:
         stack = create_stack()
-
         stack.push(0x123)
-
-        #
         # First pop returns the stored value.
-        #
         self.assertEqual(stack.pop(), 0x123)
-
-        #
         # Second pop wraps around and returns whatever is now at the last
         # stack entry.
-        #
         self.assertEqual(stack.pop(), 0)
 
     def test_push_masks_address(self) -> None:
@@ -115,15 +95,11 @@ class TestcreateStack(unittest.TestCase):
     ###########################################################################
     # Reset
     ###########################################################################
-
     def test_reset(self) -> None:
         stack = create_stack()
-
         stack.push(0x111)
         stack.push(0x222)
-
         stack.reset()
-
         self.assertEqual(stack.pop(), 0)
 
 

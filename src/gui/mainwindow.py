@@ -316,12 +316,15 @@ class MainWindow(QMainWindow):
         return self._config_dialog.exec() == QDialog.DialogCode.Accepted
 
 
-    def assemble(self) -> int:
+    def assemble(self) -> None:
         """
         @brief Open the Assembler Window/dialog
         .
         """
-        return self._assembler_dialog.exec() == QDialog.DialogCode.Accepted
+#        return self._assembler_dialog.exec() == QDialog.DialogCode.Accepted
+        self._assembler_dialog.show()
+        self._assembler_dialog.raise_()
+        self._assembler_dialog.activateWindow()
 
 
     @property

@@ -652,9 +652,7 @@ class Chip8Controller:
 
     def assembler(self) -> None:
         self._logger.enter("assembler")
-        if not self._main_window.assemble():
-            self._logger.leave("assembler")
-            return
+        self._main_window.assemble()
         self._logger.leave("assembler")
 
 

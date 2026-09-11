@@ -82,11 +82,12 @@ def create_registers() -> Chip8Registers:
     diagnostics = Diagnostics()
     return Chip8Registers(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST))
 
-def create_stack() -> Chip8Stack:
+def create_stack(diagnostics: Diagnostics | None = None) -> Chip8Stack:
     log_manager = LogManager()
-    diagnostics = Diagnostics()
+    if diagnostics is None:
+        diagnostics = Diagnostics()
     registers = create_registers()
-    return Chip8Stack(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST), registers)
+    return Chip8Stack( diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST), registers)
 
 def create_timers() -> Chip8Timers:
     log_manager = LogManager()
