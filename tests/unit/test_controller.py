@@ -883,6 +883,21 @@ class Chip8ControllerTest(unittest.TestCase):
                 ]
             )
 
+    def test_assemble_source_rejects_missing_target_before_assembly(self) -> None:
+        """
+        @brief Verify that target selection is performed by the controller.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler = MagicMock()
+            result = controller.assemble_source("CLS\n", None, AssemblyOptions())
+            self.assertFalse(result)
+            controller._assembler.assemble.assert_not_called()
+            messages = [diagnostic.message for diagnostic in controller._assembler_diagnostics]
+            self.assertIn("No target architecture was specified.", messages)
+
     ###########################################################################
     # Load ROM tests
     ###########################################################################

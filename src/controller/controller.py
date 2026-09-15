@@ -39,6 +39,7 @@ from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
 from assembler.target import Target
+from assembler.target_selector import TargetSelectionError, TargetSelector
 from audio.beeper import Beeper
 from chip8.debugger import Debugger
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
@@ -79,6 +80,7 @@ class Chip8Controller:
         self._diagnostics                           = Diagnostics()
         self._diagnostics_reporter                  = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
         self._assembler_diagnostics                 = AssemblerDiagnostics()
+        self._target_selector                       = TargetSelector()
         self._log_manager                           = LogManager()
         self._log_manager.configure(self._configuration)
         self._logger: ApplicationLogReporter        = ( self._log_manager.application_logger( DiagnosticSource.CONTROLLER))
@@ -119,7 +121,6 @@ class Chip8Controller:
         self._code_analysis.rebuild()
         self._update_diagnostics_view()
         self._code_model.refresh()
-#        QApplication.instance().aboutToQuit.connect(self.save_settings)
         application = QApplication.instance()
         assert application is not None
         application.aboutToQuit.connect(self.save_settings)
@@ -408,7 +409,12 @@ class Chip8Controller:
         diagnostics = self._assembler_diagnostics.reporter()
         if not self.ensure_assembler_source_file(source):
             return False
-        result = self._assembler.assemble(source, target, options)
+        try:
+            selection = self._target_selector.select(source, target)
+        except TargetSelectionError as error:
+            diagnostics.error(str(error))
+            return False
+        result = self._assembler.assemble(source, selection.target, options)
         if not result.success:
             return False
         if result.binary_image is not None:

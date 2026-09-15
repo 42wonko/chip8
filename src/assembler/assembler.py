@@ -23,7 +23,8 @@ from assembler.semantic import (
 )
 from assembler.symbol import SymbolTable
 from assembler.target import Target
-from assembler.target_selector import TargetSelector
+
+#from assembler.target_selector import TargetSelector
 from chip8.isa.isa import InstructionSetArchitecture
 from controller.diagnostics import AssemblerDiagnosticsReporter
 
@@ -67,7 +68,7 @@ class Assembler:
             options = AssemblyOptions()
         try:
             self._diagnostics.info("Started assembly.")
-            TargetSelector().select(source, target)
+#            TargetSelector().select(source, target)
             self._diagnostics.info("Parsing source.")
             assembly = self._parse(source)
             if not assembly.lines:
