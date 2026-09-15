@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from assembler.instruction import AssemblerInstruction
-from assembler.operand import AssemblerOperand
+from assembler.operand import AssemblerOperand, AssemblerOperandType
 from chip8.isa.instruction import Instruction
 from chip8.isa.reference import InstructionReference
 from emulator.stepresult import StepResult
@@ -83,6 +83,38 @@ class InstructionSetArchitecture(ABC):
 
         @exception ValueError
             If the mnemonic or operand combination is invalid.
+        """
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def assembler_operand_signatures( self, mnemonic: str, operand_count: int) -> tuple[tuple[AssemblerOperandType, ...], ...]:
+        """
+        @brief Return legal assembler operand signatures for an instruction.
+
+        @param mnemonic
+            Assembly instruction mnemonic.
+
+        @param operand_count
+            Number of operands supplied by the source.
+
+        @return
+            Legal operand type combinations for the mnemonic.
+        """
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def assembler_instruction_size( self, mnemonic: str, operand_count: int) -> int:
+        """
+        @brief Return the encoded size of an assembler instruction.
+        @param mnemonic
+            Assembly instruction mnemonic.
+        @param operand_count
+            Number of operands used by the instruction.
+        @return
+            Instruction size in bytes, or zero when the instruction
+            cannot be sized by this ISA.
         """
         raise NotImplementedError
 

@@ -10,7 +10,7 @@ from assembler.instruction import AssemblerInstruction
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.reference import ReferenceAccess
-from emulator.constants import FONT_CHARACTER_SIZE, FONT_START
+from emulator.constants import FONT_CHARACTER_SIZE, FONT_START, INSTRUCTION_SIZE
 from tests.helpers import create_machine
 
 
@@ -1092,6 +1092,10 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
                     for reference in references
                 )
                 self.assertEqual(actual, expected)
+
+
+    def test_assembler_instruction_size(self) -> None:
+        self.assertEqual( self.isa.assembler_instruction_size("CLS", 0), INSTRUCTION_SIZE)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

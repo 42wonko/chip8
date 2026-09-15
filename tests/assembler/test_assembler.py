@@ -11,7 +11,9 @@ from assembler.options import AssemblyOptions
 from assembler.target import Target
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from controller.diagnostic import DiagnosticSource
-from controller.diagnostics import Diagnostics
+
+#from controller.diagnostics import Diagnostics
+from controller.diagnostics import AssemblerDiagnostics
 from tests.helpers import create_machine
 
 
@@ -21,10 +23,12 @@ class TestAssembler(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self._diagnostics = Diagnostics()
+#        self._diagnostics = Diagnostics()
+        self._diagnostics = AssemblerDiagnostics()
         machine = create_machine()
         self._isa = ClassicInstructionSetArchitecture(machine)
-        self._assembler = Assembler( self._diagnostics.reporter(DiagnosticSource.ASSEMBLER), self._isa)
+#        self._assembler = Assembler( self._diagnostics.reporter(DiagnosticSource.ASSEMBLER), self._isa)
+        self._assembler = Assembler( self._diagnostics.reporter(), self._isa)
 
 
     def test_assembler_can_be_instantiated(self) -> None:
@@ -127,6 +131,26 @@ class TestAssembler(unittest.TestCase):
         self.assertTrue(result.success)
         self.assertEqual( result.binary_image, bytes([0xF2, 0x55]))
 
+    def test_assemble_rnd_instruction(self) -> None:
+        result = self._assembler.assemble("RND V1, 0xFF", Target.COSMAC)
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, bytes([0xC1, 0xFF]))
+
+    def test_assemble_drw_instruction(self) -> None:
+        result = self._assembler.assemble("DRW V1, V2, 5", Target.COSMAC)
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, bytes([0xD1, 0x25]))
+
+    def test_assemble_rnd_rejects_invalid_operands(self) -> None:
+        result = self._assembler.assemble("RND V1, V2", Target.COSMAC)
+        self.assertFalse(result.success)
+
+
+    def test_assemble_drw_rejects_invalid_operands(self) -> None:
+        result = self._assembler.assemble("DRW V1, 5, 3", Target.COSMAC)
+        self.assertFalse(result.success)
+
+
     def test_assemble_reports_progress(self) -> None:
         result = self._assembler.assemble("CLS", Target.COSMAC)
 
@@ -145,17 +169,10 @@ class TestAssembler(unittest.TestCase):
         )
 
     def test_assemble_reports_listing_and_cross_reference_progress(self) -> None:
-        options = AssemblyOptions(
-            generate_listing=True,
-            generate_cross_reference=True
-        )
-
+        options = AssemblyOptions( generate_listing=True, generate_cross_reference=True)
         result = self._assembler.assemble("CLS", Target.COSMAC, options)
-
         self.assertTrue(result.success)
-
         messages = [diagnostic.message for diagnostic in self._diagnostics]
-
         self.assertEqual(
             messages,
             [
@@ -170,11 +187,8 @@ class TestAssembler(unittest.TestCase):
 
     def test_assemble_reports_progress_before_parse_error(self) -> None:
         result = self._assembler.assemble("", Target.COSMAC)
-
         self.assertFalse(result.success)
-
         messages = [diagnostic.message for diagnostic in self._diagnostics]
-
         self.assertEqual(
             messages,
             [
@@ -183,6 +197,38 @@ class TestAssembler(unittest.TestCase):
                 "Assembly source is empty.",
             ]
         )
+
+
+    def test_semantic_error_contains_source_location(self) -> None:
+        """
+        @brief Verify that a semantic instruction error contains its source line.
+        """
+        result = self._assembler.assemble( "CLS\n" "SUB V3, 1\n", Target.COSMAC)
+        self.assertFalse(result.success)
+        self.assertEqual(len(self._diagnostics), 4)
+        diagnostic = self._diagnostics[-1]
+        self.assertEqual( diagnostic.message, "Integer value cannot be resolved as REGISTER.")
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 2)
+
+    def test_semantic_error_reports_correct_source_line(self) -> None:
+        """
+        @brief Verify that semantic errors identify the correct source line.
+        """
+        result = self._assembler.assemble(
+            "CLS\n"
+            "LD V1, 5\n"
+            "SUB V3, 1\n"
+            "RET\n",
+            Target.COSMAC
+        )
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertEqual( diagnostic.message, "Integer value cannot be resolved as REGISTER.")
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 3)
 
 
 if __name__ == "__main__":

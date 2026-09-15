@@ -1695,18 +1695,10 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
     def test_create_se_rejects_value_as_first_operand(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.VALUE,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.VALUE,
-                value=5
-            )
+            AssemblerOperand( type=AssemblerOperandType.VALUE, value=3),
+            AssemblerOperand( type=AssemblerOperandType.VALUE, value=5)
         )
-
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SE", operands)
 
@@ -1714,18 +1706,10 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
     def test_create_se_rejects_register_as_second_operand_when_invalid_first(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.VALUE,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=5
-            )
+            AssemblerOperand( type=AssemblerOperandType.VALUE, value=3),
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=5)
         )
-
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SE", operands)
 
@@ -1733,18 +1717,10 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
     def test_create_se_rejects_byte_above_ff(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.VALUE,
-                value=0x100
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3),
+            AssemblerOperand( type=AssemblerOperandType.VALUE, value=0x100)
         )
-
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SE", operands)
 
@@ -1752,36 +1728,20 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
     def test_create_se_rejects_second_register_above_vf(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=0x10
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3),
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=0x10)
         )
-
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SE", operands)
 
     def test_create_sne_rejects_value_as_first_operand(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.VALUE,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.VALUE,
-                value=5
-            )
+            AssemblerOperand( type=AssemblerOperandType.VALUE, value=3),
+            AssemblerOperand( type=AssemblerOperandType.VALUE, value=5)
         )
-
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SNE", operands)
 
@@ -1789,18 +1749,10 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
     def test_create_sne_rejects_address_operand(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.ADDRESS,
-                value=0x234
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3),
+            AssemblerOperand( type=AssemblerOperandType.ADDRESS, value=0x234)
         )
-
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SNE", operands)
 
@@ -1808,18 +1760,10 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
     def test_create_sne_rejects_register_above_vf(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=0x10
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.VALUE,
-                value=5
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=0x10),
+            AssemblerOperand( type=AssemblerOperandType.VALUE, value=5)
         )
-
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SNE", operands)
 
@@ -1827,18 +1771,10 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
     def test_create_sne_rejects_byte_above_ff(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.VALUE,
-                value=0x100
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3),
+            AssemblerOperand( type=AssemblerOperandType.VALUE, value=0x100)
         )
-
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SNE", operands)
 
@@ -1846,19 +1782,30 @@ class ClassicInstructionSetArchitectureAssemblerTest(unittest.TestCase):
     def test_create_sne_rejects_second_register_above_vf(self) -> None:
         machine = create_machine()
         isa = ClassicInstructionSetArchitecture(machine)
-
         operands = (
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=3
-            ),
-            AssemblerOperand(
-                type=AssemblerOperandType.REGISTER,
-                value=0x10
-            )
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=3),
+            AssemblerOperand( type=AssemblerOperandType.REGISTER, value=0x10)
         )
-
         with self.assertRaises(ValueError):
             isa.create_assembler_instruction("SNE", operands)
+
+    ###########################################################################
+    # operand signatures
+    ###########################################################################
+    def test_add_operand_signatures(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+        signatures = isa.assembler_operand_signatures("ADD", 2)
+        self.assertIn( ( AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE), signatures)
+        self.assertIn( ( AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER), signatures)
+        self.assertIn( ( AssemblerOperandType.INDEX_REGISTER, AssemblerOperandType.REGISTER), signatures)
+
+
+    def test_add_operand_signatures_reject_wrong_operand_count(self) -> None:
+        machine = create_machine()
+        isa = ClassicInstructionSetArchitecture(machine)
+        signatures = isa.assembler_operand_signatures("ADD", 1)
+        self.assertEqual(signatures, ())
+
 
 

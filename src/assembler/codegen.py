@@ -16,11 +16,15 @@ from assembler.ast import (
     LiteralExpression,
 )
 from assembler.instruction import AssemblerInstruction
-from assembler.semantic import ExpressionEvaluator, InstructionResolver
+from assembler.semantic import (
+    ExpressionEvaluator,
+    InstructionResolver,
+    SemanticAnalysisError,
+)
 from assembler.symbol import SymbolTable
 from assembler.token import SourceLocation
 from chip8.isa.reference import InstructionReference
-from emulator.constants import INSTRUCTION_SIZE, PROGRAM_START
+from emulator.constants import PROGRAM_START
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +53,10 @@ class InstructionEncoder(Protocol):
             Encoded opcode.
         """
 
+    def instruction_size(self, instruction: AssemblerInstruction) -> int:
+        """
+        @brief Return the encoded size of an assembler instruction.
+        """
 
 class InstructionReferenceCollector(Protocol):
     """
@@ -81,12 +89,12 @@ class CodeGenerator:
         """
         @brief Generate a binary ROM image.
 
-        The image starts at the first ORG address, or PROGRAM_START when
+        The image starts at the lowest ORG address, or PROGRAM_START when
         no ORG directive occurs. Gaps are filled with zero bytes.
         """
         address = PROGRAM_START
         base_address = PROGRAM_START
-        first_org_seen = False
+        org_seen = False
         image: dict[int, int] = {}
         self._records.clear()
 
@@ -97,7 +105,13 @@ class CodeGenerator:
                 continue
 
             if isinstance(statement, InstructionNode):
-                instruction = self._instruction_resolver.resolve(statement)
+                try:
+                    instruction = self._instruction_resolver.resolve(statement)
+                except ValueError as error:
+                    raise SemanticAnalysisError(
+                        str(error),
+                        statement.location
+                    ) from error
                 if self._reference_collector is not None:
                     references = self._instruction_resolver.instruction_references( instruction)
                     self._reference_collector.add_instruction_references(
@@ -112,7 +126,7 @@ class CodeGenerator:
                         data=bytes([ (opcode >> 8) & 0xFF, opcode & 0xFF ])
                     )
                 )
-                address += INSTRUCTION_SIZE
+                address += self._encoder.instruction_size(instruction)
                 continue
 
             if isinstance(statement, DirectiveNode):
@@ -126,9 +140,11 @@ class CodeGenerator:
 
                 if name == "ORG":
                     address = self._evaluator.evaluate( statement.operands[0])
-                    if not first_org_seen:
+                    if not org_seen:
                         base_address = address
-                        first_org_seen = True
+                        org_seen = True
+                    else:
+                        base_address = min(base_address, address)
                     continue
 
                 if name == "DB":
@@ -206,3 +222,4 @@ class CodeGenerator:
             result[address - base_address] = value
 
         return bytes(result)
+

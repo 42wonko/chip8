@@ -69,43 +69,31 @@ class Chip8Controller:
         """
         @brief Construct the controller.
         """
-        self._running                           = False
-        self._stopped_on_breakpoint             = False
-        self._debugger                          = Debugger()
-        self._configuration                     = EmulatorConfiguration()
-        self._settings_manager                  = SettingsManager()
+        self._running                               = False
+        self._stopped_on_breakpoint                 = False
+        self._debugger                              = Debugger()
+        self._configuration                         = EmulatorConfiguration()
+        self._settings_manager                      = SettingsManager()
         self._settings_manager.load_configuration(self._configuration)
         self._debugger.read_settings( self._settings_manager.settings())
-        self._diagnostics                       = Diagnostics()
-        self._diagnostics_reporter              = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
-        self._assembler_diagnostics             = AssemblerDiagnostics()
-        self._log_manager                       = LogManager()
+        self._diagnostics                           = Diagnostics()
+        self._diagnostics_reporter                  = self._diagnostics.reporter( DiagnosticSource.CONTROLLER)
+        self._assembler_diagnostics                 = AssemblerDiagnostics()
+        self._log_manager                           = LogManager()
         self._log_manager.configure(self._configuration)
-        self._logger: ApplicationLogReporter    = ( self._log_manager.application_logger( DiagnosticSource.CONTROLLER))
-        self._current_rom: Path | None          = None
-        self._current_rom_data: bytes | None    = None
-        self._assembler_source_file: Path | None = (
-            Path(self._configuration.assembler_source_file)
-            if self._configuration.assembler_source_file
-            else None
-        )
-        self._assembler_rom_file: Path | None = (
-            Path(self._configuration.assembler_rom_file)
-            if self._configuration.assembler_rom_file
-            else None
-        )
-        self._assembler_listing_file: Path | None = (
-            Path(self._configuration.assembler_listing_file)
-            if self._configuration.assembler_listing_file
-            else None
-        )
-        self._cpu_frequency                     = DEFAULT_CPU_FREQUENCY     # has to be before mainwindow!
-        self._main_window                       = MainWindow(self)
+        self._logger: ApplicationLogReporter        = ( self._log_manager.application_logger( DiagnosticSource.CONTROLLER))
+        self._current_rom: Path | None              = None
+        self._current_rom_data: bytes | None        = None
+        self._assembler_source_file: Path | None    = None
+        self._assembler_rom_file: Path | None       =  None
+        self._assembler_listing_file: Path | None   = None
+        self._cpu_frequency                         = DEFAULT_CPU_FREQUENCY     # has to be before mainwindow!
+        self._main_window                           = MainWindow(self)
         self._main_window.breakpoint_toggled.connect( self._toggle_breakpoint)
-        self._machine                           = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
-        self._isa                               = ClassicInstructionSetArchitecture(self._machine)
+        self._machine                               = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
+        self._isa                                   = ClassicInstructionSetArchitecture(self._machine)
         self._machine.set_isa(self._isa)
-        self._assembler                          = Assembler( self._assembler_diagnostics.reporter(), self._isa)    # type: ignore[arg-type]
+        self._assembler                             = Assembler( self._assembler_diagnostics.reporter(), self._isa)    # type: ignore[arg-type]
         self._log_manager.set_isa(self._isa)
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)

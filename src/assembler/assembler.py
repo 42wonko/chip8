@@ -6,8 +6,10 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from assembler.ast import AssemblyNode
-from assembler.codegen import CodeGenerator
+from assembler.codegen import CodeGenerator, InstructionEncoder
 from assembler.lexer import Lexer
 from assembler.listing import ListingGenerator
 from assembler.options import AssemblyOptions
@@ -15,6 +17,7 @@ from assembler.parser import Parser
 from assembler.result import AssemblyResult
 from assembler.semantic import (
     InstructionResolver,
+    SemanticAnalysisError,
     SymbolCollector,
     SymbolReferenceCollector,
 )
@@ -22,7 +25,7 @@ from assembler.symbol import SymbolTable
 from assembler.target import Target
 from assembler.target_selector import TargetSelector
 from chip8.isa.isa import InstructionSetArchitecture
-from controller.diagnostics import DiagnosticReporter
+from controller.diagnostics import AssemblerDiagnosticsReporter
 
 
 class Assembler:
@@ -30,7 +33,7 @@ class Assembler:
     @brief Entry point for the assembler.
     """
 
-    def __init__( self, diagnostics: DiagnosticReporter, isa: InstructionSetArchitecture) -> None:
+    def __init__( self, diagnostics: AssemblerDiagnosticsReporter, isa: InstructionSetArchitecture) -> None:
         """
         @brief Construct an assembler.
 
@@ -64,18 +67,18 @@ class Assembler:
             options = AssemblyOptions()
         try:
             self._diagnostics.info("Started assembly.")
+            TargetSelector().select(source, target)
             self._diagnostics.info("Parsing source.")
             assembly = self._parse(source)
             if not assembly.lines:
                 self._diagnostics.error("Assembly source is empty.")
                 return AssemblyResult(success=False)
-            TargetSelector().select(source, target)
             symbols = SymbolTable()
-            SymbolCollector(symbols).collect(assembly)
+            SymbolCollector(symbols, self._isa).collect(assembly)
             reference_collector = SymbolReferenceCollector(symbols)
             reference_collector.collect(assembly)
             resolver = InstructionResolver(symbols, self._isa)
-            generator = CodeGenerator( symbols, resolver, self._isa, reference_collector)
+            generator = CodeGenerator(symbols, resolver,cast(InstructionEncoder, self._isa), reference_collector)
             self._diagnostics.info("Generating binary image.")
             binary_image = generator.generate(assembly)
             listing = None
@@ -92,9 +95,12 @@ class Assembler:
                 )
             self._diagnostics.info("Assembly complete.")
             return AssemblyResult( success=True, binary_image=binary_image, listing=listing)
+        except SemanticAnalysisError as error:
+            self._diagnostics.error(str(error), error.location)
+            return AssemblyResult(success=False)
         except (ValueError, TypeError) as error:
             self._diagnostics.error(str(error))
-            return AssemblyResult( success=False)
+            return AssemblyResult(success=False)
 
 
     @staticmethod
@@ -104,3 +110,5 @@ class Assembler:
         """
         tokens = Lexer(source).tokenize()
         return Parser(tokens).parse()
+
+

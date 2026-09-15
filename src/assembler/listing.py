@@ -9,6 +9,7 @@ from __future__ import annotations
 from assembler.codegen import CodeGenerationRecord
 from assembler.semantic import Reference
 from assembler.symbol import SymbolTable
+from chip8.isa.reference import ReferenceAccess
 
 
 class ListingGenerator:
@@ -72,9 +73,11 @@ class ListingGenerator:
             "",
             f"{'Name':<12}  {'Type':<10}  {'Access':<12}  {'Definition':<10}  References"
         ]
-        resource_references: dict[str, list[Reference]] = {}
+        resource_references: dict[tuple[str, ReferenceAccess], list[int]] = {}
         for reference in references:
-            resource_references.setdefault(reference.name, []).append(reference)
+            key = (reference.name, reference.access)
+            resource_references.setdefault(key, []).append(reference.location.line)
+
         for symbol in symbols.symbols:
             locations = symbols.references(symbol.name)
             reference_text = ", ".join( str(location.line) for location in locations)
@@ -85,15 +88,16 @@ class ListingGenerator:
                 f"{symbol.location.line:<10}  "
                 f"{reference_text}"
             )
-        for name, resource_references_for_name in resource_references.items():
-            for reference in resource_references_for_name:
-                lines.append(
-                    f"{name:<12}  "
-                    f"{'Resource':<10}  "
-                    f"{reference.access.value:<12}  "
-                    f"{'--':<10}  "
-                    f"{reference.location.line}"
-                )
+
+        for (name, access), resource_locations in resource_references.items():
+            reference_text = ", ".join(str(line) for line in resource_locations)
+            lines.append(
+                f"{name:<12}  "
+                f"{'Resource':<10}  "
+                f"{access.value:<12}  "
+                f"{'--':<10}  "
+                f"{reference_text}"
+            )
         return f"{listing}\n" + "\n".join(lines)
 
 

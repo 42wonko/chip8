@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import unittest
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -26,8 +25,9 @@ from assembler.instruction import AssemblerInstruction
 from assembler.operand import AssemblerOperand, AssemblerOperandType
 from assembler.symbol import SymbolTable
 from assembler.token import SourceLocation
+from chip8.isa.isa import InstructionSetArchitecture
 from chip8.isa.reference import InstructionReference, ReferenceAccess
-from emulator.constants import INSTRUCTION_SIZE, PROGRAM_START
+from emulator.constants import PROGRAM_START
 
 
 class SymbolCollector:
@@ -35,14 +35,15 @@ class SymbolCollector:
     @brief Collects symbols defined by an assembly AST.
     """
 
-    def __init__(self, symbols: SymbolTable) -> None:
+    def __init__(self, symbols: SymbolTable, isa: InstructionSetArchitecture) -> None:
         """
         @brief Construct a symbol collector.
 
         @param symbols
             Symbol table to populate.
         """
-        self._symbols = symbols
+        self._symbols   = symbols
+        self._isa       = isa
 
 
     def collect(self, assembly: AssemblyNode) -> None:
@@ -56,30 +57,37 @@ class SymbolCollector:
         evaluator = ExpressionEvaluator(self._symbols)
 
         for source_line in assembly.lines:
-            statement = source_line.statement
+            try:
+                statement = source_line.statement
 
-            if isinstance(statement, DirectiveNode):
-                name = statement.name.upper()
-                if name == "EQU":
-                    self._define_equ(source_line, evaluator)
-                    continue
-                if name == "ORG":
-                    address = self._resolve_org(statement, evaluator)
-                    continue
+                if isinstance(statement, DirectiveNode):
+                    name = statement.name.upper()
+                    if name == "EQU":
+                        self._define_equ(source_line, evaluator)
+                        continue
+                    if name == "ORG":
+                        address = self._resolve_org(statement, evaluator)
+                        continue
+                    if source_line.label is not None:
+                        self._symbols.define( source_line.label.name, address, source_line.label.location)
+                    if name == "DB":
+                        address += self._resolve_db_size(statement, evaluator)
+                        continue
+                    if name == "TARGET":
+                        continue
+                    raise ValueError( f"Unsupported directive '{statement.name}'.")
+            except ValueError as error:
+                if statement is not None:
+                    raise SemanticAnalysisError( str(error), statement.location) from error
                 if source_line.label is not None:
-                    self._symbols.define( source_line.label.name, address, source_line.label.location)
-                if name == "DB":
-                    address += self._resolve_db_size(statement, evaluator)
-                    continue
-                if name == "TARGET":
-                    continue
-                raise ValueError( f"Unsupported directive '{statement.name}'.")
+                    raise SemanticAnalysisError( str(error), source_line.label.location) from error
+                raise
             if source_line.label is not None:
                 self._symbols.define( source_line.label.name, address, source_line.label.location)
             if statement is None:
                 continue
             if isinstance(statement, InstructionNode):
-                address += INSTRUCTION_SIZE
+                address += self._isa.assembler_instruction_size( statement.mnemonic, len(statement.operands))
                 continue
             raise ValueError( f"Unsupported statement type: {type(statement).__name__}")
 
@@ -240,6 +248,16 @@ class SymbolReferenceCollector:
             self._collect_expression(expression.right)
 
 
+class SemanticAnalysisError(ValueError):
+    """
+    @brief Raised when semantic analysis fails for a source line.
+    """
+
+    def __init__(self, message: str, location: SourceLocation) -> None:
+        super().__init__(message)
+        self.location = location
+
+
 class ExpressionEvaluationError(ValueError):
     """
     @brief Raised when an assembler expression cannot be evaluated.
@@ -345,6 +363,10 @@ class OperandResolver:
 
         raise ExpressionEvaluationError( f"Unsupported operand expression type: " f"{type(expression).__name__}")
 
+
+    ###############################################################################
+    # Private helpers
+    ###############################################################################
     def _resolve_indirect( self, expression: IndirectExpression) -> AssemblerOperand:
         inner = expression.expression
         if not isinstance(inner, IdentifierExpression):
@@ -401,6 +423,10 @@ class AssemblerInstructionFactory(Protocol):
     """
     @brief Interface required by InstructionResolver to create instructions.
     """
+    def assembler_operand_signatures( self, mnemonic: str, operand_count: int) -> tuple[tuple[AssemblerOperandType, ...], ...]:
+        """
+        @brief Return legal assembler operand signatures.
+        """
     def create_assembler_instruction( self, mnemonic: str, operands: tuple[AssemblerOperand, ...]) -> AssemblerInstruction:
         """
         @brief Create an assembler instruction from resolved operands.
@@ -442,8 +468,7 @@ class InstructionResolver:
         @exception ExpressionEvaluationError
             If the instruction cannot be resolved.
         """
-        signatures = self._get_signatures( instruction.mnemonic, len(instruction.operands))
-
+        signatures = self._isa.assembler_operand_signatures( instruction.mnemonic, len(instruction.operands))
         if not signatures:
             raise ExpressionEvaluationError( f"Unsupported instruction '{instruction.mnemonic}'.")
         last_error: ExpressionEvaluationError | None = None
@@ -473,6 +498,10 @@ class InstructionResolver:
         """
         return self._isa.instruction_references(instruction)
 
+
+    ###############################################################################
+    # Private helpers
+    ###############################################################################
     def _resolve_operands( self, expressions: tuple[Expression, ...], operand_types: tuple[AssemblerOperandType, ...]) -> tuple[AssemblerOperand, ...]:
         """
         @brief Resolve expressions according to one operand signature.
@@ -484,97 +513,5 @@ class InstructionResolver:
             for expression, operand_type in zip(expressions, operand_types)
         )
 
-    def _get_signatures( self, mnemonic: str, operand_count: int) -> tuple[tuple[AssemblerOperandType, ...], ...]:
-        """
-        @brief Return legal operand signatures for a mnemonic.
-        """
-        name = mnemonic.upper()
-        if name in ("CLS", "RET"):
-            return ((),) if operand_count == 0 else ()
-        if name == "SYS":
-            return self._signatures( operand_count, (AssemblerOperandType.ADDRESS,))
-        if name == "JP":
-            if operand_count == 1:
-                return ( (AssemblerOperandType.ADDRESS,),)
-            if operand_count == 2:
-                return ( ( AssemblerOperandType.REGISTER, AssemblerOperandType.ADDRESS),)
-            return ()
-        if name == "CALL":
-            return self._signatures( operand_count, (AssemblerOperandType.ADDRESS,))
-        if name in ("SE", "SNE"):
-            return self._signatures(
-                operand_count,
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER)
-            )
-        if name == "LD":
-            return self._signatures(
-                operand_count,
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE),
-                (AssemblerOperandType.INDEX_REGISTER, AssemblerOperandType.ADDRESS),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.DELAY_REGISTER),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.KEY),
-                (AssemblerOperandType.DELAY_REGISTER, AssemblerOperandType.REGISTER),
-                (AssemblerOperandType.SOUND_REGISTER, AssemblerOperandType.REGISTER),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.BCD_REGISTER),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.FONT_REGISTER),
-                (AssemblerOperandType.INDIRECT_INDEX, AssemblerOperandType.REGISTER),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.INDIRECT_INDEX)
-            )
-        if name == "ADD":
-            return self._signatures(
-                operand_count,
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER),
-                (AssemblerOperandType.INDEX_REGISTER, AssemblerOperandType.REGISTER)
-            )
-        if name in ("OR", "AND", "XOR", "SUB", "SHR", "SUBN", "SHL"):
-            return self._signatures(
-                operand_count,
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER)
-            )
-        if name in ("SKP", "SKNP"):
-            return self._signatures( operand_count, (AssemblerOperandType.REGISTER,))
-        return ()
-
-    @staticmethod
-    def _signatures( operand_count: int, *signatures: tuple[AssemblerOperandType, ...]) -> tuple[tuple[AssemblerOperandType, ...], ...]:
-        """
-        @brief Filter operand signatures by operand count.
-        """
-        return tuple( signature for signature in signatures if len(signature) == operand_count)
 
 
-class SymbolReferenceCollectorTest(unittest.TestCase):
-    """
-    @brief Tests for SymbolReferenceCollector.
-    """
-
-    def setUp(self) -> None:
-        self.location = SourceLocation( line=1, column=1)
-
-
-    def test_collects_instruction_symbol_reference(self) -> None:
-        symbols = SymbolTable()
-        symbols.define( "START", 0x300, SourceLocation( line=1, column=1))
-
-        assembly = AssemblyNode(
-            lines=(
-                SourceLine(
-                    label=None,
-                    statement=InstructionNode(
-                        mnemonic="JP",
-                        operands=(
-                            IdentifierExpression(
-                                name="START",
-                                location=SourceLocation( line=4, column=4)
-                            ),
-                        ),
-                        location=self.location
-                    )
-                ),
-            )
-        )
-        SymbolReferenceCollector(symbols).collect(assembly)
-        self.assertEqual( symbols.references("START"), ( SourceLocation( line=4, column=4),))

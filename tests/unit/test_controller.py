@@ -115,39 +115,75 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertEqual(restored.assembler_listing_file, "/tmp/test.lst")
         settings.clear()
 
-    def test_assembler_file_paths_are_loaded_from_configuration(self) -> None:
+
+    def test_assembler_file_paths_are_not_loaded_as_current_associations(self) -> None:
         """
-        @brief Verify that assembler file paths are initialized from the
-        emulator configuration.
+        @brief Verify that remembered assembler file paths are not treated as
+        the current document associations.
         """
         configuration = EmulatorConfiguration()
         configuration.assembler_source_file = "/tmp/test.asm"
         configuration.assembler_rom_file = "/tmp/test.ch8"
         configuration.assembler_listing_file = "/tmp/test.lst"
+        controller = create_controller(configuration)
+        self.assertEqual(configuration.assembler_source_file, "/tmp/test.asm")
+        self.assertEqual(configuration.assembler_rom_file, "/tmp/test.ch8")
+        self.assertEqual(configuration.assembler_listing_file, "/tmp/test.lst")
+        self.assertIsNone(controller.assembler_source_file)
+        self.assertIsNone(controller.assembler_rom_file)
+        self.assertIsNone(controller.assembler_listing_file)
 
-        with patch.object(Chip8Controller, "__init__", return_value=None):
-            controller = Chip8Controller()
 
-        controller._configuration = configuration
-        controller._assembler_source_file = (
-            Path(configuration.assembler_source_file)
-            if configuration.assembler_source_file
-            else None
-        )
-        controller._assembler_rom_file = (
-            Path(configuration.assembler_rom_file)
-            if configuration.assembler_rom_file
-            else None
-        )
-        controller._assembler_listing_file = (
-            Path(configuration.assembler_listing_file)
-            if configuration.assembler_listing_file
-            else None
-        )
+    def test_assembler_file_paths_are_not_loaded_from_configuration(self) -> None:
+        """
+        @brief Verify that remembered assembler file paths are not treated as
+        the current assembler file associations.
+        """
+        configuration = EmulatorConfiguration()
+        configuration.assembler_source_file = "/tmp/test.asm"
+        configuration.assembler_rom_file = "/tmp/test.ch8"
+        configuration.assembler_listing_file = "/tmp/test.lst"
+        controller = create_controller(configuration)
+        self.assertEqual( configuration.assembler_source_file, "/tmp/test.asm")
+        self.assertEqual( configuration.assembler_rom_file, "/tmp/test.ch8")
+        self.assertEqual( configuration.assembler_listing_file, "/tmp/test.lst")
+        self.assertIsNone(controller.assembler_source_file)
+        self.assertIsNone(controller.assembler_rom_file)
+        self.assertIsNone(controller.assembler_listing_file)
 
-        self.assertEqual( controller.assembler_source_file, Path("/tmp/test.asm"))
-        self.assertEqual( controller.assembler_rom_file, Path("/tmp/test.ch8"))
-        self.assertEqual( controller.assembler_listing_file, Path("/tmp/test.lst"))
+
+    @patch("controller.controller.QFileDialog.getSaveFileName")
+    def test_assemble_source_does_not_use_remembered_source_file( self, get_save_file_name: Mock) -> None:
+        """
+        @brief Verify that assembly does not overwrite a source file that is
+        only remembered in the configuration.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            old_source = Path(directory) / "old.asm"
+            new_source = Path(directory) / "new.asm"
+            old_rom = Path(directory) / "old.ch8"
+            old_listing = Path(directory) / "old.lst"
+            old_source.write_text("RET\n", encoding="utf-8")
+            old_rom.write_bytes(bytes([0xAA, 0x55]))
+            old_listing.write_text("old listing\n", encoding="utf-8")
+            get_save_file_name.return_value = (str(new_source), "")
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file = str(old_source)
+            configuration.assembler_rom_file = str(old_rom)
+            configuration.assembler_listing_file = str(old_listing)
+            controller = create_controller(configuration)
+            controller._assembler = MagicMock()
+            controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
+            self.assertTrue(result)
+            self.assertEqual( old_source.read_text(encoding="utf-8"), "RET\n")
+            self.assertEqual(old_rom.read_bytes(), bytes([0xAA, 0x55]))
+            self.assertEqual( old_listing.read_text(encoding="utf-8"), "old listing\n")
+            self.assertEqual( new_source.read_text(encoding="utf-8"), "CLS\n")
+            self.assertEqual( new_source.with_suffix(".ch8").read_bytes(), bytes([0x00, 0xE0]))
+            self.assertEqual(controller.assembler_source_file, new_source)
+            self.assertEqual( controller.assembler_rom_file, new_source.with_suffix(".ch8"))
+            self.assertEqual( controller.assembler_listing_file, new_source.with_suffix(".lst"))
 
 
     def test_assemble_source_saves_binary_rom(self) -> None:
@@ -157,11 +193,13 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file     = str(source_file)
-            configuration.assembler_rom_file        = str(rom_file)
-            configuration.assembler_listing_file    = None
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file     = str(source_file)
+#            configuration.assembler_rom_file        = str(rom_file)
+#            configuration.assembler_listing_file    = None
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
             result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
@@ -177,11 +215,17 @@ class Chip8ControllerTest(unittest.TestCase):
             rom_file = Path(directory) / "test.ch8"
             rom_file.write_bytes(bytes([0xAA, 0x55]))
 
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file     = str(Path(directory) / "test.asm")
-            configuration.assembler_rom_file        = str(rom_file)
-            configuration.assembler_listing_file    = str(Path(directory) / "test.lst")
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file     = str(Path(directory) / "test.asm")
+#            configuration.assembler_rom_file        = str(rom_file)
+#            configuration.assembler_listing_file    = str(Path(directory) / "test.lst")
+#            controller = create_controller()
+            source_file = Path(directory) / "test.asm"
+            listing_file = Path(directory) / "test.lst"
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            controller._assembler_listing_file = listing_file
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult( success=False)
             result = controller.assemble_source( "INVALID\n", Target.COSMAC, AssemblyOptions())
@@ -214,11 +258,11 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             get_save_file_name.return_value         = (str(source_file), "")
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file     = Path(directory) / "test.asm"
-            configuration.assembler_rom_file        = Path(directory) / "test.ch8"
-            configuration.assembler_listing_file    = Path(directory) / "test.lst"
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file     = Path(directory) / "test.asm"
+#            configuration.assembler_rom_file        = Path(directory) / "test.ch8"
+#            configuration.assembler_listing_file    = Path(directory) / "test.lst"
+            controller = create_controller()
             result = controller.save_assembler_source("CLS\n")
             self.assertTrue(result)
             self.assertEqual(controller.assembler_source_file, source_file)
@@ -241,6 +285,30 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertFalse(result)
         self.assertIsNone(controller.assembler_source_file)
 
+
+    @patch("controller.controller.QFileDialog.getSaveFileName")
+    def test_assemble_source_does_not_overwrite_remembered_source_file( self, get_save_file_name: Mock) -> None:
+        """
+        @brief Verify that assembly does not overwrite a source file that is
+        only remembered in the configuration.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            old_source = Path(directory) / "old.asm"
+            new_source = Path(directory) / "new.asm"
+            old_source.write_text("RET\n", encoding="utf-8")
+            get_save_file_name.return_value = (str(new_source), "")
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file = str(old_source)
+            controller = create_controller(configuration)
+            controller._assembler = MagicMock()
+            controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
+            self.assertTrue(result)
+            self.assertEqual( old_source.read_text(encoding="utf-8"), "RET\n")
+            self.assertEqual( new_source.read_text(encoding="utf-8"), "CLS\n")
+            self.assertEqual(controller.assembler_source_file, new_source)
+            self.assertEqual( controller.assembler_rom_file, new_source.with_suffix(".ch8"))
+            self.assertEqual( controller.assembler_listing_file, new_source.with_suffix(".lst"))
 
     @patch("controller.controller.QFileDialog.getOpenFileName")
     def test_load_assembler_source_reads_source_file( self, get_open_file_name: Mock) -> None:
@@ -326,9 +394,10 @@ class Chip8ControllerTest(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file     = str(source_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file     = str(source_file)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
             controller._assembler_diagnostics.reporter().error( "Old diagnostic.")
             self.assertEqual( len(controller._assembler_diagnostics._diagnostics), 1)
             controller._assembler = MagicMock()
@@ -392,12 +461,15 @@ class Chip8ControllerTest(unittest.TestCase):
             rom_file = Path(directory) / "test.ch8"
             listing_file = Path(directory) / "test.lst"
 
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_rom_file = str(rom_file)
-            configuration.assembler_listing_file = str(listing_file)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file = str(source_file)
+#            configuration.assembler_rom_file = str(rom_file)
+#            configuration.assembler_listing_file = str(listing_file)
 
-            controller = create_controller(configuration)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            controller._assembler_listing_file = listing_file
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult(
                 success=True,
@@ -418,11 +490,14 @@ class Chip8ControllerTest(unittest.TestCase):
             rom_file = Path(directory) / "test.ch8"
             listing_file = Path(directory) / "test.lst"
             listing_file.write_text( "old listing\n", encoding="utf-8")
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_rom_file = str(rom_file)
-            configuration.assembler_listing_file = str(listing_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file = str(source_file)
+#            configuration.assembler_rom_file = str(rom_file)
+#            configuration.assembler_listing_file = str(listing_file)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            controller._assembler_listing_file = listing_file
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
             result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
@@ -439,11 +514,14 @@ class Chip8ControllerTest(unittest.TestCase):
             rom_file = Path(directory) / "test.ch8"
             listing_file = Path(directory) / "test.lst"
             listing_file.write_text( "old listing\n", encoding="utf-8")
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_rom_file = str(rom_file)
-            configuration.assembler_listing_file = str(listing_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file = str(source_file)
+#            configuration.assembler_rom_file = str(rom_file)
+#            configuration.assembler_listing_file = str(listing_file)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            controller._assembler_listing_file = listing_file
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult(success=False)
             result = controller.assemble_source( "INVALID\n", Target.COSMAC, AssemblyOptions(generate_listing=True))
@@ -460,9 +538,11 @@ class Chip8ControllerTest(unittest.TestCase):
             rom_file = Path(directory) / "test.ch8"
             rom_file.write_bytes(bytes([0x00, 0xE0]))
 
-            configuration = EmulatorConfiguration()
-            configuration.assembler_rom_file = str(rom_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_rom_file = str(rom_file)
+#            controller = create_controller(configuration)
+            controller = create_controller()
+            controller._assembler_rom_file = rom_file
 
             controller._load_rom = MagicMock(return_value=True)
             controller.run = MagicMock()
@@ -479,9 +559,9 @@ class Chip8ControllerTest(unittest.TestCase):
         @brief Verify that running assembled source fails when no assembler
         ROM filename is available.
         """
-        configuration = EmulatorConfiguration()
-        configuration.assembler_rom_file = None
-        controller = create_controller(configuration)
+#        configuration = EmulatorConfiguration()
+#        configuration.assembler_rom_file = None
+        controller = create_controller()
 
         controller._load_rom = MagicMock()
         controller.run = MagicMock()
@@ -501,10 +581,12 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             rom_file = Path(directory) / "test.ch8"
 
-            configuration = EmulatorConfiguration()
-            configuration.assembler_rom_file = str(rom_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_rom_file = str(rom_file)
+#            controller = create_controller(configuration)
 
+            controller = create_controller()
+            controller._assembler_rom_file = rom_file
             controller._load_rom = MagicMock(return_value=False)
             controller.run = MagicMock()
 
@@ -540,9 +622,10 @@ class Chip8ControllerTest(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file = str(source_file)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
             result = controller.save_assembler_source("CLS\n")
             self.assertTrue(result)
             messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
@@ -556,10 +639,12 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_rom_file = str(rom_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file = str(source_file)
+#            configuration.assembler_rom_file = str(rom_file)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
             result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
@@ -584,10 +669,12 @@ class Chip8ControllerTest(unittest.TestCase):
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
 
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_rom_file = str(rom_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file = str(source_file)
+#            configuration.assembler_rom_file = str(rom_file)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
             with patch.object( Path, "write_bytes", side_effect=OSError("disk full")):
@@ -612,10 +699,12 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             listing_file = Path(directory) / "test.lst"
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_listing_file = str(listing_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file = str(source_file)
+#            configuration.assembler_listing_file = str(listing_file)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_listing_file = listing_file
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult( success=True, listing="0000 00E0 CLS\n")
             result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions(generate_listing=True))
@@ -639,10 +728,12 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             listing_file = Path(directory) / "test.lst"
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_listing_file = str(listing_file)
-            controller = create_controller(configuration)
+#            configuration = EmulatorConfiguration()
+#            configuration.assembler_source_file = str(source_file)
+#            configuration.assembler_listing_file = str(listing_file)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_listing_file = listing_file
             controller._assembler = MagicMock()
             controller._assembler.assemble.return_value = AssemblyResult( success=True, listing="0000 00E0 CLS\n")
             original_write_text = Path.write_text
@@ -675,25 +766,12 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
-
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_rom_file = str(rom_file)
-
-            controller = create_controller(configuration)
-
-            result = controller.assemble_source(
-                "CLS\n",
-                Target.COSMAC,
-                AssemblyOptions()
-            )
-
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
             self.assertTrue(result)
-
-            messages = [
-                diagnostic.message
-                for diagnostic in controller._assembler_diagnostics
-            ]
+            messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
             self.assertEqual(
                 messages,
                 [
@@ -717,10 +795,9 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_rom_file = str(rom_file)
-            controller = create_controller(configuration)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
             result = controller.assemble_source( "INVALID\n", Target.COSMAC, AssemblyOptions())
             self.assertFalse(result)
             messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
@@ -741,27 +818,13 @@ class Chip8ControllerTest(unittest.TestCase):
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
             listing_file = Path(directory) / "test.lst"
-
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_rom_file = str(rom_file)
-            configuration.assembler_listing_file = str(listing_file)
-
-            controller = create_controller(configuration)
-
-            result = controller.assemble_source(
-                "CLS\n",
-                Target.COSMAC,
-                AssemblyOptions(generate_listing=True)
-            )
-
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            controller._assembler_listing_file = listing_file
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions(generate_listing=True))
             self.assertTrue(result)
-
-            messages = [
-                diagnostic.message
-                for diagnostic in controller._assembler_diagnostics
-            ]
-
+            messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
             self.assertEqual(
                 messages,
                 [
@@ -788,11 +851,10 @@ class Chip8ControllerTest(unittest.TestCase):
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
             listing_file = Path(directory) / "test.lst"
-            configuration = EmulatorConfiguration()
-            configuration.assembler_source_file = str(source_file)
-            configuration.assembler_rom_file = str(rom_file)
-            configuration.assembler_listing_file = str(listing_file)
-            controller = create_controller(configuration)
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            controller._assembler_listing_file = listing_file
             result = controller.assemble_source(
                 "START: CLS\n",
                 Target.COSMAC,

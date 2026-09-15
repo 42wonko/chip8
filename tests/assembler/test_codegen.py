@@ -144,6 +144,133 @@ class CodeGeneratorTest(unittest.TestCase):
         self.assertEqual( self.generator.generate(assembly), b"\x01\x00\x00\x00\x00\x02")
 
 
+    def test_multiple_org_directives_use_lowest_address_as_image_base(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="ORG",
+                        operands=(
+                            LiteralExpression(value=0x300, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(value=0x01, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="ORG",
+                        operands=(
+                            LiteralExpression(value=0x200, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(value=0x02, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+
+        result = self.generator.generate(assembly)
+
+        self.assertEqual(result[0], 0x02)
+        self.assertEqual(result[0x100], 0x01)
+        self.assertEqual(len(result), 0x101)
+
+
+    def test_multiple_org_directives_use_minimum_org_address(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="ORG",
+                        operands=(
+                            LiteralExpression(value=0x300, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(value=0x03, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="ORG",
+                        operands=(
+                            LiteralExpression(value=0x280, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(value=0x02, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="ORG",
+                        operands=(
+                            LiteralExpression(value=0x200, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(value=0x01, location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+
+        result = self.generator.generate(assembly)
+
+        self.assertEqual(result[0], 0x01)
+        self.assertEqual(result[0x80], 0x02)
+        self.assertEqual(result[0x100], 0x03)
+        self.assertEqual(len(result), 0x101)
+
+
     def test_no_org_starts_at_program_start(self) -> None:
         assembly = AssemblyNode(
             lines=(

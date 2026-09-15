@@ -217,4 +217,44 @@ class ListingGeneratorTest(unittest.TestCase):
             listing
         )
 
+    def test_cross_reference_groups_resource_references_by_name_and_access(self) -> None:
+        """
+        @brief Verify that repeated architectural references are grouped by
+        resource and access mode.
+        """
+        source = (
+            "LD V3, 1\n"
+            "ADD V3, V2\n"
+            "SUB V3, V2\n"
+            "LD V3, 4\n"
+        )
+        records = (
+            CodeGenerationRecord(line=1, address=0x0200, data=b"\x63\x01"),
+            CodeGenerationRecord(line=2, address=0x0202, data=b"\x83\x24"),
+            CodeGenerationRecord(line=3, address=0x0204, data=b"\x83\x25"),
+            CodeGenerationRecord(line=4, address=0x0206, data=b"\x63\x04")
+        )
+        references = (
+            Reference( name="V3", access=ReferenceAccess.WRITE, location=SourceLocation(line=1, column=1)),
+            Reference( name="V3", access=ReferenceAccess.READ_WRITE, location=SourceLocation(line=2, column=1)),
+            Reference( name="V2", access=ReferenceAccess.READ, location=SourceLocation(line=2, column=1)),
+            Reference( name="VF", access=ReferenceAccess.WRITE, location=SourceLocation(line=2, column=1)),
+            Reference( name="V3", access=ReferenceAccess.READ_WRITE, location=SourceLocation(line=3, column=1)),
+            Reference( name="V2", access=ReferenceAccess.READ, location=SourceLocation(line=3, column=1)),
+            Reference( name="VF", access=ReferenceAccess.WRITE, location=SourceLocation(line=3, column=1)),
+            Reference( name="V3", access=ReferenceAccess.WRITE, location=SourceLocation(line=4, column=1))
+        )
+
+        listing = self._generator.generate(
+            source,
+            records,
+            SymbolTable(),
+            references,
+            True
+        )
+
+        self.assertIn( "V3            Resource    write         --          1, 4", listing)
+        self.assertIn( "V3            Resource    read_write    --          2, 3", listing)
+        self.assertIn( "V2            Resource    read          --          2, 3", listing)
+        self.assertIn( "VF            Resource    write         --          2, 3", listing)
 

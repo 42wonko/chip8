@@ -27,6 +27,7 @@ from emulator.constants import (
     BYTE_MASK,
     FONT_CHARACTER_SIZE,
     FONT_START,
+    INSTRUCTION_SIZE,
     NIBBLE_MASK,
     WORD_MASK,
 )
@@ -464,6 +465,87 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
             return AssemblerInstruction( id=InstructionId.DRW, x=x_register.value, y=y_register.value, n=height.value)
 
         raise ValueError( f"Unsupported Classic CHIP-8 instruction: {mnemonic}")
+
+
+    def assembler_operand_signatures( self, mnemonic: str, operand_count: int) -> tuple[tuple[AssemblerOperandType, ...], ...]:
+        """
+        @brief Return legal operand signatures for a mnemonic.
+        """
+        name = mnemonic.upper()
+        if name in ("CLS", "RET"):
+            return ((),) if operand_count == 0 else ()
+        if name == "SYS":
+            return self._signatures( operand_count, (AssemblerOperandType.ADDRESS,))
+        if name == "JP":
+            if operand_count == 1:
+                return ( (AssemblerOperandType.ADDRESS,),)
+            if operand_count == 2:
+                return ( ( AssemblerOperandType.REGISTER, AssemblerOperandType.ADDRESS),)
+            return ()
+        if name == "CALL":
+            return self._signatures( operand_count, (AssemblerOperandType.ADDRESS,))
+        if name in ("SE", "SNE"):
+            return self._signatures(
+                operand_count,
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE),
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER)
+            )
+        if name == "LD":
+            return self._signatures(
+                operand_count,
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER),
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE),
+                (AssemblerOperandType.INDEX_REGISTER, AssemblerOperandType.ADDRESS),
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.DELAY_REGISTER),
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.KEY),
+                (AssemblerOperandType.DELAY_REGISTER, AssemblerOperandType.REGISTER),
+                (AssemblerOperandType.SOUND_REGISTER, AssemblerOperandType.REGISTER),
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.BCD_REGISTER),
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.FONT_REGISTER),
+                (AssemblerOperandType.INDIRECT_INDEX, AssemblerOperandType.REGISTER),
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.INDIRECT_INDEX)
+            )
+        if name == "ADD":
+            return self._signatures(
+                operand_count,
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE),
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER),
+                (AssemblerOperandType.INDEX_REGISTER, AssemblerOperandType.REGISTER)
+            )
+        if name in ("OR", "AND", "XOR", "SUB", "SHR", "SUBN", "SHL"):
+            return self._signatures(
+                operand_count,
+                (AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER)
+            )
+        if name in ("SKP", "SKNP"):
+            return self._signatures( operand_count, (AssemblerOperandType.REGISTER,))
+        if name == "RND":
+            return self._signatures( operand_count, (AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE))
+
+        if name == "DRW":
+            return self._signatures(
+                operand_count,
+                ( AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE)
+            )
+        return ()
+
+    @staticmethod
+    def _signatures( operand_count: int, *signatures: tuple[AssemblerOperandType, ...]) -> tuple[tuple[AssemblerOperandType, ...], ...]:
+        """
+        @brief Filter operand signatures by operand count.
+        """
+        return tuple( signature for signature in signatures if len(signature) == operand_count)
+
+
+    def assembler_instruction_size( self, mnemonic: str, operand_count: int) -> int:
+        signatures = self.assembler_operand_signatures( mnemonic, operand_count)
+        if not signatures:
+            return 0
+        return INSTRUCTION_SIZE
+
+
+    def instruction_size(self, instruction: AssemblerInstruction) -> int:
+        return INSTRUCTION_SIZE
 
 
     def encode(self, instruction: AssemblerInstruction) -> int:

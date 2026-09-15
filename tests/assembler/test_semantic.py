@@ -25,6 +25,7 @@ from assembler.semantic import (
     InstructionResolver,
     OperandResolver,
     SymbolCollector,
+    SymbolReferenceCollector,
 )
 from assembler.symbol import SymbolTable
 from assembler.token import SourceLocation
@@ -32,6 +33,39 @@ from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.instructionid import InstructionId
 from emulator.constants import PROGRAM_START
 from tests.helpers import create_machine
+
+
+class SymbolReferenceCollectorTest(unittest.TestCase):
+    """
+    @brief Tests for SymbolReferenceCollector.
+    """
+
+    def setUp(self) -> None:
+        self.location = SourceLocation( line=1, column=1)
+
+
+    def test_collects_instruction_symbol_reference(self) -> None:
+        symbols = SymbolTable()
+        symbols.define( "START", 0x300, SourceLocation( line=1, column=1))
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=InstructionNode(
+                        mnemonic="JP",
+                        operands=(
+                            IdentifierExpression(
+                                name="START",
+                                location=SourceLocation( line=4, column=4)
+                            ),
+                        ),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+        SymbolReferenceCollector(symbols).collect(assembly)
+        self.assertEqual( symbols.references("START"), ( SourceLocation( line=4, column=4),))
 
 
 class ExpressionEvaluatorTest(unittest.TestCase):
@@ -120,11 +154,11 @@ class SymbolCollectorTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.location = SourceLocation(line=1, column=1)
-
+        self.isa = ClassicInstructionSetArchitecture(create_machine())
 
     def test_collects_label_at_program_start(self) -> None:
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         assembly = AssemblyNode(
             lines=(
                 SourceLine( label=LabelNode( name="START", location=self.location), statement=None),
@@ -136,7 +170,7 @@ class SymbolCollectorTest(unittest.TestCase):
 
     def test_instruction_advances_address(self) -> None:
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         assembly = AssemblyNode(
             lines=(
                 SourceLine( label=None, statement=InstructionNode( mnemonic="CLS", operands=(), location=self.location)),
@@ -149,7 +183,7 @@ class SymbolCollectorTest(unittest.TestCase):
 
     def test_label_on_instruction_uses_instruction_address(self) -> None:
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         assembly = AssemblyNode(
             lines=(
                 SourceLine( label=LabelNode( name="START", location=self.location), statement=InstructionNode( mnemonic="CLS", operands=(), location=self.location)),
@@ -163,7 +197,7 @@ class SymbolCollectorTest(unittest.TestCase):
 
     def test_label_only_line_does_not_advance_address(self) -> None:
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         assembly = AssemblyNode(
             lines=(
                 SourceLine( label=LabelNode( name="START", location=self.location), statement=None),
@@ -177,7 +211,7 @@ class SymbolCollectorTest(unittest.TestCase):
 
     def test_duplicate_label_is_rejected(self) -> None:
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         assembly = AssemblyNode(
             lines=(
                 SourceLine( label=LabelNode( name="START", location=self.location), statement=None),
@@ -196,7 +230,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         collector.collect(assembly)
         self.assertEqual(symbols.lookup("START").value, 0x300)
 
@@ -210,7 +244,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         collector.collect(assembly)
         self.assertEqual( symbols.lookup("START").value, PROGRAM_START)
         self.assertEqual( symbols.lookup("NEXT").value, 0x400)
@@ -224,7 +258,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         collector.collect(assembly)
         self.assertEqual( symbols.lookup("START").value, 0x320)
 
@@ -236,7 +270,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         with self.assertRaises(ValueError):
             collector.collect(assembly)
 
@@ -248,7 +282,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         with self.assertRaises(ValueError):
             collector.collect(assembly)
 
@@ -260,7 +294,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         with self.assertRaises(ValueError):
             collector.collect(assembly)
 
@@ -268,7 +302,7 @@ class SymbolCollectorTest(unittest.TestCase):
     def test_org_rejects_negative_address(self) -> None:
         assembly = AssemblyNode( lines=( SourceLine( label=None, statement=DirectiveNode( name="ORG", operands=( LiteralExpression( value=-1, location=self.location),), location=self.location)),))
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         with self.assertRaises(ValueError):
             collector.collect(assembly)
 
@@ -284,7 +318,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         collector.collect(assembly)
         self.assertEqual(symbols.lookup("VALUE").value, 42)
 
@@ -300,7 +334,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         collector.collect(assembly)
         self.assertEqual(symbols.lookup("VALUE").value, 42)
         self.assertEqual(symbols.lookup("START").value, PROGRAM_START)
@@ -325,7 +359,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         collector.collect(assembly)
         self.assertEqual(symbols.lookup("VALUE").value, 42)
 
@@ -350,7 +384,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         collector.collect(assembly)
         self.assertEqual(symbols.lookup("BASE").value, 0x200)
         self.assertEqual(symbols.lookup("NEXT").value, 0x203)
@@ -366,7 +400,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         with self.assertRaises(ValueError):
             collector.collect(assembly)
 
@@ -381,7 +415,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         with self.assertRaises(ValueError):
             collector.collect(assembly)
 
@@ -400,7 +434,7 @@ class SymbolCollectorTest(unittest.TestCase):
             )
         )
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
         with self.assertRaises(ValueError):
             collector.collect(assembly)
 
@@ -432,7 +466,7 @@ class SymbolCollectorTest(unittest.TestCase):
         )
 
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
 
         collector.collect(assembly)
 
@@ -467,7 +501,7 @@ class SymbolCollectorTest(unittest.TestCase):
         )
 
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
 
         collector.collect(assembly)
 
@@ -498,7 +532,7 @@ class SymbolCollectorTest(unittest.TestCase):
         )
 
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
 
         collector.collect(assembly)
 
@@ -534,7 +568,7 @@ class SymbolCollectorTest(unittest.TestCase):
         )
 
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
 
         collector.collect(assembly)
 
@@ -558,7 +592,7 @@ class SymbolCollectorTest(unittest.TestCase):
         )
 
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
 
         with self.assertRaises(ValueError):
             collector.collect(assembly)
@@ -583,7 +617,7 @@ class SymbolCollectorTest(unittest.TestCase):
         )
 
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
 
         with self.assertRaises(ValueError):
             collector.collect(assembly)
@@ -608,7 +642,7 @@ class SymbolCollectorTest(unittest.TestCase):
         )
 
         symbols = SymbolTable()
-        collector = SymbolCollector(symbols)
+        collector = SymbolCollector(symbols, self.isa)
 
         with self.assertRaises(ValueError):
             collector.collect(assembly)
