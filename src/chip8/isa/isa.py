@@ -118,15 +118,24 @@ class InstructionSetArchitecture(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def assembler_operand( self, name: str) -> AssemblerOperand | None:
+        """
+        @brief Resolve an architecture-specific assembler operand name.
+        @param name
+            Operand identifier as written in the assembly source.
+        @return
+            Resolved assembler operand, or None when the name is not an
+            architecture-specific operand.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def encode(self, instruction: AssemblerInstruction) -> int:
         """
         @brief Encode an assembler instruction.
-
         @param instruction
             Instruction to encode.
-
         @return
             Raw 16-bit machine opcode.
         """
@@ -136,10 +145,8 @@ class InstructionSetArchitecture(ABC):
     def execute(self, instruction: Instruction) -> StepResult:
         """
         @brief Execute a decoded instruction.
-
         @param instruction
             Decoded instruction.
-
         @return
             Execution result.
         """
@@ -149,10 +156,8 @@ class InstructionSetArchitecture(ABC):
     def format(self, instruction: Instruction) -> str:
         """
         @brief Format a decoded instruction.
-
         @param instruction
             Decoded instruction.
-
         @return
             Assembly language representation.
         """
@@ -162,10 +167,8 @@ class InstructionSetArchitecture(ABC):
     def analyze(self, instruction: Instruction) -> InstructionAnalysis:
         """
         @brief Perform static analysis of a decoded instruction.
-
         @param instruction
             Decoded instruction.
-
         @return
             Static control-flow information for the instruction.
         """

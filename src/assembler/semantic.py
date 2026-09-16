@@ -319,7 +319,7 @@ class OperandResolver:
     @brief Resolves assembler expressions into typed operands.
     """
 
-    def __init__(self, symbols: SymbolTable) -> None:
+    def __init__(self, symbols: SymbolTable, isa: InstructionSetArchitecture) -> None:
         """
         @brief Construct an operand resolver.
 
@@ -327,7 +327,8 @@ class OperandResolver:
             Symbol table used to resolve identifiers.
         """
         self._evaluator = ExpressionEvaluator(symbols)
-        self._symbols = symbols
+        self._symbols   = symbols
+        self._isa       = isa
 
 
     def resolve( self, expression: Expression, operand_type: AssemblerOperandType) -> AssemblerOperand:
@@ -370,41 +371,26 @@ class OperandResolver:
     def _resolve_indirect( self, expression: IndirectExpression) -> AssemblerOperand:
         inner = expression.expression
         if not isinstance(inner, IdentifierExpression):
-            raise ExpressionEvaluationError( "Indirect operand must be [I].")
-        if inner.name.upper() != "I":
-            raise ExpressionEvaluationError( "Indirect operand must be [I].")
-        return AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=0)
+            raise ExpressionEvaluationError( "Indirect operand must use an architecture-specific index register.")
+        operand = self._isa.assembler_operand(inner.name)
+        if operand is None or operand.type != AssemblerOperandType.INDEX_REGISTER:
+            raise ExpressionEvaluationError( "Indirect operand must use an architecture-specific index register.")
+        return AssemblerOperand( type=AssemblerOperandType.INDIRECT_INDEX, value=operand.value)
 
     def _resolve_identifier( self, expression: IdentifierExpression, operand_type: AssemblerOperandType) -> AssemblerOperand:
         """
         @brief Resolve an identifier operand.
         """
+        architectural_operand = self._isa.assembler_operand(expression.name)
+        if architectural_operand is not None:
+            if architectural_operand.type != operand_type:
+                raise ExpressionEvaluationError(
+                    f"Operand '{expression.name}' has type "
+                    f"{architectural_operand.type.value}, expected "
+                    f"{operand_type.value}."
+                )
+            return architectural_operand
         name = expression.name.upper()
-
-        special_operands = {
-            "I": AssemblerOperandType.INDEX_REGISTER,
-            "DT": AssemblerOperandType.DELAY_REGISTER,
-            "ST": AssemblerOperandType.SOUND_REGISTER,
-            "K": AssemblerOperandType.KEY,
-            "F": AssemblerOperandType.FONT_REGISTER,
-            "B": AssemblerOperandType.BCD_REGISTER
-        }
-
-        if name in special_operands:
-            actual_type = special_operands[name]
-            if actual_type != operand_type:
-                raise ExpressionEvaluationError( f"Operand '{expression.name}' has type " f"{actual_type.value}, expected {operand_type.value}.")
-            return AssemblerOperand(type=actual_type, value=0)
-
-        if name.startswith("V") and len(name) == 2:
-            try:
-                register = int(name[1], 16)
-            except ValueError:
-                register = -1
-            if 0 <= register <= 0xF:
-                if operand_type != AssemblerOperandType.REGISTER:
-                    raise ExpressionEvaluationError( f"Register '{expression.name}' is not valid as {operand_type.value}.")
-                return AssemblerOperand( type=AssemblerOperandType.REGISTER, value=register)
         if self._symbols.contains(name):
             value = self._evaluator.evaluate(expression)
             return self._resolve_value(value, operand_type)
@@ -442,7 +428,7 @@ class InstructionResolver:
     @brief Resolves parsed instructions into assembler instructions.
     """
 
-    def __init__( self, symbols: SymbolTable, isa: AssemblerInstructionFactory) -> None:
+    def __init__( self, symbols: SymbolTable, isa: InstructionSetArchitecture) -> None:
         """
         @brief Construct an instruction resolver.
 
@@ -452,7 +438,7 @@ class InstructionResolver:
         @param isa
             Instruction-set architecture used to create the instruction.
         """
-        self._operand_resolver = OperandResolver(symbols)
+        self._operand_resolver = OperandResolver(symbols, isa)
         self._isa = isa
 
     def resolve(self, instruction: InstructionNode) -> AssemblerInstruction:

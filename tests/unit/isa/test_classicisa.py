@@ -7,6 +7,7 @@
 import unittest
 
 from assembler.instruction import AssemblerInstruction
+from assembler.operand import AssemblerOperandType
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.reference import ReferenceAccess
@@ -1008,6 +1009,14 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
         instruction = AssemblerInstruction( id=InstructionId.JP, nnn=0x1000)
         with self.assertRaises(ValueError):
             self.isa.encode(instruction)
+
+
+    def test_assembler_operand_register(self) -> None:
+        operand = self.isa.assembler_operand("V3")
+        self.assertIsNotNone(operand)
+        assert operand is not None
+        self.assertEqual(operand.type, AssemblerOperandType.REGISTER)
+        self.assertEqual(operand.value, 3)
 
 
     ###########################################################################

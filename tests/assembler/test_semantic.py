@@ -657,7 +657,8 @@ class OperandResolverTest(unittest.TestCase):
     def setUp(self) -> None:
         self.location = SourceLocation(line=1, column=1)
         self.symbols = SymbolTable()
-        self.resolver = OperandResolver(self.symbols)
+        self.isa = ClassicInstructionSetArchitecture(create_machine())
+        self.resolver = OperandResolver(self.symbols, self.isa)
 
 
     def test_resolve_register(self) -> None:
@@ -805,6 +806,12 @@ class OperandResolverTest(unittest.TestCase):
         )
         with self.assertRaises(ExpressionEvaluationError):
             self.resolver.resolve( expression, AssemblerOperandType.INDIRECT_INDEX)
+
+
+    def test_unknown_identifier_is_not_architectural_operand(self) -> None:
+        expression = IdentifierExpression( name="XYZ", location=self.location)
+        with self.assertRaises(ExpressionEvaluationError):
+            self.resolver.resolve( expression, AssemblerOperandType.REGISTER)
 
 
 class InstructionResolverTest(unittest.TestCase):

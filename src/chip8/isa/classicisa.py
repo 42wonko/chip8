@@ -547,6 +547,29 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
     def instruction_size(self, instruction: AssemblerInstruction) -> int:
         return INSTRUCTION_SIZE
 
+    def assembler_operand( self, name: str) -> AssemblerOperand | None:
+        """
+        @brief Resolve a Classic CHIP-8 assembler operand name.
+        """
+        value = name.upper()
+        special_operands = {
+            "I": AssemblerOperandType.INDEX_REGISTER,
+            "DT": AssemblerOperandType.DELAY_REGISTER,
+            "ST": AssemblerOperandType.SOUND_REGISTER,
+            "K": AssemblerOperandType.KEY,
+            "F": AssemblerOperandType.FONT_REGISTER,
+            "B": AssemblerOperandType.BCD_REGISTER
+        }
+        if value in special_operands:
+            return AssemblerOperand( type=special_operands[value], value=0)
+        if value.startswith("V") and len(value) == 2:
+            try:
+                register = int(value[1], 16)
+            except ValueError:
+                return None
+            if 0 <= register <= 0xF:
+                return AssemblerOperand( type=AssemblerOperandType.REGISTER, value=register)
+        return None
 
     def encode(self, instruction: AssemblerInstruction) -> int:
         """
