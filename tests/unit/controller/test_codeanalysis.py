@@ -42,7 +42,7 @@ class TestCodeAnalysis(unittest.TestCase):
         log_manager.configure(configuration)
         machine = create_machine()
         self.memory = machine.memory
-        isa = ClassicInstructionSetArchitecture(machine)
+        isa = ClassicInstructionSetArchitecture()
         self.analysis = CodeAnalysis(self.memory, diagnostics.reporter(DiagnosticSource.ANALYZER), log_manager.application_logger(DiagnosticSource.ANALYZER), isa)
 
 

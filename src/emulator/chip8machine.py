@@ -207,7 +207,7 @@ class Chip8Machine:
         instruction = self.fetch_instruction()
 
         try:
-            result = self.isa.execute(instruction)
+            result = self.isa.execute(self, instruction)
         except ValueError as error:
             raise NotImplementedError( f"Opcode {instruction.opcode:04X} is not implemented.") from error
         if instruction.id == InstructionId.JP_V0:

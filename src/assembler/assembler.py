@@ -22,7 +22,6 @@ from assembler.semantic import (
     SymbolReferenceCollector,
 )
 from assembler.symbol import SymbolTable
-from assembler.target import Target
 
 #from assembler.target_selector import TargetSelector
 from chip8.isa.isa import InstructionSetArchitecture
@@ -48,15 +47,12 @@ class Assembler:
         self._isa = isa
 
 
-    def assemble( self, source: str, target: Target | None, options: AssemblyOptions | None = None) -> AssemblyResult:
+    def assemble( self, source: str, options: AssemblyOptions | None = None) -> AssemblyResult:
         """
         @brief Assemble source code.
 
         @param source
             Assembly source text.
-
-        @param target
-            Target architecture selected externally, or None.
 
         @param options
             Assembly output options.

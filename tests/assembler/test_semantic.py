@@ -32,7 +32,8 @@ from assembler.token import SourceLocation
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.instructionid import InstructionId
 from emulator.constants import PROGRAM_START
-from tests.helpers import create_machine
+
+#from tests.helpers import create_machine
 
 
 class SymbolReferenceCollectorTest(unittest.TestCase):
@@ -154,7 +155,7 @@ class SymbolCollectorTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.location = SourceLocation(line=1, column=1)
-        self.isa = ClassicInstructionSetArchitecture(create_machine())
+        self.isa = ClassicInstructionSetArchitecture()
 
     def test_collects_label_at_program_start(self) -> None:
         symbols = SymbolTable()
@@ -657,7 +658,7 @@ class OperandResolverTest(unittest.TestCase):
     def setUp(self) -> None:
         self.location = SourceLocation(line=1, column=1)
         self.symbols = SymbolTable()
-        self.isa = ClassicInstructionSetArchitecture(create_machine())
+        self.isa = ClassicInstructionSetArchitecture()
         self.resolver = OperandResolver(self.symbols, self.isa)
 
 
@@ -822,7 +823,7 @@ class InstructionResolverTest(unittest.TestCase):
     def setUp(self) -> None:
         self.location = SourceLocation(line=1, column=1)
         self.symbols = SymbolTable()
-        self.isa = ClassicInstructionSetArchitecture(create_machine())
+        self.isa = ClassicInstructionSetArchitecture()
         self.resolver = InstructionResolver(self.symbols, self.isa)
 
 

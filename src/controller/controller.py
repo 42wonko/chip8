@@ -93,7 +93,7 @@ class Chip8Controller:
         self._main_window                           = MainWindow(self)
         self._main_window.breakpoint_toggled.connect( self._toggle_breakpoint)
         self._machine                               = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
-        self._isa                                   = ClassicInstructionSetArchitecture(self._machine)
+        self._isa                                   = ClassicInstructionSetArchitecture()
         self._machine.set_isa(self._isa)
         self._assembler                             = Assembler( self._assembler_diagnostics.reporter(), self._isa)    # type: ignore[arg-type]
         self._log_manager.set_isa(self._isa)
@@ -410,22 +410,20 @@ class Chip8Controller:
         if not self.ensure_assembler_source_file(source):
             return False
         try:
-            selection = self._target_selector.select(source, target)
+            self._target_selector.select(source, target)
         except TargetSelectionError as error:
             diagnostics.error(str(error))
             return False
-        result = self._assembler.assemble(source, selection.target, options)
+        result = self._assembler.assemble(source, options)
         if not result.success:
             return False
         if result.binary_image is not None:
             if self._assembler_rom_file is None:
                 return False
-#            diagnostics = self._assembler_diagnostics.reporter()
             diagnostics.info( f"Saving ROM file '{self._assembler_rom_file.name}'.")
             try:
                 self._assembler_rom_file.write_bytes(result.binary_image)
             except OSError as error:
-#                self._assembler_diagnostics.reporter().error( f"Unable to save assembler ROM '{self._assembler_rom_file.name}': {error}")
                 diagnostics.error( f"Unable to save assembler ROM '{self._assembler_rom_file.name}': {error}")
                 return False
             diagnostics.info( f"ROM file '{self._assembler_rom_file.name}' saved.")
@@ -436,7 +434,6 @@ class Chip8Controller:
             try:
                 self._assembler_listing_file.write_text( result.listing, encoding="utf-8")
             except OSError as error:
-#                self._assembler_diagnostics.reporter().error( f"Unable to save assembler listing '{self._assembler_listing_file.name}': {error}")
                 diagnostics.error( f"Unable to save assembler listing '{self._assembler_listing_file.name}': {error}")
                 return False
             diagnostics.info( f"Listing file '{self._assembler_listing_file.name}' saved.")

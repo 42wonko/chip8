@@ -14,12 +14,43 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING, Protocol
 
 from assembler.instruction import AssemblerInstruction
 from assembler.operand import AssemblerOperand, AssemblerOperandType
 from chip8.isa.instruction import Instruction
 from chip8.isa.reference import InstructionReference
 from emulator.stepresult import StepResult
+
+if TYPE_CHECKING:
+    from emulator.chip8framebuffer import Chip8Framebuffer
+    from emulator.chip8keyboard import Chip8Keyboard
+    from emulator.chip8memory import Chip8Memory
+    from emulator.chip8registers import Chip8Registers
+    from emulator.chip8stack import Chip8Stack
+    from emulator.chip8timers import Chip8Timers
+
+
+class InstructionExecutionContext(Protocol):
+    """Execution state exposed to an instruction set architecture."""
+
+    @property
+    def memory(self) -> Chip8Memory: ...
+
+    @property
+    def registers(self) -> Chip8Registers: ...
+
+    @property
+    def stack(self) -> Chip8Stack: ...
+
+    @property
+    def timers(self) -> Chip8Timers: ...
+
+    @property
+    def keyboard(self) -> Chip8Keyboard: ...
+
+    @property
+    def framebuffer(self) -> Chip8Framebuffer: ...
 
 
 class ControlFlow(StrEnum):
@@ -142,9 +173,11 @@ class InstructionSetArchitecture(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def execute(self, instruction: Instruction) -> StepResult:
+    def execute(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         """
         @brief Execute a decoded instruction.
+        @param machine
+            Execution context whose state is modified.
         @param instruction
             Decoded instruction.
         @return

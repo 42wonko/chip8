@@ -8,13 +8,13 @@ import unittest
 
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
-from assembler.target import Target
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from controller.diagnostic import DiagnosticSource
 
 #from controller.diagnostics import Diagnostics
 from controller.diagnostics import AssemblerDiagnostics
-from tests.helpers import create_machine
+
+#from tests.helpers import create_machine
 
 
 class TestAssembler(unittest.TestCase):
@@ -25,8 +25,8 @@ class TestAssembler(unittest.TestCase):
     def setUp(self) -> None:
 #        self._diagnostics = Diagnostics()
         self._diagnostics = AssemblerDiagnostics()
-        machine = create_machine()
-        self._isa = ClassicInstructionSetArchitecture(machine)
+#        machine = create_machine()
+        self._isa = ClassicInstructionSetArchitecture()
 #        self._assembler = Assembler( self._diagnostics.reporter(DiagnosticSource.ASSEMBLER), self._isa)
         self._assembler = Assembler( self._diagnostics.reporter(), self._isa)
 
@@ -42,7 +42,7 @@ class TestAssembler(unittest.TestCase):
         """
         @brief Verify that assemble() returns an assembly result.
         """
-        result = self._assembler.assemble(source="", target=Target.COSMAC)
+        result = self._assembler.assemble(source="")
         self.assertFalse(result.success)
         self.assertEqual(len(result.diagnostics), 0)
         self.assertEqual(len(self._diagnostics), 3)
@@ -60,19 +60,19 @@ class TestAssembler(unittest.TestCase):
 
 
     def test_assemble_db(self) -> None:
-        result = self._assembler.assemble( "DB 0x12, 0x34", Target.COSMAC)
+        result = self._assembler.assemble( "DB 0x12, 0x34")
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\x12\x34")
 
 
     def test_assemble_cls(self) -> None:
-        result = self._assembler.assemble( "CLS", Target.COSMAC)
+        result = self._assembler.assemble( "CLS")
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\x00\xE0")
 
 
     def test_assemble_instruction_with_label(self) -> None:
-        result = self._assembler.assemble( "START:\nJP START", Target.COSMAC)
+        result = self._assembler.assemble( "START:\nJP START")
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\x12\x00")
 
@@ -82,8 +82,7 @@ class TestAssembler(unittest.TestCase):
             "ORG 0x300\n"
             "DB 1\n"
             "ORG 0x303\n"
-            "DB 2",
-            Target.COSMAC
+            "DB 2"
         )
         self.assertTrue(result.success)
         self.assertEqual( result.binary_image, b"\x01\x00\x00\x02")
@@ -98,7 +97,7 @@ class TestAssembler(unittest.TestCase):
             "Start:\tCLS\n"
             "jp Start\n"
         )
-        result = self._assembler.assemble( source, Target.COSMAC)
+        result = self._assembler.assemble( source)
         self.assertTrue(result.success)
 
 
@@ -111,7 +110,7 @@ class TestAssembler(unittest.TestCase):
             "Start: CLS\n"
             "JP Start\n"
         )
-        result = self._assembler.assemble( source, Target.COSMAC, AssemblyOptions(generate_listing=True))
+        result = self._assembler.assemble( source, AssemblyOptions(generate_listing=True))
         self.assertTrue(result.success)
         self.assertIsNotNone(result.listing)
         assert result.listing is not None
@@ -122,37 +121,37 @@ class TestAssembler(unittest.TestCase):
         self.assertIn("12 00", result.listing)
 
     def test_ld_vx_indirect_i(self) -> None:
-        result = self._assembler.assemble("LD V2, [I]", Target.COSMAC)
+        result = self._assembler.assemble("LD V2, [I]")
         self.assertTrue(result.success)
         self.assertEqual( result.binary_image, bytes([0xF2, 0x65]))
 
     def test_ld_indirect_i_vx(self) -> None:
-        result = self._assembler.assemble("LD [I], V2", Target.COSMAC)
+        result = self._assembler.assemble("LD [I], V2")
         self.assertTrue(result.success)
         self.assertEqual( result.binary_image, bytes([0xF2, 0x55]))
 
     def test_assemble_rnd_instruction(self) -> None:
-        result = self._assembler.assemble("RND V1, 0xFF", Target.COSMAC)
+        result = self._assembler.assemble("RND V1, 0xFF")
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, bytes([0xC1, 0xFF]))
 
     def test_assemble_drw_instruction(self) -> None:
-        result = self._assembler.assemble("DRW V1, V2, 5", Target.COSMAC)
+        result = self._assembler.assemble("DRW V1, V2, 5")
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, bytes([0xD1, 0x25]))
 
     def test_assemble_rnd_rejects_invalid_operands(self) -> None:
-        result = self._assembler.assemble("RND V1, V2", Target.COSMAC)
+        result = self._assembler.assemble("RND V1, V2")
         self.assertFalse(result.success)
 
 
     def test_assemble_drw_rejects_invalid_operands(self) -> None:
-        result = self._assembler.assemble("DRW V1, 5, 3", Target.COSMAC)
+        result = self._assembler.assemble("DRW V1, 5, 3")
         self.assertFalse(result.success)
 
 
     def test_assemble_reports_progress(self) -> None:
-        result = self._assembler.assemble("CLS", Target.COSMAC)
+        result = self._assembler.assemble("CLS")
 
         self.assertTrue(result.success)
 
@@ -170,7 +169,7 @@ class TestAssembler(unittest.TestCase):
 
     def test_assemble_reports_listing_and_cross_reference_progress(self) -> None:
         options = AssemblyOptions( generate_listing=True, generate_cross_reference=True)
-        result = self._assembler.assemble("CLS", Target.COSMAC, options)
+        result = self._assembler.assemble("CLS", options)
         self.assertTrue(result.success)
         messages = [diagnostic.message for diagnostic in self._diagnostics]
         self.assertEqual(
@@ -186,7 +185,7 @@ class TestAssembler(unittest.TestCase):
         )
 
     def test_assemble_reports_progress_before_parse_error(self) -> None:
-        result = self._assembler.assemble("", Target.COSMAC)
+        result = self._assembler.assemble("")
         self.assertFalse(result.success)
         messages = [diagnostic.message for diagnostic in self._diagnostics]
         self.assertEqual(
@@ -203,7 +202,7 @@ class TestAssembler(unittest.TestCase):
         """
         @brief Verify that a semantic instruction error contains its source line.
         """
-        result = self._assembler.assemble( "CLS\n" "SUB V3, 1\n", Target.COSMAC)
+        result = self._assembler.assemble( "CLS\n" "SUB V3, 1\n")
         self.assertFalse(result.success)
         self.assertEqual(len(self._diagnostics), 4)
         diagnostic = self._diagnostics[-1]
@@ -220,8 +219,7 @@ class TestAssembler(unittest.TestCase):
             "CLS\n"
             "LD V1, 5\n"
             "SUB V3, 1\n"
-            "RET\n",
-            Target.COSMAC
+            "RET\n"
         )
         self.assertFalse(result.success)
         diagnostic = self._diagnostics[-1]

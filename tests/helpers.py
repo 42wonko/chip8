@@ -58,7 +58,7 @@ def create_machine() -> Chip8Machine:
     log_manager = LogManager()
     diagnostics = Diagnostics()
     machine =  Chip8Machine(diagnostics.reporter(DiagnosticSource.UNIT_TEST), log_manager.application_logger(DiagnosticSource.UNIT_TEST), log_manager.execution_trace_reporter())
-    isa = ClassicInstructionSetArchitecture(machine)
+    isa = ClassicInstructionSetArchitecture()
     machine.set_isa(isa)
     return machine
 
