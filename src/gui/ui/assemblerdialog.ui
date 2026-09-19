@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>730</width>
-    <height>637</height>
+    <height>640</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -214,6 +214,9 @@
          </property>
          <property name="frameShadow">
           <enum>QFrame::Shadow::Plain</enum>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
          </property>
         </widget>
        </item>

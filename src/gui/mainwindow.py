@@ -35,17 +35,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
-from PyQt6.QtCore import QModelIndex, QPoint, QSettings, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QModelIndex, QObject, QPoint, QSettings, Qt, pyqtSignal
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QDialog,
-    QHeaderView,
-    QMainWindow,
-    QMessageBox,
-    QStatusBar,
-)
-
+from PyQt6.QtWidgets import QAbstractItemView, QApplication, QDialog, QHeaderView, QMainWindow, QMessageBox, QStatusBar
 from chip8.settingsmanager import SettingsManager
 from gui.assemblerdialog import AssemblerDialog
 from gui.codetablemodel import CodeTableModel
@@ -326,6 +318,31 @@ class MainWindow(QMainWindow):
         self._assembler_dialog.raise_()
         self._assembler_dialog.activateWindow()
 
+    def eventFilter(self, watched: QObject | None, event: QEvent | None) -> bool:
+        """
+        @brief Handle keyboard events for the assembler dialog controls.
+        """
+        if watched is self.diagnosticsListWidget and event is not None:
+            if event.type() == QEvent.Type.KeyPress:
+                key_event = event
+                if isinstance(key_event, QKeyEvent):
+                    if ( key_event.key() == Qt.Key.Key_C and key_event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+                        self._copy_selected_diagnostics()
+                        return True
+        return super().eventFilter(watched, event)
+
+    def _copy_selected_diagnostics(self) -> None:
+        """
+        @brief Copy the selected assembler diagnostics to the clipboard.
+        """
+        selected_items = self.diagnosticsListWidget.selectedItems()
+        if not selected_items:
+            return
+        text = "\n".join(item.text() for item in selected_items)
+        clipboard = QApplication.clipboard()
+        if clipboard is None:
+            return
+        clipboard.setText(text)
 
     @property
     def register_labels(self) -> list:
@@ -373,3 +390,6 @@ class MainWindow(QMainWindow):
         self.debuggerControlGroupBox.toggled.connect(self._controller.debugger.enable)
         self.dbgStepOverPushButton.clicked.connect( self._controller.step_over)
         self.dbgStepOutPushButton.clicked.connect( self._controller.step_out)
+
+        self.diagnosticsListWidget.installEventFilter(self)
+

@@ -11,6 +11,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
+from PyQt6.QtCore import QEvent, Qt
+from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import QApplication
 
 from assembler.assembler import Assembler
@@ -301,5 +303,32 @@ class TestAssemblerDialog(unittest.TestCase):
         self.dialog._assemble()
         self.controller.ensure_assembler_source_file.assert_not_called()
         self.controller.assemble_source.assert_called_once()
+
+# tests/gui/test_assemblerdialog.py — TestAssemblerDialog.test_copy_selected_diagnostics()
+    def test_copy_selected_diagnostics(self) -> None:
+        """
+        @brief Verify that selected assembler diagnostics are copied.
+        """
+        self.dialog.asmDiagnosticsListWidget.addItem("ERR  line 12: First error.")
+        self.dialog.asmDiagnosticsListWidget.addItem("ERR  line 20: Second error.")
+        self.dialog.asmDiagnosticsListWidget.setCurrentRow(0)
+        self.dialog._copy_selected_diagnostics()
+        self.assertEqual( QApplication.clipboard().text(), "ERR  line 12: First error.")
+
+# tests/gui/test_assemblerdialog.py — TestAssemblerDialog.test_copy_selected_diagnostics_with_ctrl_c()
+    def test_copy_selected_diagnostics_with_ctrl_c(self) -> None:
+        """
+        @brief Verify that Ctrl+C copies the selected assembler diagnostic.
+        """
+        self.dialog.asmDiagnosticsListWidget.addItem("ERR  line 12: First error.")
+        self.dialog.asmDiagnosticsListWidget.setCurrentRow(0)
+        self.dialog.asmDiagnosticsListWidget.setFocus()
+        event = QKeyEvent(
+            QEvent.Type.KeyPress,
+            Qt.Key.Key_C,
+            Qt.KeyboardModifier.ControlModifier
+        )
+        self.dialog.eventFilter(self.dialog.asmDiagnosticsListWidget, event)
+        self.assertEqual( QApplication.clipboard().text(), "ERR  line 12: First error.")
 
 

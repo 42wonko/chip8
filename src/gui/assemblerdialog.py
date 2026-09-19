@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PyQt6 import uic
-from PyQt6.QtWidgets import QDialog, QWidget
+from PyQt6.QtCore import QEvent, QObject, Qt
+from PyQt6.QtGui import QKeyEvent
+from PyQt6.QtWidgets import QApplication, QDialog, QWidget
 
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
@@ -66,6 +68,7 @@ class AssemblerDialog(QDialog):
         self.asmLoadPushButton.clicked.connect(self._load)
         self.asmOutputSaveCheckBox.toggled.connect(self._cross_reference_toggled)
         self.asmOutputSaveCheckBox.setChecked(False)
+        self.asmDiagnosticsListWidget.installEventFilter(self)
 
     def _cross_reference_toggled(self, checked: bool) -> None:
         """
@@ -170,16 +173,36 @@ class AssemblerDialog(QDialog):
         @brief Display assembler diagnostics.
         """
         self.asmDiagnosticsListWidget.clear()
-
         if self._diagnostics is None:
             return
-
         for diagnostic in self._diagnostics:
             text = diagnostic.message
-
             if diagnostic.location is not None:
                 text = f"ERR  line {diagnostic.location.line}: {text}"
-
             self.asmDiagnosticsListWidget.addItem(text)
 
+    def eventFilter(self, watched: QObject | None, event: QEvent | None) -> bool:
+        """
+        @brief Handle keyboard events for the assembler dialog controls.
+        """
+        if watched is self.asmDiagnosticsListWidget and event is not None:
+            if event.type() == QEvent.Type.KeyPress:
+                key_event = event
+                if isinstance(key_event, QKeyEvent):
+                    if ( key_event.key() == Qt.Key.Key_C and key_event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+                        self._copy_selected_diagnostics()
+                        return True
+        return super().eventFilter(watched, event)
 
+    def _copy_selected_diagnostics(self) -> None:
+        """
+        @brief Copy the selected assembler diagnostics to the clipboard.
+        """
+        selected_items = self.asmDiagnosticsListWidget.selectedItems()
+        if not selected_items:
+            return
+        text = "\n".join(item.text() for item in selected_items)
+        clipboard = QApplication.clipboard()
+        if clipboard is None:
+            return
+        clipboard.setText(text)
