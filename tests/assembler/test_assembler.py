@@ -228,6 +228,27 @@ class TestAssembler(unittest.TestCase):
         assert diagnostic.location is not None
         self.assertEqual(diagnostic.location.line, 3)
 
+    def test_ld_f_vx(self) -> None:
+        result = self._assembler.assemble("LD F, V2")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, bytes([0xF2, 0x29]))
+
+    def test_ld_b_vx(self) -> None:
+        result = self._assembler.assemble("LD B, V2")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, bytes([0xF2, 0x33]))
+
+    def test_ld_i_nnn(self) -> None:
+        result = self._assembler.assemble("LD I, 0x300")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, bytes([0xA3, 0x00]))
+
+    def test_add_i_vx(self) -> None:
+        result = self._assembler.assemble("ADD I, V2")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, bytes([0xF2, 0x1E]))
+
+
 
 if __name__ == "__main__":
     unittest.main()

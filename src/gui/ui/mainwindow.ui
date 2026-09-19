@@ -898,6 +898,9 @@
                  <property name="autoScrollMargin">
                   <number>8</number>
                  </property>
+                 <property name="selectionMode">
+                  <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+                 </property>
                 </widget>
                </item>
               </layout>

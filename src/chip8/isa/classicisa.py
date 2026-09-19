@@ -506,8 +506,8 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
                 (AssemblerOperandType.REGISTER, AssemblerOperandType.KEY),
                 (AssemblerOperandType.DELAY_REGISTER, AssemblerOperandType.REGISTER),
                 (AssemblerOperandType.SOUND_REGISTER, AssemblerOperandType.REGISTER),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.BCD_REGISTER),
-                (AssemblerOperandType.REGISTER, AssemblerOperandType.FONT_REGISTER),
+                (AssemblerOperandType.BCD_REGISTER, AssemblerOperandType.REGISTER),
+                (AssemblerOperandType.FONT_REGISTER, AssemblerOperandType.REGISTER),
                 (AssemblerOperandType.INDIRECT_INDEX, AssemblerOperandType.REGISTER),
                 (AssemblerOperandType.REGISTER, AssemblerOperandType.INDIRECT_INDEX)
             )

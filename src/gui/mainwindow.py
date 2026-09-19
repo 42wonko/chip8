@@ -37,7 +37,16 @@ from typing import TYPE_CHECKING, cast
 from PyQt6 import uic
 from PyQt6.QtCore import QEvent, QModelIndex, QObject, QPoint, QSettings, Qt, pyqtSignal
 from PyQt6.QtGui import QFontDatabase, QKeyEvent
-from PyQt6.QtWidgets import QAbstractItemView, QApplication, QDialog, QHeaderView, QMainWindow, QMessageBox, QStatusBar
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QDialog,
+    QHeaderView,
+    QMainWindow,
+    QMessageBox,
+    QStatusBar,
+)
+
 from chip8.settingsmanager import SettingsManager
 from gui.assemblerdialog import AssemblerDialog
 from gui.codetablemodel import CodeTableModel
