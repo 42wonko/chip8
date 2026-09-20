@@ -69,13 +69,15 @@ class SymbolCollector:
                         address = self._resolve_org(statement, evaluator)
                         continue
                     if source_line.label is not None:
-                        self._symbols.define( source_line.label.name, address, source_line.label.location)
+                        self._define_symbol( source_line.label.name, address, source_line.label.location)
                     if name == "DB":
                         address += self._resolve_db_size(statement, evaluator)
                         continue
                     if name == "TARGET":
                         continue
                     raise ValueError( f"Unsupported directive '{statement.name}'.")
+            except SemanticAnalysisError:
+                raise
             except ValueError as error:
                 if statement is not None:
                     raise SemanticAnalysisError( str(error), statement.location) from error
@@ -83,7 +85,7 @@ class SymbolCollector:
                     raise SemanticAnalysisError( str(error), source_line.label.location) from error
                 raise
             if source_line.label is not None:
-                self._symbols.define( source_line.label.name, address, source_line.label.location)
+                self._define_symbol( source_line.label.name, address, source_line.label.location)
             if statement is None:
                 continue
             if isinstance(statement, InstructionNode):
@@ -129,8 +131,18 @@ class SymbolCollector:
         if len(statement.operands) != 1:
             raise ValueError("EQU requires exactly one operand.")
         value = evaluator.evaluate(statement.operands[0])
-        self._symbols.define( source_line.label.name, value, source_line.label.location)
+        self._define_symbol( source_line.label.name, value, source_line.label.location)
 
+    def _define_symbol( self, name: str, value: int, location: SourceLocation) -> None:
+        """
+        @brief Define a symbol after validating its name.
+        """
+        if self._isa.assembler_operand(name) is not None:
+            raise SemanticAnalysisError( f"Assembler operand '{name}' cannot be used as a symbol name.", location)
+        try:
+            self._symbols.define(name, value, location)
+        except ValueError as error:
+            raise SemanticAnalysisError(str(error), location) from error
 
     def _resolve_db_size( self, directive: DirectiveNode, evaluator: ExpressionEvaluator) -> int:
         """

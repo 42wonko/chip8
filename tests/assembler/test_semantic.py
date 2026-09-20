@@ -16,7 +16,7 @@ from assembler.ast import (
     InstructionNode,
     LabelNode,
     LiteralExpression,
-    SourceLine,
+    SourceLine
 )
 from assembler.operand import AssemblerOperandType
 from assembler.semantic import (
@@ -24,8 +24,9 @@ from assembler.semantic import (
     ExpressionEvaluator,
     InstructionResolver,
     OperandResolver,
+    SemanticAnalysisError,
     SymbolCollector,
-    SymbolReferenceCollector,
+    SymbolReferenceCollector
 )
 from assembler.symbol import SymbolTable
 from assembler.token import SourceLocation
@@ -210,17 +211,127 @@ class SymbolCollectorTest(unittest.TestCase):
         self.assertEqual( symbols.lookup("NEXT").value, 0x200)
 
 
-    def test_duplicate_label_is_rejected(self) -> None:
+#    def test_duplicate_label_is_rejected(self) -> None:
+#        symbols = SymbolTable()
+#        collector = SymbolCollector(symbols, self.isa)
+#        assembly = AssemblyNode(
+#            lines=(
+#                SourceLine( label=LabelNode( name="START", location=self.location), statement=None),
+#                SourceLine( label=LabelNode( name="START", location=self.location), statement=None),
+#            )
+#        )
+#        with self.assertRaises(ValueError):
+#            collector.collect(assembly)
+
+    def test_duplicate_label_reports_second_definition_location(self) -> None:
         symbols = SymbolTable()
         collector = SymbolCollector(symbols, self.isa)
+        first_location = SourceLocation(line=1, column=1)
+        second_location = SourceLocation(line=2, column=1)
         assembly = AssemblyNode(
             lines=(
-                SourceLine( label=LabelNode( name="START", location=self.location), statement=None),
-                SourceLine( label=LabelNode( name="START", location=self.location), statement=None),
+                SourceLine(label=LabelNode(name="START", location=first_location), statement=None),
+                SourceLine(label=LabelNode(name="START", location=second_location), statement=None),
             )
         )
-        with self.assertRaises(ValueError):
+        with self.assertRaises(SemanticAnalysisError) as context:
             collector.collect(assembly)
+        self.assertEqual(str(context.exception), "Symbol 'START' is already defined.")
+        self.assertEqual(context.exception.location, second_location)
+        self.assertEqual(symbols.lookup("START").location, first_location)
+
+    def test_duplicate_equ_reports_second_definition_location(self) -> None:
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols, self.isa)
+        first_location = SourceLocation(line=1, column=1)
+        second_location = SourceLocation(line=2, column=1)
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="VALUE", location=first_location),
+                    statement=DirectiveNode(
+                        name="EQU",
+                        operands=(LiteralExpression(value=1, location=first_location),),
+                        location=first_location
+                    )
+                ),
+                SourceLine(
+                    label=LabelNode(name="VALUE", location=second_location),
+                    statement=DirectiveNode(
+                        name="EQU",
+                        operands=(LiteralExpression(value=2, location=second_location),),
+                        location=second_location
+                    )
+                ),
+            )
+        )
+        with self.assertRaises(SemanticAnalysisError) as context:
+            collector.collect(assembly)
+        self.assertEqual(str(context.exception), "Symbol 'VALUE' is already defined.")
+        self.assertEqual(context.exception.location, second_location)
+        self.assertEqual(symbols.lookup("VALUE").value, 1)
+
+    def test_label_then_equ_duplicate_reports_second_definition_location(self) -> None:
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols, self.isa)
+        first_location = SourceLocation(line=1, column=1)
+        second_location = SourceLocation(line=2, column=1)
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(label=LabelNode(name="VALUE", location=first_location), statement=None),
+                SourceLine(
+                    label=LabelNode(name="VALUE", location=second_location),
+                    statement=DirectiveNode(
+                        name="EQU",
+                        operands=(LiteralExpression(value=42, location=second_location),),
+                        location=second_location
+                    )
+                ),
+            )
+        )
+        with self.assertRaises(SemanticAnalysisError) as context:
+            collector.collect(assembly)
+        self.assertEqual(context.exception.location, second_location)
+        self.assertEqual(symbols.lookup("VALUE").value, PROGRAM_START)
+
+    def test_equ_then_label_duplicate_reports_second_definition_location(self) -> None:
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols, self.isa)
+        first_location = SourceLocation(line=1, column=1)
+        second_location = SourceLocation(line=2, column=1)
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="VALUE", location=first_location),
+                    statement=DirectiveNode(
+                        name="EQU",
+                        operands=(LiteralExpression(value=42, location=first_location),),
+                        location=first_location
+                    )
+                ),
+                SourceLine(label=LabelNode(name="VALUE", location=second_location), statement=None),
+            )
+        )
+        with self.assertRaises(SemanticAnalysisError) as context:
+            collector.collect(assembly)
+        self.assertEqual(context.exception.location, second_location)
+        self.assertEqual(symbols.lookup("VALUE").value, 42)
+
+    def test_duplicate_symbol_is_case_insensitive(self) -> None:
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols, self.isa)
+        first_location = SourceLocation(line=1, column=1)
+        second_location = SourceLocation(line=2, column=1)
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(label=LabelNode(name="start", location=first_location), statement=None),
+                SourceLine(label=LabelNode(name="START", location=second_location), statement=None),
+            )
+        )
+        with self.assertRaises(SemanticAnalysisError) as context:
+            collector.collect(assembly)
+        self.assertEqual(context.exception.location, second_location)
+        self.assertEqual(symbols.lookup("START").name, "start")
 
 
     def test_org_changes_address(self) -> None:
@@ -647,6 +758,50 @@ class SymbolCollectorTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             collector.collect(assembly)
+
+
+    def test_rejects_assembler_operands_as_labels(self) -> None:
+        for name in ("I", "DT", "ST", "K", "F", "B", "V0", "VF", "i", "dt", "v0"):
+            with self.subTest(name=name):
+                symbols = SymbolTable()
+                collector = SymbolCollector(symbols, self.isa)
+                assembly = AssemblyNode(
+                    lines=(
+                        SourceLine(
+                            label=LabelNode(name=name, location=self.location),
+                            statement=None
+                        ),
+                    )
+                )
+                with self.assertRaises(ValueError):
+                    collector.collect(assembly)
+
+
+    def test_rejects_assembler_operands_as_equ_symbols(self) -> None:
+        for name in ("I", "DT", "ST", "K", "F", "B", "V0", "VF", "i", "dt", "v0"):
+            with self.subTest(name=name):
+                symbols = SymbolTable()
+                collector = SymbolCollector(symbols, self.isa)
+                assembly = AssemblyNode(
+                    lines=(
+                        SourceLine(
+                            label=LabelNode(name=name, location=self.location),
+                            statement=DirectiveNode(
+                                name="EQU",
+                                operands=(
+                                    LiteralExpression(
+                                        value=42,
+                                        location=self.location
+                                    ),
+                                ),
+                                location=self.location
+                            )
+                        ),
+                    )
+                )
+                with self.assertRaises(ValueError):
+                    collector.collect(assembly)
+
 
 
 

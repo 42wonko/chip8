@@ -249,6 +249,101 @@ class TestAssembler(unittest.TestCase):
         self.assertEqual(result.binary_image, bytes([0xF2, 0x1E]))
 
 
+    def test_assembler_rejects_special_operand_as_label(self) -> None:
+        result = self._assembler.assemble(
+            "CLS\n"
+            "I: RET\n"
+        )
+
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertEqual(
+            diagnostic.message,
+            "Assembler operand 'I' cannot be used as a symbol name."
+        )
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 2)
+
+    def test_assembler_rejects_special_operand_as_equ_symbol(self) -> None:
+        result = self._assembler.assemble(
+            "CLS\n"
+            "DT: EQU 42\n"
+        )
+
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertEqual(
+            diagnostic.message,
+            "Assembler operand 'DT' cannot be used as a symbol name."
+        )
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 2)
+
+    def test_duplicate_label_reports_second_definition_line(self) -> None:
+        result = self._assembler.assemble(
+            "START: CLS\n"
+            "START: RET\n"
+        )
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertEqual(diagnostic.message, "Symbol 'START' is already defined.")
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 2)
+
+
+    def test_duplicate_equ_reports_second_definition_line(self) -> None:
+        result = self._assembler.assemble(
+            "VALUE: EQU 1\n"
+            "VALUE: EQU 2\n"
+        )
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertEqual(diagnostic.message, "Symbol 'VALUE' is already defined.")
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 2)
+
+
+    def test_label_then_equ_duplicate_reports_second_definition_line(self) -> None:
+        result = self._assembler.assemble(
+            "VALUE: CLS\n"
+            "VALUE: EQU 42\n"
+        )
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertEqual(diagnostic.message, "Symbol 'VALUE' is already defined.")
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 2)
+
+
+    def test_equ_then_label_duplicate_reports_second_definition_line(self) -> None:
+        result = self._assembler.assemble(
+            "VALUE: EQU 42\n"
+            "VALUE: CLS\n"
+        )
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertEqual(diagnostic.message, "Symbol 'VALUE' is already defined.")
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 2)
+
+
+    def test_duplicate_symbol_is_case_insensitive(self) -> None:
+        result = self._assembler.assemble(
+            "start: CLS\n"
+            "START: RET\n"
+        )
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertEqual(diagnostic.message, "Symbol 'START' is already defined.")
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 2)
 
 if __name__ == "__main__":
     unittest.main()
