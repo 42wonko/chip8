@@ -17,6 +17,7 @@ from assembler.ast import (
 )
 from assembler.instruction import AssemblerInstruction
 from assembler.semantic import (
+    ExpressionEvaluationError,
     ExpressionEvaluator,
     InstructionResolver,
     SemanticAnalysisError,
@@ -107,15 +108,14 @@ class CodeGenerator:
             if isinstance(statement, InstructionNode):
                 try:
                     instruction = self._instruction_resolver.resolve(statement)
+                except ExpressionEvaluationError as error:
+                    location = error.location if error.location is not None else statement.location
+                    raise SemanticAnalysisError( str(error), location) from error
                 except ValueError as error:
-                    raise SemanticAnalysisError(
-                        str(error),
-                        statement.location
-                    ) from error
+                    raise SemanticAnalysisError( str(error), statement.location) from error
                 if self._reference_collector is not None:
                     references = self._instruction_resolver.instruction_references( instruction)
-                    self._reference_collector.add_instruction_references(
-                        instruction, statement.location, references
+                    self._reference_collector.add_instruction_references( instruction, statement.location, references
                     )
                 opcode = self._encoder.encode(instruction)
                 self._write_word(image, address, opcode)

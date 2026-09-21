@@ -345,6 +345,163 @@ class TestAssembler(unittest.TestCase):
         assert diagnostic.location is not None
         self.assertEqual(diagnostic.location.line, 2)
 
+
+    def test_undefined_symbol_reports_identifier_location(self) -> None:
+        result = self._assembler.assemble("JP MISSING\n")
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 4)
+
+
+    def test_undefined_symbol_in_expression_reports_identifier_location(self) -> None:
+        result = self._assembler.assemble("JP MISSING + 1\n")
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 4)
+
+
+    def test_undefined_symbol_in_org_reports_identifier_location(self) -> None:
+        result = self._assembler.assemble("ORG MISSING\n")
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 5)
+
+
+    def test_undefined_symbol_in_call_reports_identifier_location(self) -> None:
+        result = self._assembler.assemble("CALL MISSING\n")
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 6)
+
+
+    def test_undefined_symbol_in_load_reports_identifier_location(self) -> None:
+        result = self._assembler.assemble("LD V1, MISSING\n")
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 8)
+
+
+    def test_undefined_symbol_in_db_reports_identifier_location(self) -> None:
+        result = self._assembler.assemble("DB MISSING\n")
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 4)
+
+
+    def test_undefined_symbol_in_equ_reports_identifier_location(self) -> None:
+        result = self._assembler.assemble("VALUE: EQU MISSING\n")
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 12)
+
+
+    def test_undefined_symbol_in_equ_expression_reports_identifier_location(self) -> None:
+        result = self._assembler.assemble("VALUE: EQU MISSING + 1\n")
+        self.assertFalse(result.success)
+        diagnostic = self._diagnostics[-1]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 12)
+
+    def test_failed_symbol_definition_does_not_create_symbol(self) -> None:
+        result = self._assembler.assemble(
+            "VALUE: EQU MISSING\n"
+            "JP VALUE\n"
+        )
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        diagnostic = result.diagnostics[0]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 12)
+
+    def test_forward_label_reference(self) -> None:
+        """
+        @brief Verify that an instruction can reference a label defined later.
+        """
+        result = self._assembler.assemble(
+            "JP TARGET\n"
+            "TARGET: CLS"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x12\x02\x00\xE0")
+
+    def test_forward_label_reference_is_in_cross_reference(self) -> None:
+        """
+        @brief Verify that a forward label reference appears in the cross-reference.
+        """
+        result = self._assembler.assemble(
+            "JP TARGET\n"
+            "TARGET: CLS",
+            AssemblyOptions( generate_listing=True, generate_cross_reference=True)
+        )
+        self.assertTrue(result.success)
+        self.assertIsNotNone(result.listing)
+        assert result.listing is not None
+        self.assertIn( "TARGET        Symbol      --            2           1", result.listing)
+
+    def test_org_accepts_maximum_address(self) -> None:
+        result = self._assembler.assemble(
+            "ORG 0xFFFF\n"
+            "CLS"
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x00\xE0")
+
+    def test_org_rejects_address_above_maximum(self) -> None:
+        result = self._assembler.assemble("ORG 0x10000")
+
+        self.assertFalse(result.success)
+
+    def test_org_rejects_negative_address(self) -> None:
+        result = self._assembler.assemble("ORG -1")
+
+        self.assertFalse(result.success)
+
+    def test_org_accepts_expression_at_maximum_address(self) -> None:
+        result = self._assembler.assemble(
+            "BASE: EQU 0xFFFE\n"
+            "ORG BASE + 1\n"
+            "CLS"
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x00\xE0")
+
+    def test_org_rejects_expression_above_maximum_address(self) -> None:
+        result = self._assembler.assemble(
+            "BASE: EQU 0xFFFF\n"
+            "ORG BASE + 1"
+        )
+
+        self.assertFalse(result.success)
+
+
+
 if __name__ == "__main__":
     unittest.main()
 

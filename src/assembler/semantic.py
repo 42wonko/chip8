@@ -78,6 +78,16 @@ class SymbolCollector:
                     raise ValueError( f"Unsupported directive '{statement.name}'.")
             except SemanticAnalysisError:
                 raise
+            except ExpressionEvaluationError as error:
+                location = error.location
+                if location is None:
+                    if statement is not None:
+                        location = statement.location
+                    elif source_line.label is not None:
+                        location = source_line.label.location
+                    else:
+                        raise SemanticAnalysisError( str(error), source_line.location) from error
+                raise SemanticAnalysisError(str(error), location) from error
             except ValueError as error:
                 if statement is not None:
                     raise SemanticAnalysisError( str(error), statement.location) from error
@@ -111,10 +121,7 @@ class SymbolCollector:
         """
         if len(directive.operands) != 1:
             raise ValueError("ORG requires exactly one operand.")
-        try:
-            address = evaluator.evaluate(directive.operands[0])
-        except ValueError as error:
-            raise ValueError( "ORG operand must be an evaluatable integer expression.") from error
+        address = evaluator.evaluate(directive.operands[0])
         if not 0 <= address <= 0xFFFF:
             raise ValueError( "ORG address must be in the range 0x0000 to 0xFFFF.")
         return address
@@ -274,6 +281,9 @@ class ExpressionEvaluationError(ValueError):
     """
     @brief Raised when an assembler expression cannot be evaluated.
     """
+    def __init__( self, message: str, location: SourceLocation | None = None) -> None:
+        super().__init__(message)
+        self.location = location
 
 
 class ExpressionEvaluator:
@@ -307,10 +317,14 @@ class ExpressionEvaluator:
                 raise ExpressionEvaluationError( "String literals cannot be evaluated as integers.")
             return expression.value
         if isinstance(expression, IdentifierExpression):
-            return self._symbols.lookup(expression.name).value
+            try:
+                return self._symbols.lookup(expression.name).value
+            except ValueError as error:
+                raise ExpressionEvaluationError( str(error), expression.location) from error
         if isinstance(expression, BinaryExpression):
             return self._evaluate_binary(expression)
         raise ExpressionEvaluationError( f"Unsupported expression type: {type(expression).__name__}")
+
 
     def _evaluate_binary(self, expression: BinaryExpression) -> int:
         """
@@ -406,7 +420,7 @@ class OperandResolver:
         if self._symbols.contains(name):
             value = self._evaluator.evaluate(expression)
             return self._resolve_value(value, operand_type)
-        raise ExpressionEvaluationError( f"Unknown assembler operand '{expression.name}'.")
+        raise ExpressionEvaluationError( f"Unknown assembler operand '{expression.name}'.", expression.location)
 
 
     def _resolve_value( self, value: int, operand_type: AssemblerOperandType) -> AssemblerOperand:

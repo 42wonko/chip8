@@ -25,6 +25,11 @@ from assembler.symbol import SymbolTable
 
 #from assembler.target_selector import TargetSelector
 from chip8.isa.isa import InstructionSetArchitecture
+from controller.diagnostic import (
+    AssemblerDiagnostic,
+    DiagnosticSeverity,
+    DiagnosticSource,
+)
 from controller.diagnostics import AssemblerDiagnosticsReporter
 
 
@@ -94,7 +99,17 @@ class Assembler:
             return AssemblyResult( success=True, binary_image=binary_image, listing=listing)
         except SemanticAnalysisError as error:
             self._diagnostics.error(str(error), error.location)
-            return AssemblyResult(success=False)
+            return AssemblyResult(
+                success=False,
+                diagnostics=(
+                    AssemblerDiagnostic(
+                        severity=DiagnosticSeverity.ERROR,
+                        source=DiagnosticSource.ASSEMBLER,
+                        message=str(error),
+                        location=error.location
+                    ),
+                )
+            )
         except (ValueError, TypeError) as error:
             self._diagnostics.error(str(error))
             return AssemblyResult(success=False)

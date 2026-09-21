@@ -16,7 +16,7 @@ from assembler.ast import (
     InstructionNode,
     LabelNode,
     LiteralExpression,
-    SourceLine
+    SourceLine,
 )
 from assembler.operand import AssemblerOperandType
 from assembler.semantic import (
@@ -26,7 +26,7 @@ from assembler.semantic import (
     OperandResolver,
     SemanticAnalysisError,
     SymbolCollector,
-    SymbolReferenceCollector
+    SymbolReferenceCollector,
 )
 from assembler.symbol import SymbolTable
 from assembler.token import SourceLocation
@@ -97,10 +97,12 @@ class ExpressionEvaluatorTest(unittest.TestCase):
         self.assertEqual( self.evaluator.evaluate(expression), 0x200,)
 
 
-    def test_evaluate_undefined_identifier(self) -> None:
-        expression = IdentifierExpression( name="MISSING", location=self.location,)
-        with self.assertRaises(ValueError):
+    def test_evaluate_undefined_identifier_reports_location(self) -> None:
+        location = SourceLocation(line=3, column=7)
+        expression = IdentifierExpression(name="MISSING", location=location)
+        with self.assertRaises(ExpressionEvaluationError) as context:
             self.evaluator.evaluate(expression)
+        self.assertEqual(context.exception.location, location)
 
 
     def test_evaluate_addition(self) -> None:
@@ -903,10 +905,12 @@ class OperandResolverTest(unittest.TestCase):
             self.resolver.resolve( expression, AssemblerOperandType.VALUE)
 
 
-    def test_resolve_unknown_identifier_is_rejected(self) -> None:
-        expression = IdentifierExpression( name="MISSING", location=self.location)
-        with self.assertRaises(ExpressionEvaluationError):
-            self.resolver.resolve( expression, AssemblerOperandType.VALUE)
+    def test_resolve_unknown_identifier_reports_location(self) -> None:
+        location = SourceLocation(line=4, column=9)
+        expression = IdentifierExpression(name="MISSING", location=location)
+        with self.assertRaises(ExpressionEvaluationError) as context:
+            self.resolver.resolve(expression, AssemblerOperandType.VALUE)
+        self.assertEqual(context.exception.location, location)
 
 
     def test_resolve_string_literal_is_rejected(self) -> None:
