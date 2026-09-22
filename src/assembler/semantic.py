@@ -122,8 +122,9 @@ class SymbolCollector:
         if len(directive.operands) != 1:
             raise ValueError("ORG requires exactly one operand.")
         address = evaluator.evaluate(directive.operands[0])
-        if not 0 <= address <= 0xFFFF:
-            raise ValueError( "ORG address must be in the range 0x0000 to 0xFFFF.")
+        address_limit = self._isa.assembler_address_limit()
+        if not 0 <= address <= address_limit:
+            raise ValueError( f"ORG address must be in the range 0x0000 to 0x{address_limit:03X}.")
         return address
 
     def _define_equ( self, source_line: SourceLine, evaluator: ExpressionEvaluator) -> None:

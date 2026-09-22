@@ -266,6 +266,10 @@ class Chip8Controller:
         return True
 
 
+    def assembler_new(self) -> None:
+        pass
+
+
     def load_assembler_source(self) -> str | None:
         """
         @brief Load an assembler source file.

@@ -147,6 +147,13 @@
          </spacer>
         </item>
         <item>
+         <widget class="QPushButton" name="asmNewPushButton">
+          <property name="text">
+           <string>New</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="asmAssemblePushButton">
           <property name="toolTip">
            <string>Assemble current source code into a ROM image</string>

@@ -80,7 +80,7 @@ class Assembler:
             reference_collector = SymbolReferenceCollector(symbols)
             reference_collector.collect(assembly)
             resolver = InstructionResolver(symbols, self._isa)
-            generator = CodeGenerator(symbols, resolver,cast(InstructionEncoder, self._isa), reference_collector)
+            generator = CodeGenerator(symbols, resolver,cast(InstructionEncoder, self._isa), self._isa.assembler_address_limit(), reference_collector)
             self._diagnostics.info("Generating binary image.")
             binary_image = generator.generate(assembly)
             listing = None

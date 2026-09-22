@@ -36,7 +36,7 @@ class CodeGeneratorTest(unittest.TestCase):
     def setUp(self) -> None:
         self.location = SourceLocation(line=1, column=1)
         self.symbols = SymbolTable()
-        self.generator = CodeGenerator( self.symbols, FakeInstructionResolver(), FakeInstructionEncoder())
+        self.generator = CodeGenerator( self.symbols, FakeInstructionResolver(), FakeInstructionEncoder(), 0xFFFF)
 
 
     def test_db_emits_byte(self) -> None:

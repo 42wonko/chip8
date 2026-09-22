@@ -464,40 +464,221 @@ class TestAssembler(unittest.TestCase):
         self.assertIn( "TARGET        Symbol      --            2           1", result.listing)
 
     def test_org_accepts_maximum_address(self) -> None:
-        result = self._assembler.assemble(
-            "ORG 0xFFFF\n"
-            "CLS"
-        )
-
+        result = self._assembler.assemble( "ORG 0xFFF\n")
         self.assertTrue(result.success)
-        self.assertEqual(result.binary_image, b"\x00\xE0")
+        self.assertEqual(result.binary_image, b"")
 
     def test_org_rejects_address_above_maximum(self) -> None:
         result = self._assembler.assemble("ORG 0x10000")
-
         self.assertFalse(result.success)
 
     def test_org_rejects_negative_address(self) -> None:
         result = self._assembler.assemble("ORG -1")
-
         self.assertFalse(result.success)
 
     def test_org_accepts_expression_at_maximum_address(self) -> None:
         result = self._assembler.assemble(
-            "BASE: EQU 0xFFFE\n"
+            "BASE: EQU 0xFFE\n"
             "ORG BASE + 1\n"
-            "CLS"
         )
-
         self.assertTrue(result.success)
-        self.assertEqual(result.binary_image, b"\x00\xE0")
+        self.assertEqual(result.binary_image, b"")
 
     def test_org_rejects_expression_above_maximum_address(self) -> None:
         result = self._assembler.assemble(
-            "BASE: EQU 0xFFFF\n"
-            "ORG BASE + 1"
+            "BASE: EQU 0xFFF\n"
+            "ORG BASE + 1\n"
         )
+        self.assertFalse(result.success)
 
+    def test_jump_accepts_maximum_12_bit_address(self):
+        result = self._assembler.assemble("JP 0xFFF")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x1F\xFF")
+
+
+    def test_jump_rejects_address_above_12_bits(self):
+        result = self._assembler.assemble("JP 0x1000")
+        self.assertFalse(result.success)
+
+
+    def test_call_accepts_maximum_12_bit_address(self):
+        result = self._assembler.assemble("CALL 0xFFF")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x2F\xFF")
+
+
+    def test_call_rejects_address_above_12_bits(self):
+        result = self._assembler.assemble("CALL 0x1000")
+        self.assertFalse(result.success)
+
+
+    def test_load_i_accepts_maximum_12_bit_address(self):
+        result = self._assembler.assemble("LD I, 0xFFF")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\xAF\xFF")
+
+
+    def test_load_i_rejects_address_above_12_bits(self):
+        result = self._assembler.assemble("LD I, 0x1000")
+        self.assertFalse(result.success)
+
+    def test_jump_expression_at_12_bit_limit(self):
+        result = self._assembler.assemble(
+            "BASE: EQU 0xFFE\n"
+            "JP BASE + 1"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x1F\xFF")
+
+
+    def test_jump_expression_above_12_bit_limit(self):
+        result = self._assembler.assemble(
+            "BASE: EQU 0xFFF\n"
+            "JP BASE + 1"
+        )
+        self.assertFalse(result.success)
+
+
+    def test_load_i_expression_at_12_bit_limit(self):
+        result = self._assembler.assemble(
+            "BASE: EQU 0xFFE\n"
+            "LD I, BASE + 1"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\xAF\xFF")
+
+
+    def test_load_i_expression_above_12_bit_limit(self):
+        result = self._assembler.assemble(
+            "BASE: EQU 0xFFF\n"
+            "LD I, BASE + 1"
+        )
+        self.assertFalse(result.success)
+
+    def test_db_accepts_zero(self):
+        result = self._assembler.assemble("DB 0x00")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x00")
+
+
+    def test_db_accepts_maximum_byte(self):
+        result = self._assembler.assemble("DB 0xFF")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\xFF")
+
+
+    def test_db_rejects_value_above_byte_range(self):
+        result = self._assembler.assemble("DB 0x100")
+        self.assertFalse(result.success)
+
+
+    def test_db_rejects_negative_value(self):
+        result = self._assembler.assemble("DB -1")
+        self.assertFalse(result.success)
+
+    def test_db_equ_accepts_maximum_byte(self):
+        result = self._assembler.assemble(
+            "VALUE: EQU 0xFF\n"
+            "DB VALUE"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\xFF")
+
+    def test_db_equ_rejects_value_above_byte_range(self):
+        result = self._assembler.assemble(
+            "VALUE: EQU 0x100\n"
+            "DB VALUE"
+        )
+        self.assertFalse(result.success)
+
+    def test_db_expression_accepts_maximum_byte(self):
+        result = self._assembler.assemble(
+            "BASE: EQU 0xFE\n"
+            "DB BASE + 1"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\xFF")
+
+
+    def test_db_expression_rejects_value_above_byte_range(self):
+        result = self._assembler.assemble(
+            "BASE: EQU 0xFF\n"
+            "DB BASE + 1"
+        )
+        self.assertFalse(result.success)
+
+    def test_db_rejects_invalid_byte_among_valid_bytes(self):
+        result = self._assembler.assemble("DB 0x01, 0xFF, 0x100, 0x02")
+        self.assertFalse(result.success)
+
+    def test_instruction_at_last_even_address_fits(self):
+        result = self._assembler.assemble(
+            "ORG 0xFFE\n"
+            "CLS"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x00\xE0")
+
+    def test_instruction_at_last_address_does_not_wrap(self):
+        result = self._assembler.assemble(
+            "ORG 0xFFF\n"
+            "CLS"
+        )
+        self.assertFalse(result.success)
+
+    def test_instruction_at_last_address_produces_no_binary_image(self):
+        result = self._assembler.assemble(
+            "ORG 0xFFF\n"
+            "CLS"
+        )
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+
+    def test_instruction_at_0xfffd_fits(self):
+        result = self._assembler.assemble(
+            "ORG 0xFFD\n"
+            "CLS"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x00\xE0")
+
+    def test_second_instruction_cannot_cross_12_bit_address_boundary(self):
+        result = self._assembler.assemble(
+            "ORG 0xFFD\n"
+            "CLS\n"
+            "RET"
+        )
+        self.assertFalse(result.success)
+
+    def test_db_byte_at_maximum_address_is_valid(self) -> None:
+        result = self._assembler.assemble(
+            "ORG 0xFFF\n"
+            "DB 0xFF\n"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\xFF")
+
+    def test_db_data_cannot_cross_12_bit_address_boundary(self) -> None:
+        result = self._assembler.assemble(
+            "ORG 0xFFF\n"
+            "DB 0xFF, 0x00\n"
+        )
+        self.assertFalse(result.success)
+
+    def test_db_data_ending_at_maximum_address_is_valid(self) -> None:
+        result = self._assembler.assemble(
+            "ORG 0xFFE\n"
+            "DB 0xFF, 0x00\n"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\xFF\x00")
+
+    def test_db_data_crossing_12_bit_address_boundary_is_invalid(self) -> None:
+        result = self._assembler.assemble(
+            "ORG 0xFFE\n"
+            "DB 0xFF, 0x00, 0xAA\n"
+        )
         self.assertFalse(result.success)
 
 

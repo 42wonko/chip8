@@ -117,6 +117,15 @@ class InstructionSetArchitecture(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def assembler_address_limit(self) -> int:
+        """
+        @brief Return the highest address available to the assembler.
+
+        @return
+            Highest valid absolute address.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def assembler_operand_signatures( self, mnemonic: str, operand_count: int) -> tuple[tuple[AssemblerOperandType, ...], ...]:

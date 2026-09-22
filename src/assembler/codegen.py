@@ -75,15 +75,16 @@ class CodeGenerator:
     @brief Generates a binary ROM image from an assembly AST.
     """
 
-    def __init__( self, symbols: SymbolTable, instruction_resolver: InstructionResolver, encoder: InstructionEncoder, reference_collector: InstructionReferenceCollector | None = None) -> None:
+    def __init__( self, symbols: SymbolTable, instruction_resolver: InstructionResolver, encoder: InstructionEncoder, address_limit: int, reference_collector: InstructionReferenceCollector | None = None) -> None:
         """
         @brief Construct a code generator.
         """
         self._instruction_resolver = instruction_resolver
-        self._encoder = encoder
-        self._evaluator = ExpressionEvaluator(symbols)
-        self._records: list[CodeGenerationRecord] = []
-        self._reference_collector = reference_collector
+        self._encoder                               = encoder
+        self._evaluator                             = ExpressionEvaluator(symbols)
+        self._records: list[CodeGenerationRecord]   = []
+        self._address_limit                         = address_limit
+        self._reference_collector                   = reference_collector
 
 
     def generate(self, assembly: AssemblyNode) -> bytes:
@@ -115,8 +116,10 @@ class CodeGenerator:
                     raise SemanticAnalysisError( str(error), statement.location) from error
                 if self._reference_collector is not None:
                     references = self._instruction_resolver.instruction_references( instruction)
-                    self._reference_collector.add_instruction_references( instruction, statement.location, references
-                    )
+                    self._reference_collector.add_instruction_references( instruction, statement.location, references)
+                instruction_size = self._encoder.instruction_size(instruction)
+                if address + instruction_size - 1 > self._address_limit:
+                    raise SemanticAnalysisError( "Instruction exceeds the assembler address space.", statement.location)
                 opcode = self._encoder.encode(instruction)
                 self._write_word(image, address, opcode)
                 self._records.append(
@@ -171,12 +174,22 @@ class CodeGenerator:
             if isinstance(operand, LiteralExpression):
                 if isinstance(operand.value, str):
                     for character in operand.value:
+                        if address > self._address_limit:
+                            raise SemanticAnalysisError(
+                                "DB data exceeds the assembler address space.",
+                                directive.location
+                            )
                         value = ord(character)
                         image[address] = value
                         generated.append(value)
                         address += 1
                     continue
             value = self._evaluator.evaluate(operand)
+            if address > self._address_limit:
+                raise SemanticAnalysisError(
+                    "DB data exceeds the assembler address space.",
+                    directive.location
+                )
             image[address] = value
             generated.append(value)
             address += 1
@@ -188,7 +201,6 @@ class CodeGenerator:
             )
         )
         return address
-
 
     @property
     def records(self) -> tuple[CodeGenerationRecord, ...]:

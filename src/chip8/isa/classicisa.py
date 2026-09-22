@@ -208,6 +208,12 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
             nnn=nnn,
         )
 
+    def assembler_address_limit(self) -> int:
+        """
+        @brief Return the highest address available to the assembler.
+        """
+        return ADDRESS_MASK
+
     def create_assembler_instruction( self, mnemonic: str, operands: tuple[AssemblerOperand, ...]) -> AssemblerInstruction:
         """
         @brief Create a Classic CHIP-8 assembler instruction.

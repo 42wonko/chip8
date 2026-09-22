@@ -66,6 +66,7 @@ class AssemblerDialog(QDialog):
         self.asmSavePushButton.clicked.connect(self._save)
         self.asmSaveAsPushButton.clicked.connect(self._save_as)
         self.asmLoadPushButton.clicked.connect(self._load)
+        self.asmNewPushButton.clicked.connect(self._new)
         self.asmOutputSaveCheckBox.toggled.connect(self._cross_reference_toggled)
         self.asmOutputSaveCheckBox.setChecked(False)
         self.asmDiagnosticsListWidget.installEventFilter(self)
@@ -135,8 +136,12 @@ class AssemblerDialog(QDialog):
         if source is None:
             return
         self.asmSourceCodeTextEdit.setPlainText(source)
-#        self._clear_diagnostics()
 
+    def _new(self) -> None:
+        """
+        @brief Start a new assembler source project.
+        """
+        return self._controller.assembler_new()
 
     def _assemble(self) -> None:
         """
