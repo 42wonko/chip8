@@ -13,6 +13,7 @@ from controller.diagnostic import DiagnosticSource
 
 #from controller.diagnostics import Diagnostics
 from controller.diagnostics import AssemblerDiagnostics
+from emulator.constants import ADDRESS_MASK
 
 #from tests.helpers import create_machine
 
@@ -681,6 +682,37 @@ class TestAssembler(unittest.TestCase):
         )
         self.assertFalse(result.success)
 
+    def test_assembler_address_limit_is_12_bit(self) -> None:
+        self.assertEqual(
+            self._isa.assembler_address_limit(),
+            ADDRESS_MASK
+        )
+
+    def test_instruction_at_last_two_addresses_fits(self) -> None:
+        result = self._assembler.assemble(
+            "ORG 0xFFE\n"
+            "CLS"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x00\xE0")
+
+
+    def test_instruction_at_last_address_does_not_fit(self) -> None:
+        result = self._assembler.assemble(
+            "ORG 0xFFF\n"
+            "CLS"
+        )
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+
+
+    def test_db_data_crossing_maximum_address_is_invalid(self) -> None:
+        result = self._assembler.assemble(
+            "ORG 0xFFE\n"
+            "DB 0xFF, 0x00, 0xAA"
+        )
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
 
 
 if __name__ == "__main__":

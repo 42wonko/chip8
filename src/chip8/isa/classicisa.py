@@ -248,16 +248,16 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
             operand = operands[0]
             if operand.type != AssemblerOperandType.ADDRESS:
                 raise ValueError( "SYS requires an address operand.")
-            if not 0 <= operand.value <= 0xFFF:
-                raise ValueError( "SYS address must be in the range 0x000 to 0xFFF.")
+            if not 0 <= operand.value <= ADDRESS_MASK:
+                raise ValueError( f"SYS address must be in the range 0x000 to 0x{ADDRESS_MASK:03X}.")
             return AssemblerInstruction( id=InstructionId.SYS, nnn=operand.value)
         if name == "JP":
             if len(operands) == 1:
                 operand = operands[0]
                 if operand.type != AssemblerOperandType.ADDRESS:
                     raise ValueError( "JP requires an address operand.")
-                if not 0 <= operand.value <= 0xFFF:
-                    raise ValueError( "JP address must be in the range 0x000 to 0xFFF.")
+                if not 0 <= operand.value <= ADDRESS_MASK:
+                    raise ValueError( f"JP address must be in the range 0x000 to 0x{ADDRESS_MASK:03X}.")
                 return AssemblerInstruction( id=InstructionId.JP, nnn=operand.value)
             if len(operands) == 2:
                 register = operands[0]
@@ -268,8 +268,8 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
                     raise ValueError( "JP V0, nnn requires V0 as the first operand.")
                 if address.type != AssemblerOperandType.ADDRESS:
                     raise ValueError( "JP V0, nnn requires an address as the second operand.")
-                if not 0 <= address.value <= 0xFFF:
-                    raise ValueError( "JP address must be in the range 0x000 to 0xFFF.")
+                if not 0 <= address.value <= ADDRESS_MASK:
+                    raise ValueError( f"JP address must be in the range 0x000 to 0x{ADDRESS_MASK:03X}.")
                 return AssemblerInstruction( id=InstructionId.JP_V0, nnn=address.value)
             raise ValueError( "JP requires one or two operands.")
 
@@ -279,8 +279,8 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
             operand = operands[0]
             if operand.type != AssemblerOperandType.ADDRESS:
                 raise ValueError( "CALL requires an address operand.")
-            if not 0 <= operand.value <= 0xFFF:
-                raise ValueError( "CALL address must be in the range 0x000 to 0xFFF.")
+            if not 0 <= operand.value <= ADDRESS_MASK:
+                raise ValueError( f"CALL address must be in the range 0x000 to 0x{ADDRESS_MASK:03X}.")
             return AssemblerInstruction( id=InstructionId.CALL, nnn=operand.value)
 
         if name == "LD":
@@ -301,8 +301,8 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
                     raise ValueError( "LD immediate value must be in the range 0x00 to 0xFF.")
                 return AssemblerInstruction( id=InstructionId.LD_BYTE, x=first.value, nn=second.value)
             if ( first.type == AssemblerOperandType.INDEX_REGISTER and second.type == AssemblerOperandType.ADDRESS):
-                if not 0 <= second.value <= 0xFFF:
-                    raise ValueError( "LD I address must be in the range 0x000 to 0xFFF.")
+                if not 0 <= second.value <= ADDRESS_MASK:
+                    raise ValueError( f"LD I address must be in the range 0x000 to 0x{ADDRESS_MASK:03X}.")
                 return AssemblerInstruction( id=InstructionId.LD_I, nnn=second.value)
             if ( first.type == AssemblerOperandType.REGISTER and second.type == AssemblerOperandType.DELAY_REGISTER):
                 if not 0 <= first.value <= 0xF:
