@@ -715,6 +715,213 @@ class TestAssembler(unittest.TestCase):
         self.assertIsNone(result.binary_image)
 
 
+    def test_lexer_error_is_returned_with_location(self) -> None:
+        result = self._assembler.assemble("LD V0, @")
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        diagnostic = result.diagnostics[0]
+        self.assertEqual(diagnostic.message, "Unexpected character '@' at 1:8.")
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 8)
+
+
+    def test_parser_error_is_returned_with_location(self) -> None:
+        result = self._assembler.assemble("LD V0,")
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        diagnostic = result.diagnostics[0]
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 7)
+
+
+    def test_target_directive_does_not_consume_address_space(self) -> None:
+        """
+        @brief Verify that TARGET is metadata and does not affect code placement.
+        """
+        result = self._assembler.assemble(
+            "TARGET COSMAC\n"
+            "TARGET_LABEL: CLS"
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x00\xE0")
+
+
+    def test_org_range_error_is_in_result_diagnostics(self) -> None:
+        """
+        @brief Verify that an ORG range error is returned with its source location.
+        """
+        result = self._assembler.assemble("ORG 0x1000")
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        diagnostic = result.diagnostics[0]
+        self.assertEqual(diagnostic.source, DiagnosticSource.ASSEMBLER)
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 1)
+
+
+    def test_db_range_error_is_in_result_diagnostics(self) -> None:
+        """
+        @brief Verify that a DB range error is returned with its source location.
+        """
+        result = self._assembler.assemble("DB 0x100")
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        diagnostic = result.diagnostics[0]
+        self.assertEqual(diagnostic.source, DiagnosticSource.ASSEMBLER)
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 1)
+
+
+    def test_instruction_exceeding_address_space_is_reported_in_result( self,) -> None:
+        """
+        @brief Verify that an instruction address error reaches the result.
+        """
+        result = self._assembler.assemble( "ORG 0xFFF\n" "CLS")
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        diagnostic = result.diagnostics[0]
+        self.assertEqual(diagnostic.source, DiagnosticSource.ASSEMBLER)
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 2)
+        self.assertEqual(diagnostic.location.column, 1)
+
+
+    def test_lexer_error_is_returned_in_result_diagnostics(self) -> None:
+        """
+        @brief Verify that a lexer error reaches the assembly result.
+        """
+        result = self._assembler.assemble("@")
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+        self.assertEqual(len(result.diagnostics), 1)
+        diagnostic = result.diagnostics[0]
+        self.assertEqual(diagnostic.source, DiagnosticSource.ASSEMBLER)
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+        self.assertEqual(diagnostic.location.line, 1)
+        self.assertEqual(diagnostic.location.column, 1)
+
+    def test_parser_error_is_returned_in_result_diagnostics(self) -> None:
+        """
+        @brief Verify that a parser error reaches the assembly result.
+        """
+        result = self._assembler.assemble("LD V0,")
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+        self.assertEqual(len(result.diagnostics), 1)
+        diagnostic = result.diagnostics[0]
+        self.assertEqual(diagnostic.source, DiagnosticSource.ASSEMBLER)
+        self.assertIsNotNone(diagnostic.location)
+        assert diagnostic.location is not None
+
+
+    def test_failed_assembly_has_no_binary_image(self) -> None:
+        """
+        @brief Verify that a failed assembly does not produce a binary image.
+        """
+        result = self._assembler.assemble(
+            "CLS\n"
+            "SUB V3, 1"
+        )
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+        self.assertEqual(len(result.diagnostics), 1)
+
+    def test_failed_assembly_does_not_generate_listing(self) -> None:
+        """
+        @brief Verify that a failed assembly produces no listing.
+        """
+        result = self._assembler.assemble(
+            "CLS\n"
+            "SUB V3, 1",
+            AssemblyOptions(generate_listing=True),
+        )
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+        self.assertIsNone(result.listing)
+
+
+    def test_semantic_error_is_reported_in_both_diagnostic_channels(self) -> None:
+        """
+        @brief Verify that a semantic error reaches both diagnostic channels.
+        """
+        result = self._assembler.assemble(
+            "CLS\n"
+            "SUB V3, 1\n"
+        )
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        result_diagnostic = result.diagnostics[0]
+        reporter_diagnostic = self._diagnostics[-1]
+        self.assertEqual( result_diagnostic.severity, reporter_diagnostic.severity,)
+        self.assertEqual( result_diagnostic.source, reporter_diagnostic.source,)
+        self.assertEqual( result_diagnostic.message, reporter_diagnostic.message,)
+        self.assertEqual( result_diagnostic.location, reporter_diagnostic.location,)
+
+
+    def test_target_directive_does_not_consume_address_space_in_listing( self,) -> None:
+        """
+        @brief Verify that TARGET is metadata in the assembly listing.
+        """
+        result = self._assembler.assemble(
+            "TARGET COSMAC\n"
+            "CLS",
+            AssemblyOptions(generate_listing=True),
+        )
+        self.assertTrue(result.success)
+        self.assertIsNotNone(result.listing)
+        assert result.listing is not None
+        lines = result.listing.splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertIn("TARGET COSMAC", lines[0])
+        self.assertIn("0200", lines[1])
+        self.assertIn("00 E0", lines[1])
+
+
+    def test_cross_reference_is_ignored_without_listing(self) -> None:
+        """
+        @brief Verify that cross-reference generation requires a listing.
+        """
+        result = self._assembler.assemble( "START: CLS", AssemblyOptions( generate_listing=False, generate_cross_reference=True,),)
+        self.assertTrue(result.success)
+        self.assertIsNone(result.listing)
+
+
+    def test_assembler_instance_does_not_retain_previous_symbols(self) -> None:
+        """
+        @brief Verify that separate assembly operations have independent symbols.
+        """
+        first = self._assembler.assemble(
+            "FIRST: CLS\n"
+            "JP FIRST",
+            AssemblyOptions(generate_listing=True),
+        )
+        self.assertTrue(first.success)
+        self.assertEqual(first.binary_image, b"\x00\xE0\x12\x00")
+        second = self._assembler.assemble(
+            "SECOND: CLS\n"
+            "JP SECOND",
+            AssemblyOptions(generate_listing=True),
+        )
+        self.assertTrue(second.success)
+        self.assertEqual(second.binary_image, b"\x00\xE0\x12\x00")
+        self.assertIsNotNone(second.listing)
+        assert second.listing is not None
+        self.assertIn("SECOND: CLS", second.listing)
+        self.assertIn("JP SECOND", second.listing)
+        self.assertNotIn("FIRST: CLS", second.listing)
+        self.assertNotIn("JP FIRST", second.listing)
+
+
 if __name__ == "__main__":
     unittest.main()
 

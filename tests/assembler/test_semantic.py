@@ -69,6 +69,121 @@ class SymbolReferenceCollectorTest(unittest.TestCase):
         SymbolReferenceCollector(symbols).collect(assembly)
         self.assertEqual( symbols.references("START"), ( SourceLocation( line=4, column=4),))
 
+    def test_collects_symbol_references_from_directives(self) -> None:
+        """
+        @brief Verify that directive expressions contribute symbol references.
+        """
+        symbols = SymbolTable()
+        symbols.define(
+            "BASE",
+            0x300,
+            SourceLocation(line=1, column=1),
+        )
+        symbols.define(
+            "VALUE",
+            0x42,
+            SourceLocation(line=2, column=1),
+        )
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode( name="OFFSET", location=SourceLocation(line=3, column=1),),
+                    statement=DirectiveNode(
+                        name="EQU",
+                        operands=( IdentifierExpression( name="BASE", location=SourceLocation(line=3, column=10),),
+                        ),
+                        location=SourceLocation(line=3, column=8),
+                    ),
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="ORG",
+                        operands=(
+                            IdentifierExpression( name="BASE", location=SourceLocation(line=4, column=5),),
+                        ),
+                        location=SourceLocation(line=4, column=1),
+                    ),
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            IdentifierExpression( name="VALUE", location=SourceLocation(line=5, column=4),),
+                        ),
+                        location=SourceLocation(line=5, column=1),
+                    ),
+                ),
+            )
+        )
+        SymbolReferenceCollector(symbols).collect(assembly)
+        self.assertEqual( symbols.references("BASE"), ( SourceLocation(line=3, column=10), SourceLocation(line=4, column=5),),)
+        self.assertEqual( symbols.references("VALUE"), (SourceLocation(line=5, column=4),),)
+
+
+    def test_target_directive_does_not_create_symbol_reference(self) -> None:
+        """
+        @brief Verify that TARGET is metadata and has no symbol references.
+        """
+        symbols = SymbolTable()
+        symbols.define( "COSMAC", 0x200, SourceLocation(line=1, column=1),)
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="TARGET",
+                        operands=(
+                            IdentifierExpression( name="COSMAC", location=SourceLocation(line=1, column=8),),
+                        ),
+                        location=SourceLocation(line=1, column=1),
+                    ),
+                ),
+            )
+        )
+        SymbolReferenceCollector(symbols).collect(assembly)
+        self.assertEqual(symbols.references("COSMAC"), ())
+
+
+    def test_collects_symbol_references_from_binary_expression(self) -> None:
+        """
+        @brief Verify that all symbols in a binary expression are referenced.
+        """
+        symbols = SymbolTable()
+        symbols.define(
+            "BASE",
+            0x300,
+            SourceLocation(line=1, column=1)
+        )
+        symbols.define(
+            "OFFSET",
+            0x20,
+            SourceLocation(line=2, column=1)
+        )
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="ORG",
+                        operands=(
+                            BinaryExpression(
+                                operator=BinaryOperator.ADD,
+                                left=IdentifierExpression( name="BASE", location=SourceLocation(line=4, column=5)),
+                                right=IdentifierExpression( name="OFFSET", location=SourceLocation(line=4, column=12)),
+                                location=SourceLocation(line=4, column=9)
+                            ),
+                        ),
+                        location=SourceLocation(line=4, column=1)
+                    )
+                ),
+            )
+        )
+        SymbolReferenceCollector(symbols).collect(assembly)
+        self.assertEqual( symbols.references("BASE"), (SourceLocation(line=4, column=5),))
+        self.assertEqual( symbols.references("OFFSET"), (SourceLocation(line=4, column=12),))
+
 
 class ExpressionEvaluatorTest(unittest.TestCase):
     """
@@ -159,6 +274,43 @@ class SymbolCollectorTest(unittest.TestCase):
     def setUp(self) -> None:
         self.location = SourceLocation(line=1, column=1)
         self.isa = ClassicInstructionSetArchitecture()
+
+
+    def test_target_requires_exactly_one_architecture_name(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode( name="TARGET", operands=(), location=self.location)
+                ),
+            )
+        )
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols, self.isa)
+        with self.assertRaises(ValueError) as context:
+            collector.collect(assembly)
+        self.assertEqual( str(context.exception), "TARGET requires exactly one architecture name.")
+
+
+    def test_target_requires_identifier_architecture_name(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="TARGET",
+                        operands=(LiteralExpression(value=1, location=self.location),),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols, self.isa)
+        with self.assertRaises(ValueError) as context:
+            collector.collect(assembly)
+        self.assertEqual( str(context.exception), "TARGET requires an architecture name.")
+
 
     def test_collects_label_at_program_start(self) -> None:
         symbols = SymbolTable()

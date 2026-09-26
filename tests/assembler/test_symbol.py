@@ -16,10 +16,7 @@ class SymbolTableTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self.location = SourceLocation(
-            line=1,
-            column=1
-        )
+        self.location = SourceLocation( line=1, column=1)
         self.symbols = SymbolTable()
 
 
@@ -28,43 +25,19 @@ class SymbolTableTest(unittest.TestCase):
 
 
     def test_define_symbol(self) -> None:
-        self.symbols.define(
-            "START",
-            0x200,
-            self.location
-        )
-
+        self.symbols.define( "START", 0x200, self.location)
         self.assertTrue(self.symbols.contains("START"))
-        self.assertEqual(
-            self.symbols.lookup("START").value,
-            0x200
-        )
+        self.assertEqual( self.symbols.lookup("START").value, 0x200)
 
 
     def test_lookup_returns_symbol_name(self) -> None:
-        self.symbols.define(
-            "START",
-            0x200,
-            self.location
-        )
-
-        self.assertEqual(
-            self.symbols.lookup("START").name,
-            "START"
-        )
+        self.symbols.define( "START", 0x200, self.location)
+        self.assertEqual( self.symbols.lookup("START").name, "START")
 
 
     def test_lookup_returns_symbol_location(self) -> None:
-        self.symbols.define(
-            "START",
-            0x200,
-            self.location
-        )
-
-        self.assertEqual(
-            self.symbols.lookup("START").location,
-            self.location
-        )
+        self.symbols.define( "START", 0x200, self.location)
+        self.assertEqual( self.symbols.lookup("START").location, self.location)
 
 
     def test_lookup_undefined_symbol_raises(self) -> None:
@@ -73,39 +46,20 @@ class SymbolTableTest(unittest.TestCase):
 
 
     def test_duplicate_symbol_raises(self) -> None:
-        self.symbols.define(
-            "START",
-            0x200,
-            self.location
-        )
-
+        self.symbols.define( "START", 0x200, self.location)
         with self.assertRaises(ValueError):
-            self.symbols.define(
-                "START",
-                0x300,
-                self.location
-            )
+            self.symbols.define( "START", 0x300, self.location)
 
 
     def test_contains_returns_false_for_unknown_symbol(self) -> None:
-        self.assertFalse(
-            self.symbols.contains("MISSING")
-        )
+        self.assertFalse( self.symbols.contains("MISSING"))
 
 
     def test_clear_removes_symbols(self) -> None:
-        self.symbols.define(
-            "START",
-            0x200,
-            self.location
-        )
-
+        self.symbols.define( "START", 0x200, self.location)
         self.symbols.clear()
-
         self.assertEqual(len(self.symbols), 0)
-        self.assertFalse(
-            self.symbols.contains("START")
-        )
+        self.assertFalse( self.symbols.contains("START"))
 
 
     def test_symbol_lookup_is_case_insensitive(self) -> None:
@@ -148,3 +102,14 @@ class SymbolTableTest(unittest.TestCase):
     def test_references_unknown_symbol_raises(self) -> None:
         with self.assertRaises(ValueError):
             self.symbols.references("MISSING")
+
+
+    def test_references_are_case_insensitive(self) -> None:
+        """
+        @brief Verify that symbol references use case-insensitive lookup.
+        """
+        self.symbols.define( "Start", 0x0200, SourceLocation(line=1, column=1))
+        reference = SourceLocation(line=3, column=4)
+        self.symbols.add_reference("START", reference)
+        self.assertEqual( self.symbols.references("start"), (reference,))
+

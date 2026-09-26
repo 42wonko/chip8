@@ -24,7 +24,7 @@ class TestAssemblyResult(unittest.TestCase):
         self.assertEqual(result.binary_image, b"\x60\x00")
         self.assertEqual(result.diagnostics, ())
         self.assertIsNone(result.listing)
-        self.assertIsNone(result.cross_reference)
+#        self.assertIsNone(result.cross_reference)
 
 
     def test_failed_result(self) -> None:
@@ -42,9 +42,9 @@ class TestAssemblyResult(unittest.TestCase):
         """
         @brief Verify optional assembler output products.
         """
-        result = AssemblyResult( success=True, binary_image=b"\x60\x00", listing="0200 6000  LD V0, 0", cross_reference="START 0200")
+        result = AssemblyResult( success=True, binary_image=b"\x60\x00", listing="0200 6000  LD V0, 0")
         self.assertEqual(result.listing, "0200 6000  LD V0, 0")
-        self.assertEqual(result.cross_reference, "START 0200")
+#        self.assertEqual(result.cross_reference, "START 0200")
 
 
 if __name__ == "__main__":

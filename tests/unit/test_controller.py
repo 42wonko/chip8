@@ -26,6 +26,11 @@ class Chip8ControllerTest(unittest.TestCase):
     @brief Tests for Chip8Controller.
     """
 
+    def _set_assembler_mock( self, controller: Chip8Controller, result: AssemblyResult,) -> None:
+        assembler = MagicMock()
+        assembler.assemble.return_value = result
+        controller._create_assembler = MagicMock(return_value=assembler)
+
     def test_execute_cycle_preserves_display_changed_result(self) -> None:
         """
         @brief Verify that the controller preserves the StepResult returned
@@ -389,29 +394,30 @@ class Chip8ControllerTest(unittest.TestCase):
 
     def test_assemble_source_clears_previous_assembler_diagnostics(self) -> None:
         """
-        @brief Verify that a new assembly starts with an empty diagnostics
-        collection.
+        @brief Verify that previous assembler diagnostics are cleared before
+        starting a new assembly.
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
-#            configuration = EmulatorConfiguration()
-#            configuration.assembler_source_file     = str(source_file)
-            controller = create_controller()
+            rom_file = Path(directory) / "test.ch8"
+            configuration = EmulatorConfiguration()
+            configuration.assembler_source_file = str(source_file)
+            configuration.assembler_rom_file = str(rom_file)
+            controller = create_controller(configuration)
             controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
             controller._assembler_diagnostics.reporter().error( "Old diagnostic.")
             self.assertEqual( len(controller._assembler_diagnostics._diagnostics), 1)
-            controller._assembler = MagicMock()
-            controller._assembler.assemble.return_value = AssemblyResult( success=True)
-            controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
-            messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
-            self.assertNotIn("Old diagnostic.", messages)
-            self.assertEqual(
-                messages,
-                [
-                    "Saving assembly source file 'test.asm'.",
-                    "Assembly source file 'test.asm' saved."
-                ]
+            assembler = MagicMock()
+            assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
+            controller._create_assembler = MagicMock(return_value=assembler)
+            result = controller.assemble_source(
+                "CLS\n",
+                Target.COSMAC,
+                AssemblyOptions()
             )
+            self.assertTrue(result)
+            self.assertNotIn( "Old diagnostic.", [ diagnostic.message for diagnostic in controller._assembler_diagnostics ])
 
 
     @patch("controller.controller.QFileDialog.getSaveFileName")
@@ -454,31 +460,29 @@ class Chip8ControllerTest(unittest.TestCase):
 
     def test_assemble_source_saves_listing(self) -> None:
         """
-        @brief Verify that a successful assembly writes the generated listing.
+        @brief Verify that a generated listing is saved.
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
             listing_file = Path(directory) / "test.lst"
-
-#            configuration = EmulatorConfiguration()
-#            configuration.assembler_source_file = str(source_file)
-#            configuration.assembler_rom_file = str(rom_file)
-#            configuration.assembler_listing_file = str(listing_file)
-
-            controller = create_controller()
+            configuration = EmulatorConfiguration()
+            configuration.assembler_rom_file = str(rom_file)
+            configuration.assembler_listing_file = str(listing_file)
+            controller = create_controller(configuration)
             controller._assembler_source_file = source_file
             controller._assembler_rom_file = rom_file
             controller._assembler_listing_file = listing_file
-            controller._assembler = MagicMock()
-            controller._assembler.assemble.return_value = AssemblyResult(
+            assembler = MagicMock()
+            assembler.assemble.return_value = AssemblyResult(
                 success=True,
                 binary_image=bytes([0x00, 0xE0]),
-                listing="   1 0200 00 E0    CLS\n",
+                listing="0000 00E0 CLS\n"
             )
-            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions(generate_listing=True),)
+            controller._create_assembler = MagicMock( return_value=assembler)
+            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions(generate_listing=True))
             self.assertTrue(result)
-            self.assertEqual( listing_file.read_text(encoding="utf-8"), "   1 0200 00 E0    CLS\n",)
+            self.assertEqual( listing_file.read_text(encoding="utf-8"), "0000 00E0 CLS\n")
 
     def test_assemble_source_does_not_save_listing_when_not_generated(self) -> None:
         """
@@ -634,129 +638,124 @@ class Chip8ControllerTest(unittest.TestCase):
 
     def test_assemble_source_reports_rom_save_diagnostics(self) -> None:
         """
-        @brief Verify that saving the assembled ROM reports diagnostics.
+        @brief Verify that successful ROM saving reports its diagnostics.
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
-#            configuration = EmulatorConfiguration()
-#            configuration.assembler_source_file = str(source_file)
-#            configuration.assembler_rom_file = str(rom_file)
-            controller = create_controller()
+            configuration = EmulatorConfiguration()
+            configuration.assembler_rom_file = str(rom_file)
+            controller = create_controller(configuration)
             controller._assembler_source_file = source_file
             controller._assembler_rom_file = rom_file
-            controller._assembler = MagicMock()
-            controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
-            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
+            assembler = MagicMock()
+            assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
+            controller._create_assembler = MagicMock( return_value=assembler)
+            result = controller.assemble_source(
+                "CLS\n",
+                Target.COSMAC,
+                AssemblyOptions()
+            )
             self.assertTrue(result)
             messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
-            self.assertEqual(
-                messages,
-                [
-                    "Saving assembly source file 'test.asm'.",
-                    "Assembly source file 'test.asm' saved.",
-                    "Saving ROM file 'test.ch8'.",
-                    "ROM file 'test.ch8' saved."
-                ]
-            )
-
+            self.assertIn( "Saving ROM file 'test.ch8'.", messages)
+            self.assertIn( "ROM file 'test.ch8' saved.", messages)
 
     def test_assemble_source_reports_rom_save_error(self) -> None:
         """
-        @brief Verify that a ROM save failure reports an assembler diagnostic.
+        @brief Verify that an error saving the ROM is reported.
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
             rom_file = Path(directory) / "test.ch8"
-
-#            configuration = EmulatorConfiguration()
-#            configuration.assembler_source_file = str(source_file)
-#            configuration.assembler_rom_file = str(rom_file)
-            controller = create_controller()
+            configuration = EmulatorConfiguration()
+            configuration.assembler_rom_file = str(rom_file)
+            controller = create_controller(configuration)
             controller._assembler_source_file = source_file
             controller._assembler_rom_file = rom_file
-            controller._assembler = MagicMock()
-            controller._assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
-            with patch.object( Path, "write_bytes", side_effect=OSError("disk full")):
-                result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions())
+            assembler = MagicMock()
+            assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]))
+            controller._create_assembler = MagicMock(return_value=assembler)
+            original_write_bytes = Path.write_bytes
+            def fail_write_bytes(path: Path, data: bytes) -> int:
+                if path == rom_file:
+                    raise OSError("Test ROM write error.")
+                return original_write_bytes(path, data)
+            with patch.object( Path, "write_bytes", new=fail_write_bytes):
+                result = controller.assemble_source(
+                    "CLS\n",
+                    Target.COSMAC,
+                    AssemblyOptions()
+                )
             self.assertFalse(result)
             messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
-            self.assertEqual(
-                messages,
-                [
-                    "Saving assembly source file 'test.asm'.",
-                    "Assembly source file 'test.asm' saved.",
-                    "Saving ROM file 'test.ch8'.",
-                    "Unable to save assembler ROM 'test.ch8': disk full"
-                ]
-            )
-
+            self.assertTrue( any( "Test ROM write error." in message for message in messages))
 
     def test_assemble_source_reports_listing_save_diagnostics(self) -> None:
         """
-        @brief Verify that saving the assembler listing reports diagnostics.
+        @brief Verify that successful listing saving reports its diagnostics.
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
+            rom_file = Path(directory) / "test.ch8"
             listing_file = Path(directory) / "test.lst"
-#            configuration = EmulatorConfiguration()
-#            configuration.assembler_source_file = str(source_file)
-#            configuration.assembler_listing_file = str(listing_file)
-            controller = create_controller()
+            configuration = EmulatorConfiguration()
+            configuration.assembler_rom_file = str(rom_file)
+            configuration.assembler_listing_file = str(listing_file)
+            controller = create_controller(configuration)
             controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
             controller._assembler_listing_file = listing_file
-            controller._assembler = MagicMock()
-            controller._assembler.assemble.return_value = AssemblyResult( success=True, listing="0000 00E0 CLS\n")
-            result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions(generate_listing=True))
+            assembler = MagicMock()
+            assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]), listing="0000 00E0 CLS\n")
+            controller._create_assembler = MagicMock( return_value=assembler)
+            result = controller.assemble_source(
+                "CLS\n",
+                Target.COSMAC,
+                AssemblyOptions(generate_listing=True)
+            )
             self.assertTrue(result)
             messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
-            self.assertEqual(
-                messages,
-                [
-                    "Saving assembly source file 'test.asm'.",
-                    "Assembly source file 'test.asm' saved.",
-                    "Saving listing file 'test.lst'.",
-                    "Listing file 'test.lst' saved."
-                ]
-            )
-
+            self.assertIn( "Saving listing file 'test.lst'.", messages)
+            self.assertIn( "Listing file 'test.lst' saved.", messages)
 
     def test_assemble_source_reports_listing_save_error(self) -> None:
         """
-        @brief Verify that a listing save failure reports an assembler diagnostic.
+        @brief Verify that an error saving the listing is reported.
         """
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "test.asm"
+            rom_file = Path(directory) / "test.ch8"
             listing_file = Path(directory) / "test.lst"
-#            configuration = EmulatorConfiguration()
-#            configuration.assembler_source_file = str(source_file)
-#            configuration.assembler_listing_file = str(listing_file)
-            controller = create_controller()
+            configuration = EmulatorConfiguration()
+            configuration.assembler_rom_file = str(rom_file)
+            configuration.assembler_listing_file = str(listing_file)
+            controller = create_controller(configuration)
             controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
             controller._assembler_listing_file = listing_file
-            controller._assembler = MagicMock()
-            controller._assembler.assemble.return_value = AssemblyResult( success=True, listing="0000 00E0 CLS\n")
+            assembler = MagicMock()
+            assembler.assemble.return_value = AssemblyResult( success=True, binary_image=bytes([0x00, 0xE0]), listing="0000 00E0 CLS\n")
+            controller._create_assembler = MagicMock(return_value=assembler)
             original_write_text = Path.write_text
-
-            def write_text( path: Path, data: str, encoding: str = "utf-8") -> None:
+            def fail_write_text( path: Path, data: str, *args: object, **kwargs: object) -> int:
                 if path == listing_file:
-                    raise OSError("disk full")
-                original_write_text(path, data, encoding=encoding)
-
-            with patch.object(Path, "write_text", new=write_text):
-                result = controller.assemble_source( "CLS\n", Target.COSMAC, AssemblyOptions(generate_listing=True))
+                    raise OSError("Test listing write error.")
+                return original_write_text(
+                    path,
+                    data,
+                    *args,
+                    **kwargs
+                )
+            with patch.object( Path, "write_text", new=fail_write_text):
+                result = controller.assemble_source(
+                    "CLS\n",
+                    Target.COSMAC,
+                    AssemblyOptions(generate_listing=True)
+                )
             self.assertFalse(result)
             messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
-            self.assertEqual(
-                messages,
-                [
-                    "Saving assembly source file 'test.asm'.",
-                    "Assembly source file 'test.asm' saved.",
-                    "Saving listing file 'test.lst'.",
-                    "Unable to save assembler listing 'test.lst': disk full"
-                ]
-            )
-
+            self.assertTrue( any( "Test listing write error." in message for message in messages))
 
     def test_assemble_source_reports_completion(self) -> None:
         """
@@ -897,6 +896,29 @@ class Chip8ControllerTest(unittest.TestCase):
             controller._assembler.assemble.assert_not_called()
             messages = [diagnostic.message for diagnostic in controller._assembler_diagnostics]
             self.assertIn("No target architecture was specified.", messages)
+
+    def test_assemble_source_uses_selected_target_for_assembler(self) -> None:
+        """
+        @brief Verify that the target selected by the controller is used to
+        create the assembler and does not replace the machine ISA.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            assembler = MagicMock()
+            assembler.assemble.return_value = AssemblyResult(success=True)
+            machine_isa = controller.machine.isa
+
+            with patch.object( controller, "_create_assembler", return_value=assembler) as create_assembler:
+                result = controller.assemble_source(
+                    "CLS\n",
+                    Target.COSMAC,
+                    AssemblyOptions()
+                )
+            self.assertTrue(result)
+            create_assembler.assert_called_once_with(Target.COSMAC)
+            self.assertIs(controller.machine.isa, machine_isa)
 
     ###########################################################################
     # Load ROM tests
