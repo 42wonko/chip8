@@ -19,14 +19,16 @@ from assembler.ast import (
     LiteralExpression,
     SourceLine,
 )
-from assembler.token import Token, TokenType
+from assembler.token import SourceLocation, Token, TokenType
 
 
 class ParserError(ValueError):
     """
     @brief Raised when parsing fails.
     """
-
+    def __init__(self, message: str, location: SourceLocation) -> None:
+        super().__init__(message)
+        self.location = location
 
 class Parser:
     """
@@ -83,7 +85,7 @@ class Parser:
         if self._check(TokenType.END_OF_FILE):
             return SourceLine( label=label, statement=statement)
         token = self._current()
-        raise ParserError( f"Expected end of line. Found '{token.value}' at {token.location.line}:{token.location.column}.")
+        raise ParserError( f"Expected end of line. Found '{token.value}' at {token.location.line}:{token.location.column}.", token.location)
 
 
     def _parse_label(self) -> LabelNode:
@@ -155,10 +157,10 @@ class Parser:
         while self._match(TokenType.COMMA):
             if self._check(TokenType.END_OF_LINE):
                 token = self._current()
-                raise ParserError( f"Expected operand after comma at {token.location.line}:{token.location.column}.")
+                raise ParserError( f"Expected operand after comma at {token.location.line}:{token.location.column}.",token.location)
             if self._check(TokenType.END_OF_FILE):
                 token = self._current()
-                raise ParserError( f"Expected operand after comma at {token.location.line}:{token.location.column}.")
+                raise ParserError( f"Expected operand after comma at {token.location.line}:{token.location.column}.", token.location)
             operands.append(self._parse_expression())
         return operands
 
@@ -201,12 +203,12 @@ class Parser:
             try:
                 value = int(token.value, 0)
             except ValueError as error:
-                raise ParserError( f"Invalid numeric literal '{token.value}' at {token.location.line}:{token.location.column}.") from error
+                raise ParserError( f"Invalid numeric literal '{token.value}' at {token.location.line}:{token.location.column}.", token.location) from error
             return LiteralExpression( value=value, location=token.location)
         if token.type == TokenType.CHARACTER:
             self._advance()
             if len(token.value) != 1:
-                raise ParserError( f"Invalid character literal at {token.location.line}:{token.location.column}.")
+                raise ParserError( f"Invalid character literal at {token.location.line}:{token.location.column}.", token.location)
             return LiteralExpression( value=ord(token.value), location=token.location)
         if token.type == TokenType.STRING:
             self._advance()
@@ -227,7 +229,7 @@ class Parser:
             expression = self._parse_expression()
             self._expect( TokenType.RPAREN, "Expected ')'.")
             return expression
-        raise ParserError( f"Expected expression. Found '{token.value}' at {token.location.line}:{token.location.column}.")
+        raise ParserError( f"Expected expression. Found '{token.value}' at {token.location.line}:{token.location.column}.", token.location)
 
 
     def _expect( self, token_type: TokenType, message: str) -> Token:
@@ -248,7 +250,7 @@ class Parser:
         """
         if not self._check(token_type):
             token = self._current()
-            raise ParserError( f"{message} Found '{token.value}' at {token.location.line}:{token.location.column}.")
+            raise ParserError( f"{message} Found '{token.value}' at {token.location.line}:{token.location.column}.", token.location)
         return self._advance()
 
 

@@ -414,10 +414,12 @@ class Chip8Controller:
         if not self.ensure_assembler_source_file(source):
             return False
         try:
-            self._target_selector.select(source, target)
+            selection = self._target_selector.select(source, target)
         except TargetSelectionError as error:
             diagnostics.error(str(error))
             return False
+        self._assembler = self._create_assembler(selection.target)
+        self._main_window.assembler_dialog.set_assembler(self._assembler)
         result = self._assembler.assemble(source, options)
         if not result.success:
             return False
@@ -887,4 +889,24 @@ class Chip8Controller:
             self._diagnostics_reporter.info("All breakpoints cleared.")
 
         self._code_model.refresh()
+
+
+    def _create_assembler(self, target: Target) -> Assembler:
+        """
+        @brief Create an assembler for the selected target architecture.
+
+        @param target
+            Target architecture selected for the assembly.
+
+        @return
+            Assembler configured for the selected target.
+
+        @exception TargetSelectionError
+            If the selected target is not supported by the controller.
+        """
+        if target is Target.COSMAC:
+            isa = ClassicInstructionSetArchitecture()
+            return Assembler(self._assembler_diagnostics.reporter(), isa)
+        raise TargetSelectionError(f"Unsupported target architecture '{target}'.")
+
 

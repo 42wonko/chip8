@@ -13,6 +13,9 @@ class LexerError(ValueError):
     """
     @brief Raised when lexical analysis fails.
     """
+    def __init__(self, message: str, location: SourceLocation) -> None:
+        super().__init__(message)
+        self.location = location
 
 
 class Lexer:
@@ -85,8 +88,8 @@ class Lexer:
             if token_type is not None:
                 tokens.append(self._single_character_token(token_type))
                 continue
-
-            raise LexerError( f"Unexpected character '{character}' at " f"{self._line}:{self._column}.")
+            location = self._location()
+            raise LexerError( f"Unexpected character '{character}' at " f"{location.line}:{location.column}.", location)
 
         tokens.append(
             Token(
@@ -143,7 +146,7 @@ class Lexer:
                 while not self._at_end() and self._current() in ( "0123456789abcdefABCDEF"):
                     self._advance()
                 if self._position == digit_start:
-                    raise LexerError( f"Invalid hexadecimal literal at " f"{location.line}:{location.column}.")
+                    raise LexerError( f"Invalid hexadecimal literal at " f"{location.line}:{location.column}.", location)
                 return Token(
                     type=TokenType.NUMBER,
                     value=self._source[start:self._position],
@@ -159,7 +162,8 @@ class Lexer:
                 if self._position == digit_start:
                     raise LexerError(
                         f"Invalid binary literal at "
-                        f"{location.line}:{location.column}."
+                        f"{location.line}:{location.column}.",
+                        location
                     )
                 return Token(
                     type=TokenType.NUMBER,
@@ -190,10 +194,10 @@ class Lexer:
         location = self._location()
         self._advance()
         if self._at_end() or self._current() == "\n":
-            raise LexerError( f"Unterminated character literal at " f"{location.line}:{location.column}.")
+            raise LexerError( f"Unterminated character literal at " f"{location.line}:{location.column}.", location)
         value = self._read_literal_character(location)
         if self._at_end() or self._current() != "'":
-            raise LexerError( f"Unterminated character literal at " f"{location.line}:{location.column}.")
+            raise LexerError( f"Unterminated character literal at " f"{location.line}:{location.column}.", location)
         self._advance()
         return Token(
             type=TokenType.CHARACTER,
@@ -224,9 +228,9 @@ class Lexer:
                     location=location
                 )
             if self._current() == "\n":
-                raise LexerError( f"Unterminated string literal at " f"{location.line}:{location.column}.")
+                raise LexerError( f"Unterminated string literal at " f"{location.line}:{location.column}.", location)
             characters.append( self._read_literal_character(location))
-        raise LexerError( f"Unterminated string literal at " f"{location.line}:{location.column}.")
+        raise LexerError( f"Unterminated string literal at " f"{location.line}:{location.column}.", location)
 
 
     def _read_literal_character( self, location: SourceLocation) -> str:
@@ -248,12 +252,12 @@ class Lexer:
             return character
         self._advance()
         if self._at_end():
-            raise LexerError( f"Invalid escape sequence at " f"{location.line}:{location.column}.")
+            raise LexerError( f"Invalid escape sequence at " f"{location.line}:{location.column}.", location)
         escapes = { "n": "\n", "r": "\r", "t": "\t", "\\": "\\", "'": "'", '"': '"' }
         character = self._current()
         self._advance()
         if character not in escapes:
-            raise LexerError( f"Invalid escape sequence '\\{character}' at " f"{location.line}:{location.column}.")
+            raise LexerError( f"Invalid escape sequence '\\{character}' at " f"{location.line}:{location.column}.", location)
         return escapes[character]
 
 

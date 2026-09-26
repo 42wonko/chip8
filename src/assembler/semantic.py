@@ -74,6 +74,7 @@ class SymbolCollector:
                         address += self._resolve_db_size(statement, evaluator)
                         continue
                     if name == "TARGET":
+                        self._validate_target(statement)
                         continue
                     raise ValueError( f"Unsupported directive '{statement.name}'.")
             except SemanticAnalysisError:
@@ -106,6 +107,18 @@ class SymbolCollector:
     ###########################################################################
     # private helper functions
     ###########################################################################
+    def _validate_target(self, directive: DirectiveNode) -> None:
+        """
+        @brief Validate the syntax of a TARGET directive.
+
+        The target architecture itself is selected by the controller.  The
+        assembler therefore validates only the source-level TARGET syntax.
+        """
+        if len(directive.operands) != 1:
+            raise ValueError("TARGET requires exactly one architecture name.")
+        if not isinstance(directive.operands[0], IdentifierExpression):
+            raise ValueError("TARGET requires an architecture name.")
+
     def _resolve_org( self, directive: DirectiveNode, evaluator: ExpressionEvaluator) -> int:
         """
         @brief Resolve an ORG directive.

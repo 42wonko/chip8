@@ -10,10 +10,10 @@ from typing import cast
 
 from assembler.ast import AssemblyNode
 from assembler.codegen import CodeGenerator, InstructionEncoder
-from assembler.lexer import Lexer
+from assembler.lexer import Lexer, LexerError
 from assembler.listing import ListingGenerator
 from assembler.options import AssemblyOptions
-from assembler.parser import Parser
+from assembler.parser import Parser, ParserError
 from assembler.result import AssemblyResult
 from assembler.semantic import (
     InstructionResolver,
@@ -97,8 +97,12 @@ class Assembler:
                 )
             self._diagnostics.info("Assembly complete.")
             return AssemblyResult( success=True, binary_image=binary_image, listing=listing)
-        except SemanticAnalysisError as error:
+        except (LexerError, ParserError, SemanticAnalysisError) as error:
             self._diagnostics.error(str(error), error.location)
+
+            # Keep diagnostic and location in the result so the caller can
+            # access the source location independently of the assembler dialog.
+            # e.g. for source navigation
             return AssemblyResult(
                 success=False,
                 diagnostics=(
