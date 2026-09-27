@@ -423,7 +423,7 @@ class Chip8Controller:
         result = self._assembler.assemble(source, options)
         if not result.success:
             return False
-        if result.binary_image is not None:
+        if result.binary_image:
             if self._assembler_rom_file is None:
                 return False
             diagnostics.info( f"Saving ROM file '{self._assembler_rom_file.name}'.")

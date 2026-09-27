@@ -920,6 +920,32 @@ class Chip8ControllerTest(unittest.TestCase):
             create_assembler.assert_called_once_with(Target.COSMAC)
             self.assertIs(controller.machine.isa, machine_isa)
 
+
+    def test_assemble_source_does_not_save_empty_binary_rom(self) -> None:
+        """
+        @brief Verify that a successful assembly with no emitted bytes does
+        not create an empty ROM file.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            rom_file = Path(directory) / "test.ch8"
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            controller._assembler = MagicMock()
+            controller._assembler.assemble.return_value = AssemblyResult(
+                success=True,
+                binary_image=b""
+            )
+            result = controller.assemble_source(
+                "ORG 0xFFF\n",
+                Target.COSMAC,
+                AssemblyOptions()
+            )
+            self.assertTrue(result)
+            self.assertFalse(rom_file.exists())
+
+
     ###########################################################################
     # Load ROM tests
     ###########################################################################
