@@ -125,6 +125,7 @@ class MainWindow(QMainWindow):
         font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
         self.memoryTableView.setFont(font)
         model.scroll_to_address.connect( self._scroll_memory_to_address)
+        model.modelReset.connect(self.memoryTableView.resizeColumnsToContents)
         header = self.memoryTableView.horizontalHeader()
         header.setStretchLastSection(False)
         header.setSectionResizeMode( QHeaderView.ResizeMode.Interactive)
@@ -140,6 +141,7 @@ class MainWindow(QMainWindow):
         """
         self._code_model = model
         self.codeTableView.setModel(model)
+        model.modelReset.connect(self.codeTableView.resizeColumnsToContents)
         self.codeTableView.verticalHeader().hide()
         header = self.codeTableView.horizontalHeader()
         header.setStretchLastSection(True)
