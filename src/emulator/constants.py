@@ -100,4 +100,35 @@ APPLICATION_VERSION = "1.0.0"
 # Assembler
 ###############################################################################
 ASSEMBLER_EDITOR_TAB_SIZE = 4
+ASSEMBLER_EDITOR_LINE_NUMBER_LEFT_MARGIN = 8
+ASSEMBLER_EDITOR_LINE_NUMBER_RIGHT_MARGIN = 4
+
+ASSEMBLER_EDITOR_VI_NORMAL_MODE = "normal"
+ASSEMBLER_EDITOR_VI_INSERT_MODE = "insert"
+ASSEMBLER_EDITOR_VI_DEFAULT_MODE = ASSEMBLER_EDITOR_VI_NORMAL_MODE
+
+ASSEMBLER_EDITOR_VI_KEYS = {
+    "insert": "i",
+    "append": "a",
+    "open_below": "o",
+    "open_above": "O",
+    "left": "h",
+    "down": "j",
+    "up": "k",
+    "right": "l",
+    "word_next": "w",
+    "word_previous": "b",
+    "word_end": "e",
+    "line_start": "0",
+    "line_end": "$",
+    "document_start": "gg",
+    "document_end": "G",
+    "delete_line": "dd",
+    "delete_to_end": "D",
+    "delete_character": "x",
+    "undo": "u",
+    "yank_line": "yy",
+    "paste": "p",
+    "redo": "r",
+}
 
