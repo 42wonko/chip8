@@ -10,25 +10,36 @@ from PyQt6.QtCore import QRect, QSize, Qt
 from PyQt6.QtGui import QPainter, QPaintEvent, QResizeEvent
 from PyQt6.QtWidgets import QPlainTextEdit, QWidget
 
+from emulator.constants import ASSEMBLER_EDITOR_TAB_SIZE
+
 
 class LineNumberTextEdit(QPlainTextEdit):
     """
     @brief Plain-text editor with a line-number gutter.
     """
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__( self, parent: QWidget | None = None, tab_size: int = ASSEMBLER_EDITOR_TAB_SIZE,) -> None:
         super().__init__(parent)
-
+        if tab_size <= 0:
+            raise ValueError("Tab size must be greater than zero.")
+        self._tab_size = tab_size
         self._line_number_area = LineNumberArea(self)
-
-        self.blockCountChanged.connect(
-            self._update_line_number_area_width
-        )
-        self.updateRequest.connect(
-            self._update_line_number_area
-        )
-
+        self.blockCountChanged.connect(self._update_line_number_area_width)
+        self.updateRequest.connect(self._update_line_number_area)
         self._update_line_number_area_width(0)
+        self._update_tab_stop()
+
+    def _update_tab_stop(self) -> None:
+        """Set the visual tab width using the current editor font."""
+        space_width = self.fontMetrics().horizontalAdvance(" ")
+        self.setTabStopDistance(space_width * self._tab_size)
+
+    def set_tab_size(self, tab_size: int) -> None:
+        """Set the number of spaces represented by one tab."""
+        if tab_size <= 0:
+            raise ValueError("Tab size must be greater than zero.")
+        self._tab_size = tab_size
+        self._update_tab_stop()
 
     def _line_number_area_width(self, _: int = 0) -> int:
         """

@@ -267,7 +267,16 @@ class Chip8Controller:
 
 
     def assembler_new(self) -> None:
-        pass
+        """
+        @brief Start a new assembler source project.
+        """
+        self._assembler_source_file = None
+        self._assembler_rom_file = None
+        self._assembler_listing_file = None
+
+        self._configuration.assembler_source_file = ""
+        self._configuration.assembler_rom_file = ""
+        self._configuration.assembler_listing_file = ""
 
 
     def load_assembler_source(self) -> str | None:

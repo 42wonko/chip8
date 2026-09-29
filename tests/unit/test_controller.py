@@ -518,10 +518,6 @@ class Chip8ControllerTest(unittest.TestCase):
             rom_file = Path(directory) / "test.ch8"
             listing_file = Path(directory) / "test.lst"
             listing_file.write_text( "old listing\n", encoding="utf-8")
-#            configuration = EmulatorConfiguration()
-#            configuration.assembler_source_file = str(source_file)
-#            configuration.assembler_rom_file = str(rom_file)
-#            configuration.assembler_listing_file = str(listing_file)
             controller = create_controller()
             controller._assembler_source_file = source_file
             controller._assembler_rom_file = rom_file
@@ -542,9 +538,6 @@ class Chip8ControllerTest(unittest.TestCase):
             rom_file = Path(directory) / "test.ch8"
             rom_file.write_bytes(bytes([0x00, 0xE0]))
 
-#            configuration = EmulatorConfiguration()
-#            configuration.assembler_rom_file = str(rom_file)
-#            controller = create_controller(configuration)
             controller = create_controller()
             controller._assembler_rom_file = rom_file
 
@@ -563,8 +556,6 @@ class Chip8ControllerTest(unittest.TestCase):
         @brief Verify that running assembled source fails when no assembler
         ROM filename is available.
         """
-#        configuration = EmulatorConfiguration()
-#        configuration.assembler_rom_file = None
         controller = create_controller()
 
         controller._load_rom = MagicMock()
@@ -585,9 +576,6 @@ class Chip8ControllerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             rom_file = Path(directory) / "test.ch8"
 
-#            configuration = EmulatorConfiguration()
-#            configuration.assembler_rom_file = str(rom_file)
-#            controller = create_controller(configuration)
 
             controller = create_controller()
             controller._assembler_rom_file = rom_file
@@ -1263,3 +1251,27 @@ class Chip8ControllerTest(unittest.TestCase):
         controller._toggle_breakpoint(0x345)
         messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
         self.assertEqual( messages, ["Breakpoint enabled at address 0x345."])
+
+
+    def test_assembler_new_clears_current_file_associations(self) -> None:
+        """
+        @brief Verify that starting a new assembler source clears the current
+        source and output file associations.
+        """
+        configuration = EmulatorConfiguration()
+        configuration.assembler_source_file = "/tmp/test.asm"
+        configuration.assembler_rom_file = "/tmp/test.ch8"
+        configuration.assembler_listing_file = "/tmp/test.lst"
+        controller = create_controller(configuration)
+        controller._assembler_source_file = Path("/tmp/test.asm")
+        controller._assembler_rom_file = Path("/tmp/test.ch8")
+        controller._assembler_listing_file = Path("/tmp/test.lst")
+        controller.assembler_new()
+        self.assertIsNone(controller.assembler_source_file)
+        self.assertIsNone(controller.assembler_rom_file)
+        self.assertIsNone(controller.assembler_listing_file)
+        self.assertEqual(configuration.assembler_source_file, "")
+        self.assertEqual(configuration.assembler_rom_file, "")
+        self.assertEqual(configuration.assembler_listing_file, "")
+
+

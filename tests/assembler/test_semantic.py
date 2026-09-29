@@ -957,6 +957,57 @@ class SymbolCollectorTest(unittest.TestCase):
                     collector.collect(assembly)
 
 
+    def test_label_at_maximum_address_is_valid(self) -> None:
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols, self.isa)
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="ORG",
+                        operands=(LiteralExpression(value=0xFFF, location=self.location),),
+                        location=self.location
+                    )
+                ),
+                SourceLine( label=LabelNode(name="LAST", location=self.location), statement=None),
+            )
+        )
+        collector.collect(assembly)
+        self.assertEqual(symbols.lookup("LAST").value, 0xFFF)
+
+
+    def test_label_beyond_maximum_address_is_rejected(self) -> None:
+        symbols = SymbolTable()
+        collector = SymbolCollector(symbols, self.isa)
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="ORG",
+                        operands=(LiteralExpression(value=0xFFF, location=self.location),),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(LiteralExpression(value=0xFF, location=self.location),),
+                        location=self.location
+                    )
+                ),
+                SourceLine(
+                    label=LabelNode(name="TOO_FAR", location=self.location),
+                    statement=None
+                ),
+            )
+        )
+        with self.assertRaises(SemanticAnalysisError) as context:
+            collector.collect(assembly)
+        self.assertEqual( str(context.exception), "Label address 0x1000 exceeds the assembler address space.")
+        self.assertEqual(context.exception.location, self.location)
 
 
 class OperandResolverTest(unittest.TestCase):

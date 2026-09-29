@@ -80,6 +80,12 @@ class Parser:
         if self._check(TokenType.END_OF_FILE):
             return SourceLine( label=label, statement=None)
         statement = self._parse_statement()
+        if isinstance(statement, DirectiveNode):
+            directive = statement.name.upper()
+            if label is not None and directive in ("TARGET", "ORG"):
+                raise ParserError( f"A label cannot be used with the {directive} directive.", label.location)
+            if label is None and directive in ("EQU", "DB"):
+                raise ParserError( f"{directive} requires a label.", statement.location)
         if self._match(TokenType.END_OF_LINE):
             return SourceLine( label=label, statement=statement)
         if self._check(TokenType.END_OF_FILE):

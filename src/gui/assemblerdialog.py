@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from PyQt6 import uic
 from PyQt6.QtCore import QEvent, QObject, Qt
 from PyQt6.QtGui import QKeyEvent
-from PyQt6.QtWidgets import QApplication, QDialog, QWidget
+from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
 
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
@@ -70,6 +70,8 @@ class AssemblerDialog(QDialog):
         self.asmOutputSaveCheckBox.toggled.connect(self._cross_reference_toggled)
         self.asmOutputSaveCheckBox.setChecked(False)
         self.asmDiagnosticsListWidget.installEventFilter(self)
+        self.asmSourceCodeTextEdit.document().modificationChanged.connect( self._source_modified_changed)
+        self._update_title()
 
     def _cross_reference_toggled(self, checked: bool) -> None:
         """
@@ -92,7 +94,6 @@ class AssemblerDialog(QDialog):
             return Target.COSMAC
         return None
 
-
     def _options(self) -> AssemblyOptions:
         """
         @brief Build assembler options from the dialog controls.
@@ -101,32 +102,26 @@ class AssemblerDialog(QDialog):
         listing = self.asmOutputListingCheckBox.isChecked() or cross_reference
         return AssemblyOptions( generate_listing=listing, generate_cross_reference=cross_reference)
 
-
-#    def _ensure_source_file(self) -> bool:
-#        """
-#        @brief Ensure that the current source has a filename.
-#
-#        @return
-#            True if a source filename is available.
-#        """
-#        source = self.asmSourceCodeTextEdit.toPlainText()
-#        return self._controller.ensure_assembler_source_file(source)
-
-
     def _save(self) -> bool:
         """
         @brief Save the current source code.
         """
         source = self.asmSourceCodeTextEdit.toPlainText()
-        return self._controller.save_assembler_source(source)
-
+        if not self._controller.save_assembler_source(source):
+            return False
+        self.asmSourceCodeTextEdit.document().setModified(False)
+        self._update_title()
+        return True
 
     def _save_as(self) -> bool:
         """
         @brief Save the current assembler source under a new filename.
         """
-        return self._controller.save_assembler_source_as( self.asmSourceCodeTextEdit.toPlainText())
-
+        if not self._controller.save_assembler_source_as( self.asmSourceCodeTextEdit.toPlainText()):
+            return False
+        self.asmSourceCodeTextEdit.document().setModified(False)
+        self._update_title()
+        return True
 
     def _load(self) -> None:
         """
@@ -136,12 +131,54 @@ class AssemblerDialog(QDialog):
         if source is None:
             return
         self.asmSourceCodeTextEdit.setPlainText(source)
+        self.asmSourceCodeTextEdit.document().setModified(False)
+        self._update_title()
 
     def _new(self) -> None:
         """
         @brief Start a new assembler source project.
         """
-        return self._controller.assembler_new()
+        document = self.asmSourceCodeTextEdit.document()
+
+        if document.isModified():
+            result = QMessageBox.question(
+                self,
+                "New Assembly Source",
+                "The assembly source has been modified.\n\n"
+                "Do you want to save the changes before starting a new source?",
+                QMessageBox.StandardButton.Save
+                | QMessageBox.StandardButton.Discard
+                | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save,
+            )
+
+            if result == QMessageBox.StandardButton.Cancel:
+                return
+            if result == QMessageBox.StandardButton.Save:
+                if not self._save():
+                    return
+        self._controller.assembler_new()
+        self.asmSourceCodeTextEdit.clear()
+        document.setModified(False)
+        self._update_title()
+
+    def _source_modified_changed(self, modified: bool) -> None:
+        """
+        @brief Update the assembler dialog title when the source is modified.
+        """
+        del modified
+        self._update_title()
+
+
+    def _update_title(self) -> None:
+        """
+        @brief Update the assembler dialog title.
+        """
+        source_file = self._controller.assembler_source_file
+        name = source_file.name if source_file is not None else "Untitled"
+        if self.asmSourceCodeTextEdit.document().isModified():
+            name += "*"
+        self.setWindowTitle(f"Assembler - {name}")
 
     def _assemble(self) -> None:
         """

@@ -61,7 +61,7 @@ class TestAssembler(unittest.TestCase):
 
 
     def test_assemble_db(self) -> None:
-        result = self._assembler.assemble( "DB 0x12, 0x34")
+        result = self._assembler.assemble( "DATA: DB 0x12, 0x34")
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\x12\x34")
 
@@ -81,9 +81,9 @@ class TestAssembler(unittest.TestCase):
     def test_assemble_org_and_gap(self) -> None:
         result = self._assembler.assemble(
             "ORG 0x300\n"
-            "DB 1\n"
+            "DATA1: DB 1\n"
             "ORG 0x303\n"
-            "DB 2"
+            "DATA2: DB 2"
         )
         self.assertTrue(result.success)
         self.assertEqual( result.binary_image, b"\x01\x00\x00\x02")
@@ -398,13 +398,13 @@ class TestAssembler(unittest.TestCase):
 
 
     def test_undefined_symbol_in_db_reports_identifier_location(self) -> None:
-        result = self._assembler.assemble("DB MISSING\n")
+        result = self._assembler.assemble("DATA: DB MISSING\n")
         self.assertFalse(result.success)
         diagnostic = self._diagnostics[-1]
         self.assertIsNotNone(diagnostic.location)
         assert diagnostic.location is not None
         self.assertEqual(diagnostic.location.line, 1)
-        self.assertEqual(diagnostic.location.column, 4)
+        self.assertEqual(diagnostic.location.column, 10)
 
 
     def test_undefined_symbol_in_equ_reports_identifier_location(self) -> None:
@@ -558,30 +558,30 @@ class TestAssembler(unittest.TestCase):
         self.assertFalse(result.success)
 
     def test_db_accepts_zero(self):
-        result = self._assembler.assemble("DB 0x00")
+        result = self._assembler.assemble("DATA: DB 0x00")
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\x00")
 
 
     def test_db_accepts_maximum_byte(self):
-        result = self._assembler.assemble("DB 0xFF")
+        result = self._assembler.assemble("DATA: DB 0xFF")
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\xFF")
 
 
     def test_db_rejects_value_above_byte_range(self):
-        result = self._assembler.assemble("DB 0x100")
+        result = self._assembler.assemble("DATA: DB 0x100")
         self.assertFalse(result.success)
 
 
     def test_db_rejects_negative_value(self):
-        result = self._assembler.assemble("DB -1")
+        result = self._assembler.assemble("DATA: DB -1")
         self.assertFalse(result.success)
 
     def test_db_equ_accepts_maximum_byte(self):
         result = self._assembler.assemble(
             "VALUE: EQU 0xFF\n"
-            "DB VALUE"
+            "DATA: DB VALUE"
         )
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\xFF")
@@ -589,14 +589,14 @@ class TestAssembler(unittest.TestCase):
     def test_db_equ_rejects_value_above_byte_range(self):
         result = self._assembler.assemble(
             "VALUE: EQU 0x100\n"
-            "DB VALUE"
+            "DATA: DB VALUE"
         )
         self.assertFalse(result.success)
 
     def test_db_expression_accepts_maximum_byte(self):
         result = self._assembler.assemble(
             "BASE: EQU 0xFE\n"
-            "DB BASE + 1"
+            "DATA: DB BASE + 1"
         )
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\xFF")
@@ -605,12 +605,12 @@ class TestAssembler(unittest.TestCase):
     def test_db_expression_rejects_value_above_byte_range(self):
         result = self._assembler.assemble(
             "BASE: EQU 0xFF\n"
-            "DB BASE + 1"
+            "DATA: DB BASE + 1"
         )
         self.assertFalse(result.success)
 
     def test_db_rejects_invalid_byte_among_valid_bytes(self):
-        result = self._assembler.assemble("DB 0x01, 0xFF, 0x100, 0x02")
+        result = self._assembler.assemble("DATA: DB 0x01, 0xFF, 0x100, 0x02")
         self.assertFalse(result.success)
 
     def test_instruction_at_last_even_address_fits(self):
@@ -655,7 +655,7 @@ class TestAssembler(unittest.TestCase):
     def test_db_byte_at_maximum_address_is_valid(self) -> None:
         result = self._assembler.assemble(
             "ORG 0xFFF\n"
-            "DB 0xFF\n"
+            "DATA: DB 0xFF\n"
         )
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\xFF")
@@ -663,14 +663,14 @@ class TestAssembler(unittest.TestCase):
     def test_db_data_cannot_cross_12_bit_address_boundary(self) -> None:
         result = self._assembler.assemble(
             "ORG 0xFFF\n"
-            "DB 0xFF, 0x00\n"
+            "DATA: DB 0xFF, 0x00\n"
         )
         self.assertFalse(result.success)
 
     def test_db_data_ending_at_maximum_address_is_valid(self) -> None:
         result = self._assembler.assemble(
             "ORG 0xFFE\n"
-            "DB 0xFF, 0x00\n"
+            "DATA: DB 0xFF, 0x00\n"
         )
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\xFF\x00")
@@ -678,7 +678,7 @@ class TestAssembler(unittest.TestCase):
     def test_db_data_crossing_12_bit_address_boundary_is_invalid(self) -> None:
         result = self._assembler.assemble(
             "ORG 0xFFE\n"
-            "DB 0xFF, 0x00, 0xAA\n"
+            "DATA: DB 0xFF, 0x00, 0xAA\n"
         )
         self.assertFalse(result.success)
 
@@ -709,7 +709,7 @@ class TestAssembler(unittest.TestCase):
     def test_db_data_crossing_maximum_address_is_invalid(self) -> None:
         result = self._assembler.assemble(
             "ORG 0xFFE\n"
-            "DB 0xFF, 0x00, 0xAA"
+            "DATA: DB 0xFF, 0x00, 0xAA"
         )
         self.assertFalse(result.success)
         self.assertIsNone(result.binary_image)
@@ -769,7 +769,7 @@ class TestAssembler(unittest.TestCase):
         """
         @brief Verify that a DB range error is returned with its source location.
         """
-        result = self._assembler.assemble("DB 0x100")
+        result = self._assembler.assemble("DATA: DB 0x100")
         self.assertFalse(result.success)
         self.assertEqual(len(result.diagnostics), 1)
         diagnostic = result.diagnostics[0]
@@ -777,7 +777,7 @@ class TestAssembler(unittest.TestCase):
         self.assertIsNotNone(diagnostic.location)
         assert diagnostic.location is not None
         self.assertEqual(diagnostic.location.line, 1)
-        self.assertEqual(diagnostic.location.column, 1)
+        self.assertEqual(diagnostic.location.column, 7)
 
 
     def test_instruction_exceeding_address_space_is_reported_in_result( self,) -> None:

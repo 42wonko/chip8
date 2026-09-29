@@ -41,6 +41,7 @@ class TestAssemblerDialog(unittest.TestCase):
 
     def setUp(self) -> None:
         self.controller = Mock(spec=Chip8Controller)
+        self.controller.assembler_source_file = None
         self.dialog = AssemblerDialog(self.controller)
 
 

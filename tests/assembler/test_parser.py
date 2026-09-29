@@ -79,7 +79,7 @@ class ParserTest(unittest.TestCase):
         self.assertEqual( operand.value, 42)
 
     def test_character_operand(self) -> None:
-        assembly = self._parse("DB 'A'")
+        assembly = self._parse("DATA: DB 'A'")
         statement = assembly.lines[0].statement
         self.assertIsInstance( statement, DirectiveNode)
         operand = statement.operands[0]
@@ -87,7 +87,7 @@ class ParserTest(unittest.TestCase):
         self.assertEqual( operand.value, ord("A"))
 
     def test_string_operand(self) -> None:
-        assembly = self._parse('DB "Hello"')
+        assembly = self._parse('DATA: DB "Hello"')
         statement = assembly.lines[0].statement
         self.assertIsInstance( statement, DirectiveNode)
         operand = statement.operands[0]
@@ -215,6 +215,13 @@ class ParserTest(unittest.TestCase):
         operand = statement.operands[0]
         self.assertIsInstance(operand, LiteralExpression)
         self.assertEqual(operand.value, 0x300)
+
+    def test_label_on_org_is_syntax_error(self) -> None:
+        with self.assertRaises(ParserError) as context:
+            self._parse("start: ORG 0x200")
+        self.assertEqual(context.exception.location.line, 1)
+        self.assertEqual(context.exception.location.column, 1)
+        self.assertEqual( str(context.exception), "A label cannot be used with the ORG directive.")
 
     def test_parse_org_expression(self) -> None:
         tokens = Lexer("ORG 0x200 + 0x20").tokenize()

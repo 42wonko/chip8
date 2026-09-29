@@ -96,6 +96,7 @@ class SymbolCollector:
                     raise SemanticAnalysisError( str(error), source_line.label.location) from error
                 raise
             if source_line.label is not None:
+                self._validate_label_address(address, source_line.label.location)
                 self._define_symbol( source_line.label.name, address, source_line.label.location)
             if statement is None:
                 continue
@@ -153,6 +154,13 @@ class SymbolCollector:
             raise ValueError("EQU requires exactly one operand.")
         value = evaluator.evaluate(statement.operands[0])
         self._define_symbol( source_line.label.name, value, source_line.label.location)
+
+    def _validate_label_address( self, address: int, location: SourceLocation) -> None:
+        """
+        @brief Validate that a label address is within the assembler address space.
+        """
+        if address > self._isa.assembler_address_limit():
+            raise SemanticAnalysisError( f"Label address 0x{address:X} exceeds the assembler address space.", location)
 
     def _define_symbol( self, name: str, value: int, location: SourceLocation) -> None:
         """
