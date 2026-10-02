@@ -1167,7 +1167,7 @@ class Chip8ControllerTest(unittest.TestCase):
     def test_step_out_reports_diagnostic(self) -> None:
         controller = create_controller()
         controller._diagnostics.clear()
-        controller._machine._stack.push(0x345)
+        controller._machine.stack.push(0x345)
         controller.run = MagicMock()
         controller.step_out()
         controller.run.assert_called_once_with()

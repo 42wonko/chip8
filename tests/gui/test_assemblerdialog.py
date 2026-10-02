@@ -9,11 +9,11 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from PyQt6.QtCore import QEvent, Qt
-from PyQt6.QtGui import QKeyEvent
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QKeyEvent, QTextCursor
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from assembler.assembler import Assembler
 from assembler.result import AssemblyResult
@@ -331,5 +331,174 @@ class TestAssemblerDialog(unittest.TestCase):
         )
         self.dialog.eventFilter(self.dialog.asmDiagnosticsListWidget, event)
         self.assertEqual( QApplication.clipboard().text(), "ERR  line 12: First error.")
+
+    def test_initial_title_is_untitled(self) -> None:
+        """
+        @brief Verify that a new assembler dialog is titled Untitled.
+        """
+        self.assertEqual(self.dialog.windowTitle(), "Assembler - Untitled")
+
+
+    def test_title_uses_source_filename(self) -> None:
+        """
+        @brief Verify that the source filename is displayed in the title.
+        """
+        self.controller.assembler_source_file = Path("test.asm")
+        self.dialog._update_title()
+
+        self.assertEqual(self.dialog.windowTitle(), "Assembler - test.asm")
+
+
+    def test_title_marks_modified_source(self) -> None:
+        """
+        @brief Verify that a modified source is marked with an asterisk.
+        """
+        self.controller.assembler_source_file = Path("test.asm")
+        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
+        self.dialog.asmSourceCodeTextEdit.document().setModified(True)
+
+        self.assertTrue(
+            self.dialog.asmSourceCodeTextEdit.document().isModified()
+        )
+        self.assertEqual(self.dialog.windowTitle(), "Assembler - test.asm*")
+
+
+    def test_new_clears_source_without_pending_changes(self) -> None:
+        """
+        @brief Verify that New starts a new empty source when there are no
+        pending changes.
+        """
+        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
+        self.dialog.asmSourceCodeTextEdit.document().setModified(False)
+
+        self.dialog._new()
+
+        self.controller.assembler_new.assert_called_once_with()
+        self.assertEqual(self.dialog.asmSourceCodeTextEdit.toPlainText(), "")
+        self.assertFalse(
+            self.dialog.asmSourceCodeTextEdit.document().isModified()
+        )
+        self.assertEqual(self.dialog.windowTitle(), "Assembler - Untitled")
+
+
+    def test_new_saves_modified_source_before_starting_new_source(self) -> None:
+        """
+        @brief Verify that New saves pending changes when Save is selected.
+        """
+        source = "CLS\n"
+        self.dialog.asmSourceCodeTextEdit.setPlainText(source)
+        self.dialog.asmSourceCodeTextEdit.document().setModified(True)
+        self.controller.save_assembler_source.return_value = True
+
+        with patch(
+            "gui.assemblerdialog.QMessageBox.question",
+            return_value=QMessageBox.StandardButton.Save,
+        ):
+            self.dialog._new()
+
+        self.controller.save_assembler_source.assert_called_once_with(source)
+        self.controller.assembler_new.assert_called_once_with()
+        self.assertEqual(self.dialog.asmSourceCodeTextEdit.toPlainText(), "")
+        self.assertFalse(
+            self.dialog.asmSourceCodeTextEdit.document().isModified()
+        )
+
+
+    def test_new_discards_modified_source_when_discard_is_selected(self) -> None:
+        """
+        @brief Verify that New discards pending changes when Discard is
+        selected.
+        """
+        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\n")
+        self.dialog.asmSourceCodeTextEdit.document().setModified(True)
+
+        with patch(
+            "gui.assemblerdialog.QMessageBox.question",
+            return_value=QMessageBox.StandardButton.Discard,
+        ):
+            self.dialog._new()
+
+        self.controller.save_assembler_source.assert_not_called()
+        self.controller.assembler_new.assert_called_once_with()
+        self.assertEqual(self.dialog.asmSourceCodeTextEdit.toPlainText(), "")
+
+
+    def test_new_is_cancelled_when_cancel_is_selected(self) -> None:
+        """
+        @brief Verify that Cancel leaves the modified source untouched.
+        """
+        source = "CLS\n"
+        self.dialog.asmSourceCodeTextEdit.setPlainText(source)
+        self.dialog.asmSourceCodeTextEdit.document().setModified(True)
+
+        with patch(
+            "gui.assemblerdialog.QMessageBox.question",
+            return_value=QMessageBox.StandardButton.Cancel,
+        ):
+            self.dialog._new()
+
+        self.controller.save_assembler_source.assert_not_called()
+        self.controller.assembler_new.assert_not_called()
+        self.assertEqual(
+            self.dialog.asmSourceCodeTextEdit.toPlainText(),
+            source,
+        )
+        self.assertTrue(
+            self.dialog.asmSourceCodeTextEdit.document().isModified()
+        )
+
+    def test_activated_diagnostic_moves_cursor_and_selects_source_token( self,) -> None:
+        """
+        @brief Verify that activating a diagnostic selects its source token.
+        """
+        diagnostics = AssemblerDiagnostics()
+        diagnostics.reporter().error( "Undefined symbol 'LOOP'.", SourceLocation(line=2, column=4),)
+        self.dialog.set_diagnostics(diagnostics)
+        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\nJP LOOP\nRET\n")
+        self.dialog._display_diagnostics()
+        item = self.dialog.asmDiagnosticsListWidget.item(0)
+        self.dialog._diagnostic_activated(item)
+        cursor = self.dialog.asmSourceCodeTextEdit.textCursor()
+        self.assertEqual(cursor.blockNumber(), 1)
+        self.assertEqual( cursor.selectionStart() - cursor.block().position(), 3,)
+        self.assertEqual(cursor.selectedText(), "LOOP")
+
+    def test_double_clicking_diagnostic_navigates_to_source_token(self) -> None:
+        """
+        @brief Verify that double-clicking a diagnostic navigates to its source.
+        """
+        diagnostics = AssemblerDiagnostics()
+        diagnostics.reporter().error( "Undefined symbol 'LOOP'.", SourceLocation(line=2, column=4),)
+        self.dialog.set_diagnostics(diagnostics)
+        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\nJP LOOP\nRET\n")
+        self.dialog._display_diagnostics()
+        item = self.dialog.asmDiagnosticsListWidget.item(0)
+        self.dialog.asmDiagnosticsListWidget.itemDoubleClicked.emit(item)
+        cursor = self.dialog.asmSourceCodeTextEdit.textCursor()
+        self.assertEqual(cursor.blockNumber(), 1)
+        self.assertEqual(cursor.selectedText(), "LOOP")
+
+
+    def test_activated_diagnostic_without_location_does_not_move_cursor(self) -> None:
+        """
+        @brief Verify that a diagnostic without a source location is ignored.
+        """
+        diagnostics = AssemblerDiagnostics()
+        diagnostics.reporter().info("Assembly complete.")
+        self.dialog.set_diagnostics(diagnostics)
+        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\nRET\n")
+        self.dialog.asmSourceCodeTextEdit.moveCursor(
+            QTextCursor.MoveOperation.End
+        )
+        position = self.dialog.asmSourceCodeTextEdit.textCursor().position()
+        self.dialog._display_diagnostics()
+        self.dialog._diagnostic_activated(
+            self.dialog.asmDiagnosticsListWidget.item(0)
+        )
+
+        self.assertEqual(
+            self.dialog.asmSourceCodeTextEdit.textCursor().position(),
+            position,
+        )
 
 

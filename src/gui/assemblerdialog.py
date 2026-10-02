@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 
 from PyQt6 import uic
 from PyQt6.QtCore import QEvent, QObject, Qt
-from PyQt6.QtGui import QKeyEvent
-from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox, QWidget
+from PyQt6.QtGui import QKeyEvent, QTextCursor
+from PyQt6.QtWidgets import QApplication, QDialog, QListWidgetItem, QMessageBox, QWidget
 
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
@@ -67,11 +67,31 @@ class AssemblerDialog(QDialog):
         self.asmSaveAsPushButton.clicked.connect(self._save_as)
         self.asmLoadPushButton.clicked.connect(self._load)
         self.asmNewPushButton.clicked.connect(self._new)
+        self.asmViGroupBox.toggled.connect( self.asmSourceCodeTextEdit.set_vi_mode_enabled)
+        self.asmViTabSizeComboBox.currentTextChanged.connect( self._vi_tab_size_changed)
+        self.asmViFontComboBox.currentFontChanged.connect( self.asmSourceCodeTextEdit.set_editor_font)
+        self.asmSourceCodeTextEdit.set_vi_mode_enabled( self.asmViGroupBox.isChecked())
+        self._vi_tab_size_changed(self.asmViTabSizeComboBox.currentText())
+        self.asmSourceCodeTextEdit.set_editor_font( self.asmViFontComboBox.currentFont())
         self.asmOutputSaveCheckBox.toggled.connect(self._cross_reference_toggled)
         self.asmOutputSaveCheckBox.setChecked(False)
         self.asmDiagnosticsListWidget.installEventFilter(self)
+        self.asmDiagnosticsListWidget.itemActivated.connect( self._diagnostic_activated)
+        self.asmDiagnosticsListWidget.itemDoubleClicked.connect( self._diagnostic_activated)
         self.asmSourceCodeTextEdit.document().modificationChanged.connect( self._source_modified_changed)
         self._update_title()
+
+    def _vi_tab_size_changed(self, text: str) -> None:
+        """
+        @brief Update the assembler editor tab size.
+        """
+        try:
+            tab_size = int(text)
+        except ValueError:
+            return
+        if tab_size <= 0:
+            return
+        self.asmSourceCodeTextEdit.set_tab_size(tab_size)
 
     def _cross_reference_toggled(self, checked: bool) -> None:
         """
@@ -217,11 +237,45 @@ class AssemblerDialog(QDialog):
         self.asmDiagnosticsListWidget.clear()
         if self._diagnostics is None:
             return
-        for diagnostic in self._diagnostics:
+        for index, diagnostic in enumerate(self._diagnostics):
             text = diagnostic.message
             if diagnostic.location is not None:
                 text = f"ERR  line {diagnostic.location.line}: {text}"
-            self.asmDiagnosticsListWidget.addItem(text)
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, index)
+            self.asmDiagnosticsListWidget.addItem(item)
+
+    def _diagnostic_activated(self, item: QListWidgetItem) -> None:
+        """
+        @brief Move the source editor to an activated diagnostic.
+        """
+        if self._diagnostics is None:
+            return
+        diagnostic_index = item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(diagnostic_index, int):
+            return
+        if not 0 <= diagnostic_index < len(self._diagnostics):
+            return
+        diagnostic = self._diagnostics[diagnostic_index]
+        if diagnostic.location is None:
+            return
+        line = diagnostic.location.line
+        column = diagnostic.location.column
+        if line <= 0 or column <= 0:
+            return
+        block = self.asmSourceCodeTextEdit.document().findBlockByNumber(line - 1)
+        if not block.isValid():
+            return
+        cursor = QTextCursor(block)
+        cursor.movePosition(
+            QTextCursor.MoveOperation.Right,
+            QTextCursor.MoveMode.MoveAnchor,
+            min(column - 1, max(0, block.length() - 1))
+        )
+        cursor.select(QTextCursor.SelectionType.WordUnderCursor)
+        self.asmSourceCodeTextEdit.setTextCursor(cursor)
+        self.asmSourceCodeTextEdit.setFocus()
+        self.asmSourceCodeTextEdit.ensureCursorVisible()
 
     def eventFilter(self, watched: QObject | None, event: QEvent | None) -> bool:
         """
@@ -248,3 +302,4 @@ class AssemblerDialog(QDialog):
         if clipboard is None:
             return
         clipboard.setText(text)
+

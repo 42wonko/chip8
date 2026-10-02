@@ -26,8 +26,6 @@ from chip8.isa.isa import (
     InstructionSetArchitecture,
 )
 from chip8.isa.reference import InstructionReference, ReferenceAccess
-
-#from emulator.chip8machine import Chip8Machine
 from emulator.constants import (
     ADDRESS_MASK,
     BYTE_MASK,
@@ -52,11 +50,7 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
     def __init__(self) -> None:
         """
         @brief Construct the Classic CHIP-8 ISA.
-
-        @param machine
-            Machine whose state is modified by instruction execution.
         """
-#        self._machine = machine
         self._execute_handlers: dict[ InstructionId, ClassicInstructionSetArchitecture._ExecuteHandler ] = {
             InstructionId.SYS: self._execute_sys,
             InstructionId.CLS: self._execute_cls,

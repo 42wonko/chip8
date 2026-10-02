@@ -6,7 +6,14 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import QRect, QSize, Qt
-from PyQt6.QtGui import QKeyEvent, QPainter, QPaintEvent, QResizeEvent, QTextCursor
+from PyQt6.QtGui import (
+    QFont,
+    QKeyEvent,
+    QPainter,
+    QPaintEvent,
+    QResizeEvent,
+    QTextCursor,
+)
 from PyQt6.QtWidgets import QPlainTextEdit, QWidget
 
 from emulator.constants import (
@@ -35,6 +42,7 @@ class LineNumberTextEdit(QPlainTextEdit):
         if tab_size <= 0:
             raise ValueError("Tab size must be greater than zero.")
         self._tab_size = tab_size
+        self._vi_mode_enabled = True
         self._vi_mode = ASSEMBLER_EDITOR_VI_DEFAULT_MODE
         self._vi_pending_key: str | None = None
         self._vi_yank_buffer = ""
@@ -50,6 +58,26 @@ class LineNumberTextEdit(QPlainTextEdit):
         @brief Return the current vi editing mode.
         """
         return self._vi_mode
+
+    @property
+    def vi_mode_enabled(self) -> bool:
+        """
+        @brief Return whether vi-mode editing is enabled.
+        """
+        return self._vi_mode_enabled
+
+
+    def set_vi_mode_enabled(self, enabled: bool) -> None:
+        """
+        @brief Enable or disable vi-mode editing.
+
+        When vi-mode is disabled, the editor behaves as a normal
+        QPlainTextEdit. Re-enabling vi-mode starts in normal mode.
+        """
+        self._vi_mode_enabled = enabled
+        self._vi_pending_key = None
+        if enabled:
+            self._vi_mode = ASSEMBLER_EDITOR_VI_NORMAL_MODE
 
     def _enter_insert_mode(self, append: bool = False) -> None:
         """
@@ -79,6 +107,9 @@ class LineNumberTextEdit(QPlainTextEdit):
         """
         if event is None:
             return
+        if not self._vi_mode_enabled:
+            super().keyPressEvent(event)
+            return
         if self._vi_mode == ASSEMBLER_EDITOR_VI_INSERT_MODE:
             if event.key() == Qt.Key.Key_Escape:
                 self._enter_normal_mode()
@@ -86,6 +117,13 @@ class LineNumberTextEdit(QPlainTextEdit):
             super().keyPressEvent(event)
             return
         self._handle_normal_mode_key(event)
+
+    def set_editor_font(self, font: QFont) -> None:
+        """
+        @brief Set the editor font and recalculate the tab width.
+        """
+        self.setFont(font)
+        self._update_tab_stop()
 
     def _handle_normal_mode_key(self, event: QKeyEvent) -> None:
         """

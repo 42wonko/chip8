@@ -600,11 +600,11 @@ class Chip8Controller:
         if self._running:
             self._logger.leave("step_out")
             return
-        if self._machine._stack.empty():
+        if self._machine.stack.empty():
             self._main_window.show_warning( "Step Out", "There is no active subroutine to return from.")
             self._logger.leave("step_out")
             return
-        return_address = self._machine._stack.peek()
+        return_address = self._machine.stack.peek()
         self._debugger.set_temporary_breakpoint(return_address)
         self._code_model.refresh_address(return_address)
         self._diagnostics_reporter.info( f"Stepping out to address 0x{return_address:03X}.")
