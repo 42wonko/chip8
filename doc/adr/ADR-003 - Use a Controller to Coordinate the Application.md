@@ -10,8 +10,8 @@
 
 ## Title
 
-Use a dedicated Controller as the sole communication layer between the
-graphical user interface and the emulator core.
+Use a dedicated Controller to coordinate the graphical user interface and
+the emulator core.
 
 ---
 
@@ -74,7 +74,7 @@ Disadvantages
 
 A Controller owns both the GUI and the emulator.
 
-All communication passes through the Controller.
+Application commands and state-changing operations pass through the Controller.
 
 Advantages
 
@@ -104,10 +104,12 @@ The Controller shall
 - update the GUI,
 - coordinate application startup and shutdown.
 
-The Controller shall be the only component permitted to communicate
-with both the GUI and the emulator.
+The Controller shall coordinate application commands and operations between
+the GUI and the emulator.
 
-The GUI shall not directly access emulator objects.
+GUI components may directly access emulator-owned state or presentation data
+read-only when required for display. The GUI shall not modify emulator state
+directly or execute emulator instructions.
 
 The emulator shall not directly access GUI objects.
 
@@ -115,8 +117,10 @@ The emulator shall not directly access GUI objects.
 
 ## Rationale
 
-The Controller centralizes application logic while allowing the GUI and
-the emulator to evolve independently.
+The Controller centralizes application logic and state-changing operations
+while allowing the GUI and the emulator to evolve independently. The GUI may
+read emulator-owned state directly where that is necessary for presentation,
+without taking responsibility for emulator execution or state changes.
 
 This architecture minimizes coupling and clearly separates user
 interface concerns from emulation logic.
@@ -136,7 +140,7 @@ emulator core.
 - Loose coupling between subsystems.
 - Improved maintainability.
 - Easier automated testing.
-- GUI and emulator remain independently replaceable.
+- GUI and emulator remain independently replaceable at the application-control boundary.
 - Simplified event handling.
 
 ### Negative
