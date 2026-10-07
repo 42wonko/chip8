@@ -175,10 +175,7 @@ class CodeGenerator:
                 if isinstance(operand.value, str):
                     for character in operand.value:
                         if address > self._address_limit:
-                            raise SemanticAnalysisError(
-                                "DB data exceeds the assembler address space.",
-                                directive.location
-                            )
+                            raise SemanticAnalysisError( "DB data exceeds the assembler address space.", directive.location)
                         value = ord(character)
                         image[address] = value
                         generated.append(value)
@@ -186,10 +183,7 @@ class CodeGenerator:
                     continue
             value = self._evaluator.evaluate(operand)
             if address > self._address_limit:
-                raise SemanticAnalysisError(
-                    "DB data exceeds the assembler address space.",
-                    directive.location
-                )
+                raise SemanticAnalysisError( "DB data exceeds the assembler address space.", directive.location)
             image[address] = value
             generated.append(value)
             address += 1

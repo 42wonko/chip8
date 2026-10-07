@@ -34,3 +34,4 @@ class AssemblerOperand:
     """
     type: AssemblerOperandType
     value: int
+

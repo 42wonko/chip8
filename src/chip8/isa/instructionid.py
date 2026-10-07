@@ -77,3 +77,4 @@ class InstructionId(IntEnum):
     LD_VX_I      = 35
 
     UNKNOWN      = 255    # Decoder could not identify the instruction.
+
