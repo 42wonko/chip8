@@ -18,6 +18,16 @@ The implementation follows the same design philosophy as the emulator:
 
 The assembler is intended to support multiple CHIP-8 architectures while presenting a consistent programming interface to the rest of the application.
 
+## Current Implementation Status
+
+The current implementation has one supported assembler target: `COSMAC`. Target selection is performed by `TargetSelector` in the Controller before the `Assembler` is created.
+
+The current lexer and parser are hand-written. The parser is not driven by architecture-definition objects and does not implement the generic parser framework described later in this documentation.
+
+The current implementation uses the shared ISA abstraction for instruction knowledge and encoding. Instruction validity and operand validity are resolved during semantic analysis rather than by an architecture-definition-driven parser.
+
+The multi-architecture architecture-definition and parser-framework material in this directory describes the intended future architecture. It is design documentation, not a description of components that currently exist in `src/assembler/`.
+
 ---
 
 # Documentation Structure
@@ -193,9 +203,9 @@ An instruction that does not exist in the selected architecture is therefore not
 
 ---
 
-# Grammar-Driven Parser Framework
+# Proposed Grammar-Driven Parser Framework
 
-The parser implementation is driven by the grammar definition of the architecture selected during target discovery.
+The proposed parser implementation is driven by the grammar definition of the architecture selected during target discovery. This is not the parser implementation currently used by `src/assembler/parser.py`.
 
 The architecture definition and parser framework are separate components.
 
@@ -235,7 +245,7 @@ The parser framework itself contains no hard-coded knowledge of individual CHIP-
 
 ---
 
-# Architecture-Specific Parsers
+# Proposed Architecture-Specific Parsers
 
 The parser framework is generic, but the language being parsed is architecture-specific.
 
@@ -340,7 +350,7 @@ The code-generation stage consumes the result of semantic analysis and produces 
 
 ---
 
-# Multi-Architecture Design
+# Proposed Multi-Architecture Design
 
 The assembler is designed so that additional CHIP-8 architectures can be added without duplicating the generic parser framework.
 

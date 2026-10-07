@@ -2,72 +2,89 @@
 
 **Author:** Michael Dlubatz
 
-**Date:** 2026-08-04
+**Date:** 2026-10-02
 
-**Status:** Draft
+**Status:** Current implementation
 
 ---
 
 # 1. Purpose
 
-This document defines the public API of the CHIP-8 assembler.
+This document defines the public interface of the currently implemented CHIP-8 assembler.
 
-The API is the only interface used by:
+The assembler is used by the application Controller and is independently testable. The
+assembler implementation itself has no dependency on PyQt6, the GUI, or `Chip8Machine`.
 
-- the emulator GUI
-- the debugger
-- future IDE functionality
-- command-line tools
-- unit tests
-
-The remaining implementation details of the assembler are internal and shall not be accessed directly.
+The architecture described here reflects the current implementation. The proposed
+multi-architecture parser framework and architecture plug-in design are documented
+separately as future architecture work.
 
 ---
 
 # 2. Design Goals
 
-The API shall:
+The current API shall:
 
-- hide all implementation details
-- be independent of the parser implementation
-- be independent of the target architecture implementation
-- support diagnostics
-- support future extensions
-- provide a stable interface to the remainder of the project
+- separate assembly from GUI code
+- receive the target instruction-set architecture from the caller
+- support assembler diagnostics with source locations
+- provide configurable listing and cross-reference generation
+- return generated binary data and diagnostics through a stable result object
+- remain independently testable
+
+Target discovery and target selection are application-level responsibilities of
+`Chip8Controller`. The `Assembler` receives the already selected ISA.
 
 ---
 
 # 3. Public Components
 
-The assembler subsystem exposes only the following classes.
+The principal public assembler interfaces are:
 
 ```text
 Assembler
-AssemblerConfiguration
+AssemblyOptions
 AssemblyResult
-Diagnostic
-DiagnosticCollection
+AssemblerDiagnosticsReporter
 ```
 
-Everything else is considered internal.
+The assembler also consumes the project-wide ISA abstraction:
+
+```text
+InstructionSetArchitecture
+```
+
+Supporting classes such as the lexer, parser, AST, symbol table, semantic-analysis
+components, code generator, and listing generator are implementation components and
+are not part of the application-level assembler boundary.
 
 ---
 
 # 4. Assembler
 
-The assembler represents the complete assembly engine.
+The assembler represents the assembly engine for one selected instruction-set
+architecture.
 
 ```python
 class Assembler:
 ```
 
-Responsibilities:
+## Construction
 
-- assemble source files
-- accept an externally supplied target architecture when required
-- perform target discovery and target selection
-- return diagnostics
-- generate binary output
+```python
+Assembler(
+    diagnostics: AssemblerDiagnosticsReporter,
+    isa: InstructionSetArchitecture,
+)
+```
+
+`diagnostics` receives assembler progress and diagnostic messages.
+
+`isa` supplies the instruction-set and address-space information used during assembly.
+The Controller selects the target and creates the assembler with the corresponding ISA.
+
+The assembler does not select the emulator's `Chip8Machine` architecture and does not
+interact with the machine.
 
 ---
 
@@ -78,261 +95,155 @@ Responsibilities:
 ```python
 assemble(
     source: str,
-    filename: str | None = None
+    options: AssemblyOptions | None = None,
 ) -> AssemblyResult
 ```
 
-Assembles a source string.
+Assembles the supplied source text using the ISA supplied at construction time.
 
-Returns an `AssemblyResult`.
+If `options` is omitted, the default `AssemblyOptions` are used.
+
+The method does not read source files and does not write output files. File ownership
+belongs to the Controller.
 
 ---
 
-### assemble_file()
+# 5. AssemblyOptions
+
+`AssemblyOptions` controls optional assembler output products.
 
 ```python
-assemble_file(
-    filename: Path
-) -> AssemblyResult
+@dataclass(frozen=True, slots=True)
+class AssemblyOptions:
+    generate_listing: bool = False
+    generate_cross_reference: bool = False
 ```
 
-Reads and assembles a source file.
-
----
-
-### configuration()
-
-```python
-configuration() -> AssemblerConfiguration
-```
-
-Returns the current configuration.
-
----
-
-### set_configuration()
-
-```python
-set_configuration(
-    configuration: AssemblerConfiguration
-)
-```
-
-Changes the assembler configuration.
-
----
-
-# 5. AssemblerConfiguration
-
-The configuration object controls the behavior of the assembler.
-
-```python
-class AssemblerConfiguration:
-```
-
----
-
-## Properties
-
-```text
-target_architecture: str | None
-case_sensitive_labels
-generate_listing
-generate_symbol_table
-enable_warnings
-```
-
-`target_architecture` is the externally supplied fallback target. It may be omitted when the source is expected to contain a `TARGET` directive.
-
-For example:
-
-```text
-target_architecture = COSMAC
-```
-
-If the source contains `TARGET XO-CHIP`, the source target takes precedence over the configured fallback target. If neither source nor configuration supplies a target, assembly fails with a target-selection diagnostic.
-
-Future architectures can be added without changing the public API.
+Binary generation is always performed for a successful assembly. Listing generation
+is optional. Cross-reference information is generated only as part of a listing, so
+`generate_cross_reference=True` has no independent output when listing generation is
+disabled.
 
 ---
 
 # 6. AssemblyResult
 
-The result object returned by every assembly.
+The result returned by `Assembler.assemble()` is:
 
 ```python
+@dataclass(slots=True)
 class AssemblyResult:
-```
-
----
-
-## Properties
-
-```text
-success
-binary
-diagnostics
-symbols
-listing
+    success: bool
+    diagnostics: tuple[Diagnostic, ...] = ()
+    binary_image: bytes | None = None
+    listing: str | None = None
 ```
 
 ### success
 
-Boolean indicating whether assembly succeeded.
-
-### binary
-
-Generated machine code.
-
-Type:
-
-```python
-bytes
-```
+`True` when assembly completed successfully. `False` when assembly failed.
 
 ### diagnostics
 
-Collection of warnings and errors.
+Structured assembler diagnostics. Error diagnostics retain their source locations so
+that the Controller and GUI can navigate back to the corresponding source text.
 
-### symbols
+### binary_image
 
-Optional symbol table.
+Generated machine-code bytes for a successful assembly.
 
 ### listing
 
-Optional assembly listing.
+The generated listing text when listing generation was requested. Otherwise `None`.
+
+Cross-reference information is appended to this listing when requested. It is not a
+separate `AssemblyResult` field or separate output product in the current implementation.
 
 ---
 
-# 7. Diagnostic
+# 7. Assembler Diagnostics
 
-Represents one assembler message.
+Assembler diagnostics use the existing diagnostics infrastructure through a dedicated
+assembler reporter:
 
 ```python
-class Diagnostic:
+AssemblerDiagnosticsReporter
 ```
 
----
+The reporter supports:
 
-## Properties
+```python
+info(message, location=None)
+warning(message, location=None)
+error(message, location=None)
+```
+
+Assembler diagnostics carry a `SourceLocation` when the message refers to a specific
+source position. They are retained in the `AssemblyResult` as well as reported through
+the assembler diagnostics collection used by the GUI.
+
+The current `AssemblerDiagnostic` contains:
 
 ```text
 severity
-filename
-line
-column
+source
 message
+location
 ```
+
+The `location` is a source line/column location; a filename is not currently stored in
+`AssemblerDiagnostic` because the Controller owns the current assembler source file.
 
 ---
 
-## Severity
+# 8. Assembly Workflow
+
+The application-level workflow is:
 
 ```text
-Information
-Warning
-Error
-```
-
----
-
-# 8. DiagnosticCollection
-
-Container holding all diagnostics produced during assembly.
-
-```python
-class DiagnosticCollection:
-```
-
----
-
-## Operations
-
-```python
-add()
-errors()
-warnings()
-has_errors()
-clear()
-```
-
----
-
-# 9. Public Workflow
-
-Typical usage:
-
-```text
-Application
-      │
-      ▼
-Assembler
-      │
-      ▼
-AssemblyResult
-      │
-      ├── Binary
-      ├── Diagnostics
-      ├── Symbols
-      └── Listing
-```
-
----
-
-# 10. Integration with the Controller
-
-The controller owns the assembler subsystem.
-
-```text
+Assembler GUI
+     │
+     ▼
 Chip8Controller
-        │
-        ├── Emulator
-        ├── GUI
-        ├── Diagnostics
-        └── Assembler
+     │
+     ├── select target
+     ├── create Assembler with selected ISA
+     │
+     ▼
+Assembler
+     │
+     ├── lex
+     ├── parse
+     ├── collect symbols/references
+     ├── resolve instructions and operands
+     ├── generate binary image
+     └── optionally generate listing/cross-reference
+     │
+     ▼
+AssemblyResult
+     │
+     ▼
+Chip8Controller
+     ├── save ROM
+     └── save listing
 ```
 
-Neither the GUI nor the emulator access parser internals directly.
-
-All interaction occurs through the `Assembler` class.
+The Controller, not the `Assembler`, owns file I/O and application-level target selection.
 
 ---
 
-# 11. Thread Safety
+# 9. Thread Safety
 
-The assembler is intended to be used as a normal application component.
-
-No assumptions are made regarding concurrent use.
-
-If concurrent assembly is required in the future, separate assembler instances shall be created.
+The assembler makes no guarantee of concurrent use. Separate assembler instances should
+be used if concurrent assembly is required in the future.
 
 ---
 
-# 12. Error Handling
+# 10. Error Handling
 
-Assembly failures are reported through diagnostics rather than exceptions.
+Expected assembly failures are represented by `AssemblyResult(success=False)` and
+assembler diagnostics.
 
-Exceptions are reserved for unexpected internal failures such as:
-
-- file I/O failures
-- corrupted architecture definitions
-- internal consistency errors
-
-Syntax errors, undefined labels, invalid operands, and similar user errors shall always be returned as diagnostics.
-
----
-
-# 13. Future Extensions
-
-The public API has been intentionally designed to remain stable as new functionality is added.
-
-Future additions may include:
-
-- multiple source files
-- include files
-- macro expansion
-- conditional assembly
-- library support
-- relocatable object files
-
-These features shall be added without breaking the existing API.
+The current implementation catches lexer, parser, and semantic-analysis errors and
+returns their diagnostics with source locations. Unexpected internal errors are not
+part of the normal assembler error-reporting contract.

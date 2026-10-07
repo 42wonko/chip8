@@ -38,7 +38,7 @@ next instruction.
 | 8xyE | ✓ |
 | 9xy0 | ✓ |
 | Annn | ✓ |
-| Bnnn | ✓ (conservative static analysis) |
+| Bnnn | ✓ |
 | Cxkk | ✓ |
 | Dxyn | ✓ |
 | Ex9E | ✓ |
@@ -64,12 +64,12 @@ analysis.
 The code analysis is context-sensitive and simulates the call stack for
 `CALL`/`RET`.
 
-`JP V0, addr` (Bnnn) currently terminates static analysis
-conservatively. Runtime-assisted discovery is planned.
+`JP V0, addr` (Bnnn) is handled conservatively by static analysis.
+Runtime-observed BNNN targets are subsequently incorporated into the code
+analysis when execution encounters a previously unknown target.
 
 ## Test Status
 
 Current unit test suite:
 
-- 184 unit tests
 - all tests passing

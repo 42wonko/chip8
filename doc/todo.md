@@ -208,19 +208,32 @@ Remaining work:
 
 #### CHIP-8 Assembler
 
-- [ ] Two-pass assembler
-- [ ] Labels and forward references
-- [ ] Symbol table
-- [ ] Expressions and constants
-- [ ] `DB` directive
+Implemented in the current assembler:
+
+- [x] Two-pass assembly / symbol collection and code generation
+- [x] Labels and forward instruction references
+- [x] Symbol table
+- [x] Expressions and constants
+- [x] `DB` directive
 - [ ] `DW` directive
-- [ ] `ORG` directive
-- [ ] `EQU` directive
-- [ ] Binary, decimal and hexadecimal literals
-- [ ] Character and string literals
-- [ ] Generate CHIP-8 ROM images
-- [ ] Listing file generation
-- [ ] Error reporting with source line numbers
+- [x] `ORG` directive
+- [x] `EQU` directive
+- [x] Binary, decimal and hexadecimal literals
+- [x] Character and string literals
+- [x] Generate CHIP-8 ROM images
+- [x] Listing file generation
+- [x] Error reporting with source line and column
+- [x] Assembler diagnostics retained in `AssemblyResult`
+- [x] Optional listing cross-reference generation
+- [x] Controller target selection and source `TARGET` verification
+- [x] GUI diagnostic navigation to and selection of source tokens
+
+Known language/architecture work still documented elsewhere:
+
+- [ ] `DW` directive
+- [ ] `\xNN` character/string escape support
+- [ ] Generic architecture-driven parser framework
+- [ ] Additional CHIP-8 architecture targets / plug-ins
 
 ---
 
@@ -244,6 +257,6 @@ Application logging:          ██████████ 100%
 
 Execution tracing:            ██████████ 100%
 
-Development tools:            ░░░░░░░░░░   0%
+Development tools:            assembler implementation complete; future enhancements remain
 
-Overall project completion: ~98%
+Overall project completion: see current project status

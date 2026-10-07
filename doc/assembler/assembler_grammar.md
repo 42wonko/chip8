@@ -11,6 +11,21 @@ The architecture-specific grammar is used only after the target architecture has
 The grammar intentionally describes the architecture-specific language independently of any parser implementation. The parser framework interprets the selected grammar definition and produces a common Abstract Syntax Tree (AST).
 
 ---
+## Current Implementation Status
+
+This document defines the intended assembler language. The current implementation does not yet implement every construct described here. The following points are authoritative for the current implementation audit:
+
+- The current assembler has one implemented target architecture: COSMAC.
+- Target selection is performed by `TargetSelector` in the Controller before `Assembler.assemble()` is called. A `TARGET` declaration in source takes precedence over the externally supplied target.
+- The current lexer is a hand-written lexer. It accepts identifiers using Python's `isalpha()`/`isalnum()` behavior plus underscore; this is broader than the ASCII-only identifier grammar specified below.
+- The current parser is a hand-written parser and is not driven by an external architecture-definition grammar.
+- The current parser accepts identifier-shaped instruction mnemonics syntactically. Whether an instruction exists and whether its operands are valid is resolved later using the selected ISA.
+- The current parser stops at the first `ParserError`; the error-recovery behavior described in the parser-framework design is not currently implemented.
+- `ORG`, `DB`, and `EQU` are implemented. `DW` is specified by this grammar but is not currently implemented.
+- The documented `\xNN` character/string escape is specified but is not currently implemented. The current lexer supports `\n`, `\r`, `\t`, `\\`, `\'`, and `\"`.
+- `SourceLocation` currently contains line and column only; it does not contain a filename.
+
+These are implementation-status notes, not changes to the intended language requirements. Future architecture/parser work remains covered by the architecture and parser-framework design documents.
 
 # Design Goals
 

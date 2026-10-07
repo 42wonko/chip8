@@ -1,5 +1,9 @@
 # Architecture Definitions
 
+**Status:** Proposed design
+
+This document describes the intended future assembler architecture. It does not describe the complete current implementation. Where this document differs from the implementation under `src/assembler/`, the current source and current-status documentation are authoritative.
+
 ## Purpose
 
 This document defines the architecture definition model used by the CHIP-8 assembler.

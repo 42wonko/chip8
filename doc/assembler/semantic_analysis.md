@@ -6,6 +6,20 @@ This document describes the semantic analysis phase of the CHIP-8 assembler.
 
 Semantic analysis validates the meaning of a syntactically correct program before machine code generation begins.
 
+## Current Implementation Status
+
+This document describes the intended semantic-analysis responsibilities. The current implementation differs from that design in several explicitly tracked areas:
+
+- The implemented semantic pipeline is built around `SymbolCollector`, `ExpressionEvaluator`, `InstructionResolver`, and the code generator.
+- Forward label references are supported because labels are collected before instruction resolution.
+- Forward `EQU` references are not currently supported: an `EQU` expression must resolve using symbols already defined when that `EQU` is processed.
+- `ORG`, `DB`, and `EQU` are implemented. `DW` is specified but is not currently implemented.
+- `TARGET` syntax is validated by semantic analysis, but target selection itself is performed by `TargetSelector` in the Controller before the assembler is invoked.
+- `SourceLocation` currently contains line and column only; filename information described elsewhere in the documentation is not currently represented by the assembler diagnostic location.
+- The current implementation performs address accounting and semantic validation before code generation; code generation remains responsible for emitting bytes.
+
+These notes identify implementation status and do not redefine the intended language or future architecture.
+
 Its primary responsibilities are
 
 - symbol table construction,
@@ -156,7 +170,7 @@ Addresses are assigned before code generation begins.
 
 # Forward References
 
-Forward references are fully supported.
+Forward label references are supported. Forward references to `EQU` symbols are not currently supported.
 
 Example
 
@@ -356,13 +370,7 @@ Typical diagnostics include
 - invalid directive argument,
 - invalid operand value.
 
-Every diagnostic contains
-
-- filename,
-- line,
-- column,
-- diagnostic category,
-- descriptive message.
+Every assembler diagnostic currently contains a source location with line and column, plus its severity, source/category information, and descriptive message. `SourceLocation` does not currently contain a filename.
 
 ---
 

@@ -39,15 +39,19 @@
 
 # Instruction Set Architecture Refactoring
 
+**Status:** Completed
+
+This document records the completed ISA refactoring. The migration strategy and checklist below are historical records of the work performed; the current implementation is authoritative for API details.
+
 ## Purpose
 
 This document describes the refactoring of the CHIP-8 emulator towards a centralized **Instruction Set Architecture (ISA)** design.
 
 The primary objective of this refactoring is to establish a single authoritative implementation of the CHIP-8 instruction set. All knowledge about instruction encoding, decoding, execution semantics, formatting, and control-flow semantics shall reside exclusively within the ISA layer.
 
-The ISA layer becomes the architectural boundary between the generic emulator infrastructure and the CHIP-8 instruction set. Components such as the emulator, static code analyzer, debugger, disassembler, and future assembler shall interact exclusively with the ISA instead of implementing their own instruction decoding or opcode interpretation.
+The ISA layer becomes the architectural boundary between the generic emulator infrastructure and the CHIP-8 instruction set. Components such as the emulator, static code analyzer, debugger, disassembler, and assembler shall interact exclusively with the ISA instead of implementing their own instruction decoding or opcode interpretation.
 
-This document describes the motivation, design goals, target architecture, migration strategy, and implementation plan for this refactoring.
+This document describes the motivation, design goals, target architecture, migration strategy, and implementation outcome for this refactoring.
 
 ---
 
@@ -93,7 +97,7 @@ The static code analyzer shall perform generic control-flow analysis without int
 
 The debugger and disassembler shall obtain assembly representations directly from decoded instructions instead of implementing independent formatting logic.
 
-Future assembler implementations shall use the same ISA definitions as the emulator.
+The implemented assembler uses the same ISA definitions as the emulator.
 
 ### Extensibility
 
@@ -149,7 +153,7 @@ Support for additional CHIP-8 variants shall be achieved by implementing additio
 
 The refactoring introduces a new architectural layer named the **Instruction Set Architecture (ISA)**.
 
-The ISA represents a complete executable definition of a specific CHIP-8 instruction set. It is responsible for decoding machine instructions and providing the complete semantics of every instruction supported by that architecture.
+The ISA represents a complete executable definition of a specific CHIP-8 instruction set. It is responsible for decoding machine instructions and providing the complete semantics of every instruction supported by that architecture. The current ISA also provides the assembler-facing architecture information required for instruction construction, operand validation, encoding, and instruction references.
 
 All instruction-specific knowledge is centralized within the ISA. The remaining subsystems operate exclusively on decoded `Instruction` objects and therefore remain independent of opcode encoding and instruction set semantics.
 
@@ -399,11 +403,11 @@ Typical usage therefore becomes
 ```python
 instruction = isa.decode(address, opcode)
 
-step_result = isa.execute(instruction)
+step_result = isa.execute(machine, instruction)
 
 text = isa.format(instruction)
 
-next_states = isa.analyze(instruction, work_item)
+analysis = isa.analyze(instruction)
 ```
 
 This separation ensures that decoded instructions remain immutable data objects while all instruction set semantics remain centralized within the ISA.
@@ -425,7 +429,7 @@ opcode = fetch_word(pc)
 
 instruction = isa.decode(pc, opcode)
 
-isa.execute(instruction)
+isa.execute(machine, instruction)
 ```
 
 The emulator neither interprets opcode values nor performs instruction decoding.
@@ -456,7 +460,7 @@ instruction = isa.decode(address, opcode)
 The analyzer then requests the control-flow semantics of the decoded instruction.
 
 ```python
-next_states = isa.analysis(instruction, work_item)
+analysis = isa.analyze(instruction)
 ```
 
 The returned control-flow information is used to construct the program's control-flow graph.
@@ -490,19 +494,17 @@ No subsystem outside the ISA generates assembly mnemonics or interprets opcode v
 
 ---
 
-## Future Assembler
+## Assembler
 
-Although assembler implementation is outside the scope of this refactoring, the architecture has been designed to support it.
+The assembler is an implemented consumer of the ISA. It targets the same ISA implementation used by the emulator.
 
-The assembler shall target the same ISA implementation used by the emulator.
-
-This guarantees that
+This keeps
 
 - instruction encoding,
 - operand validation,
 - instruction syntax,
 
-remain consistent across assembler, emulator and debugger.
+consistent across assembler, emulator and debugger.
 
 Supporting additional CHIP-8 variants shall require only the implementation of a corresponding ISA.
 
@@ -520,11 +522,11 @@ The migration intentionally introduces the ISA alongside the existing implementa
 
 ## Phase 1 — Introduce the ISA Layer
 
-Create the `InstructionSetArchitecture` class hierarchy and integrate it into the project without affecting existing functionality.
+The `InstructionSetArchitecture` class hierarchy was introduced and integrated without changing existing functionality.
 
-The ISA shall become the single location responsible for instruction decoding.
+The ISA became the single location responsible for instruction decoding.
 
-Initially, the existing emulator shall continue to use its current implementation.
+The emulator was subsequently migrated to use the ISA.
 
 **Deliverables**
 
@@ -538,9 +540,9 @@ Initially, the existing emulator shall continue to use its current implementatio
 
 ## Phase 2 — Migrate the Debugger / Disassembler
 
-Replace all instruction formatting logic by the ISA.
+Instruction formatting logic was migrated to the ISA.
 
-The debugger and disassembler shall obtain formatted assembly text exclusively through decoded `Instruction` objects.
+The debugger and disassembler obtain formatted assembly text through the ISA.
 
 **Deliverables**
 
@@ -552,9 +554,9 @@ The debugger and disassembler shall obtain formatted assembly text exclusively t
 
 ## Phase 3 — Migrate the Static Code Analyzer
 
-Replace opcode interpretation inside the static code analyzer.
+Opcode interpretation inside the static code analyzer was replaced.
 
-The analyzer shall perform only generic graph traversal while obtaining instruction-specific control-flow information from decoded instructions.
+The analyzer performs generic graph traversal while obtaining instruction-specific control-flow information from the ISA.
 
 **Deliverables**
 
@@ -568,11 +570,11 @@ The analyzer shall perform only generic graph traversal while obtaining instruct
 
 ## Phase 4 — Migrate Emulator Execution
 
-Replace instruction execution inside the emulator.
+Instruction execution inside the emulator was replaced.
 
-Execution semantics shall become part of the ISA.
+Execution semantics became part of the ISA.
 
-The emulator shall no longer interpret opcode values.
+The emulator no longer interprets opcode values.
 
 **Deliverables**
 
@@ -586,9 +588,7 @@ The emulator shall no longer interpret opcode values.
 
 ## Phase 5 — Remove Obsolete Logic
 
-After every subsystem has been migrated, remove the previous implementations.
-
-At the completion of this phase, the ISA shall become the only implementation of the CHIP-8 instruction set.
+After every subsystem was migrated, the previous implementations were removed. The ISA is now the authoritative implementation of the CHIP-8 instruction set.
 
 **Deliverables**
 
@@ -603,9 +603,7 @@ At the completion of this phase, the ISA shall become the only implementation of
 
 # Testing Strategy
 
-The refactoring shall preserve the observable behaviour of the emulator throughout every migration phase.
-
-After each completed phase, the following conditions shall be verified.
+The completed refactoring preserves the observable behaviour of the emulator. The following conditions were used to verify the migration.
 
 ## Functional Verification
 
@@ -625,7 +623,7 @@ After every migration step:
 
 ## Regression Testing
 
-Once the regression ROM suite has been implemented, it shall become the primary verification tool for this refactoring.
+The regression ROM suite is outside this refactoring document; the existing unit-test suite is used for current verification.
 
 All supported ROMs shall execute identically before and after each migration step.
 
@@ -658,7 +656,6 @@ The following topics are explicitly outside the scope of this refactoring.
 - Behavioural changes to existing CHIP-8 instructions.
 - Performance optimization.
 - Introduction of additional CHIP-8 variants.
-- Assembler implementation.
 - Regression ROM suite implementation.
 
 These items may be addressed by future development efforts but are not considered part of this refactoring.
@@ -667,9 +664,9 @@ These items may be addressed by future development efforts but are not considere
 
 # Progress Checklist
 
-- [ ] Introduce the ISA layer
-- [ ] Migrate debugger / disassembler
-- [ ] Migrate static code analyzer
-- [ ] Migrate emulator execution
-- [ ] Remove obsolete decoding logic
+- [x] Introduce the ISA layer
+- [x] Migrate debugger / disassembler
+- [x] Migrate static code analyzer
+- [x] Migrate emulator execution
+- [x] Remove obsolete decoding logic
 

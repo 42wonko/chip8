@@ -565,12 +565,14 @@ layer.
 
 ### 2.3.1 GUI Layer
 
-The GUI layer is responsible solely for presenting information and
-forwarding user input to the Controller.
+The GUI layer is responsible for presenting information and forwarding user
+input to the Controller. GUI components may retain read-only references to
+emulator state or emulator-owned data structures when required for
+presentation.
 
-The GUI shall never modify emulator state directly.
+The GUI shall not modify emulator state directly.
 
-The GUI shall never execute CHIP-8 instructions.
+The GUI shall not execute CHIP-8 instructions.
 
 ---
 
@@ -578,18 +580,21 @@ The GUI shall never execute CHIP-8 instructions.
 
 **REQ-ARCH-103**
 
-GUI components shall not access emulator objects directly.
+GUI components shall not modify emulator state directly. They may access
+emulator-owned state or data structures read-only when required to present
+emulator state.
 
 **REQ-ARCH-104**
 
-GUI components shall communicate exclusively with the Controller.
+GUI components shall communicate with the Controller for application
+commands and operations that modify emulator state.
 
 ---
 
 ### 2.3.2 Controller Layer
 
-The Controller coordinates all communication between the GUI and the
-Emulator.
+The Controller coordinates application communication between the GUI and
+the Emulator.
 
 It is responsible for
 
@@ -611,8 +616,9 @@ Exactly one Controller instance shall exist.
 
 **REQ-ARCH-106**
 
-The Controller shall be the only component permitted to communicate
-with both the GUI and the Emulator.
+The Controller shall be the application coordination hub between the GUI
+and the Emulator. The GUI may directly access emulator-owned state or
+presentation data read-only when required for display.
 
 ---
 
@@ -641,19 +647,10 @@ The Emulator shall not import GUI modules.
 
 ## 2.4 Dependency Rules
 
-Dependencies shall always point downward.
-
-```
-GUI
- │
- ▼
-Controller
- │
- ▼
-Emulator
-```
-
-Reverse dependencies are prohibited.
+Application control dependencies shall point downward from the GUI through
+the Controller to the Emulator. Read-only presentation dependencies from GUI
+components to emulator-owned state are permitted. The Emulator shall not
+depend on either the Controller or the GUI.
 
 ---
 
@@ -856,10 +853,10 @@ dependencies between the GUI and the Emulator.
 | REQ-ARCH-100 | Three-layer architecture |
 | REQ-ARCH-101 | GUI, Controller, Emulator |
 | REQ-ARCH-102 | One architectural layer per component |
-| REQ-ARCH-103 | GUI shall not access Emulator directly |
-| REQ-ARCH-104 | GUI communicates only with Controller |
+| REQ-ARCH-103 | GUI shall not modify Emulator state directly |
+| REQ-ARCH-104 | GUI uses Controller for commands and state-changing operations |
 | REQ-ARCH-105 | Exactly one Controller instance |
-| REQ-ARCH-106 | Controller is the communication hub |
+| REQ-ARCH-106 | Controller is the application coordination hub |
 | REQ-ARCH-107 | Emulator independent of GUI |
 | REQ-ARCH-108 | Emulator shall not import GUI modules |
 | REQ-ARCH-109 | GUI may depend on Controller |
@@ -1965,7 +1962,7 @@ Additional requirements:
 
 - The current program counter shall be visually highlighted.
 - The Code View shall automatically follow the current instruction during program execution.
-- The user shall be able to disable automatic realtime updates.
+- The user shall be able to disable automatic Code View updates.
 - The visual representation of the different classifications is implementation-defined.
 
 ---
@@ -1986,15 +1983,19 @@ Repeated reconstruction of graphical user interface elements shall be avoided wh
 
 ### PR-6.5.4
 
-The user shall be able to suspend automatic realtime updates of the Code View.
+The user shall be able to suspend automatic Code View updates. In this SRDS,
+“realtime display updates” refer to synchronization behavior of the Code View, Memory View and the registers.
+It does not refer to the Chip8Machine Display.
+
 
 ### PR-6.5.5
 
-Suspending realtime updates shall not affect emulator execution.
+Suspending automatic display updates shall not affect emulator execution.
 
 ### PR-6.5.6
 
-When realtime updates are re-enabled, the Code View shall be synchronized with the current emulator state.
+When automatic display updates are re-enabled, the GUI shall be
+synchronized with the current emulator state.
 
 ---
 
@@ -2014,7 +2015,9 @@ The Controller shall coordinate communication between the emulator, the Code Ana
 
 ### AR-6.6.4
 
-Instruction decoding shall remain the responsibility of the `Instruction` class.
+Instruction decoding shall remain the responsibility of the instruction-set
+architecture. The ISA provides the shared decoding operation used by both
+emulator execution and code analysis/disassembly.
 
 ---
 
@@ -3151,17 +3154,96 @@ NumPy Documentation
 
 ---
 
-The following table links requirements to their implementation.
+The following table provides the current traceability assessment for the
+requirements whose implementation can be verified from the available source.
+It is a maintained working matrix, not a claim that every requirement has
+already been fully reconciled. “Partially implemented” denotes a requirement
+for which the current implementation satisfies part of the requirement but
+known discrepancies remain. “Not verified from source archive” is used where
+the relevant build or UI artefacts are not present in the source archive.
+
+### Architecture requirements
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| REQ-ARCH-106 | Chip8Controller | Planned |
-| REQ-GUI-503 | MainWindow | Implemented |
-| REQ-GUI-505 | DisplayWidget | Implemented |
-| REQ-EMU-303 | Chip8Memory | Planned |
-| REQ-EMU-320 | InstructionDecoder | Planned |
+| REQ-ARCH-100 | `Chip8Controller` and three-layer package structure | Implemented |
+| REQ-ARCH-101 | GUI, Controller and Emulator packages | Implemented |
+| REQ-ARCH-102 | GUI, Controller and Emulator components | Partially implemented |
+| REQ-ARCH-103 | GUI components still retain direct emulator dependencies | Partially implemented |
+| REQ-ARCH-104 | GUI communicates through Controller for application operations, but direct emulator dependencies remain | Partially implemented |
+| REQ-ARCH-105 | Application creates a single `Chip8Controller` | Implemented |
+| REQ-ARCH-106 | `Chip8Controller` is the intended communication hub; direct GUI-to-emulator dependencies remain | Partially implemented |
+| REQ-ARCH-107 | Emulator package contains no GUI dependency | Implemented |
+| REQ-ARCH-108 | Emulator modules do not import GUI modules | Implemented |
+| REQ-ARCH-109 | GUI may depend on Controller | Implemented |
+| REQ-ARCH-110 | Controller may depend on Emulator | Implemented |
+| REQ-ARCH-111 | Emulator remains independent of higher layers | Implemented |
+| REQ-ARCH-112 | Controller updates GUI after instruction execution | Implemented |
+| REQ-ARCH-113 | GUI synchronization occurs from completed execution results | Implemented |
+| REQ-ARCH-114 | Controller owns the primary application objects | Implemented |
+| REQ-ARCH-115 | `Chip8Controller` owns `MainWindow` | Implemented |
+| REQ-ARCH-116 | `Chip8Controller` owns `Chip8Machine` | Implemented |
+| REQ-ARCH-117 | Project uses the `src` layout | Implemented |
+| REQ-ARCH-118 | Responsibilities are separated across packages | Implemented |
+
+### Emulator requirements
+
+| Requirement | Implementation | Status |
+|-------------|----------------|--------|
+| REQ-EMU-300 | `Chip8Machine` | Implemented |
+| REQ-EMU-301 | `Chip8Machine` has no GUI dependency | Implemented |
+| REQ-EMU-302 | `Chip8Machine` and associated state classes | Implemented |
+| REQ-EMU-303 | `Chip8Memory` provides 4096-byte memory | Implemented |
+| REQ-EMU-304 | `PROGRAM_START` / `0x0200` | Implemented |
+| REQ-EMU-305 | Sixteen general-purpose registers | Implemented |
+| REQ-EMU-306 | 16-bit index register | Implemented |
+| REQ-EMU-307 | 16-bit program counter | Implemented |
+| REQ-EMU-308 | Stack pointer | Implemented |
+| REQ-EMU-309 | Sixteen-level stack | Implemented |
+| REQ-EMU-310 | Delay timer implementation | Implemented |
+| REQ-EMU-311 | Sound timer implementation | Implemented |
+| REQ-EMU-312 | 64 × 32 framebuffer | Implemented |
+| REQ-EMU-313 | GUI-independent `Framebuffer` | Implemented |
+| REQ-EMU-314 | CHIP-8 keyboard state | Implemented |
+| REQ-EMU-315 | `Chip8Machine.reset()` | Implemented |
+| REQ-EMU-316 | Reset initializes PC to `0x0200` | Implemented |
+| REQ-EMU-317 | ROM loading at `0x0200` | Implemented |
+| REQ-EMU-318 | `Chip8Machine.execute_cycle()` executes one instruction | Implemented |
+| REQ-EMU-319 | Instruction execution is performed as a single machine operation | Implemented |
+| REQ-EMU-320 | `InstructionSetArchitecture.decode()` followed by ISA execution | Implemented |
+| REQ-EMU-321 | Shared ISA decoding is used by execution and code analysis | Implemented |
+| REQ-EMU-322 | Execution errors are handled without exposing partial GUI state | Implemented |
+| REQ-EMU-323 | ISA-based architecture provides an extension point for future variants | Implemented |
+
+### GUI requirements
+
+| Requirement | Implementation | Status |
+|-------------|----------------|--------|
+| REQ-GUI-500 | Controller-mediated GUI operations | Partially implemented |
+| REQ-GUI-501 | Direct imports of emulator types remain in some GUI models/widgets | Partially implemented |
+| REQ-GUI-502 | Qt Designer source UI files are not present in the source archive | Not verified from source archive |
+| REQ-GUI-503 | `uic.loadUi()` in GUI dialogs and `MainWindow` | Implemented |
+| REQ-GUI-504 | Main window layout is loaded from UI resources | Implemented |
+| REQ-GUI-505 | `DisplayWidget` presents the framebuffer | Implemented |
+| REQ-GUI-506 | Display preserves CHIP-8 aspect ratio | Implemented |
+| REQ-GUI-507 | Display scaling is independent of framebuffer dimensions | Implemented |
+| REQ-GUI-508 | Display defaults to black foreground on white background | Implemented |
+| REQ-GUI-509 | Register view | Implemented |
+| REQ-GUI-510 | Memory view | Implemented |
+| REQ-GUI-511 | Stack/debugger views | Implemented |
+| REQ-GUI-512 | Code View/disassembly model | Implemented |
+| REQ-GUI-513 | Keyboard view | Implemented |
+| REQ-GUI-514 | ROM loading | Implemented |
+| REQ-GUI-515 | ROM reload | Implemented |
+| REQ-GUI-516 | Run, pause, stop and reset controls | Implemented |
+| REQ-GUI-517 | Single-step execution | Implemented |
+| REQ-GUI-518 | GUI synchronization after instruction execution | Implemented |
+| REQ-GUI-519 | GUI views are synchronized from controller state updates | Implemented |
+| REQ-GUI-520 | UI files are not present in the source archive | Not verified from source archive |
+| REQ-GUI-521 | Application logic is separated from UI files | Implemented |
+| REQ-GUI-522 | GUI package is structured for extension | Implemented |
 
 The traceability matrix shall be updated whenever new functionality is
-implemented.
+implemented or an architectural discrepancy is resolved.
 
 
