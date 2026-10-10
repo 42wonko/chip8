@@ -4,7 +4,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Proposed
+**Status:** Proposed development plan; parser architecture superseded by ADR-014
 
 ---
 
@@ -493,23 +493,25 @@ src/assembler/ast.py
 
 ### 9.2 Processing Sequence
 
+The original architecture-definition stage in this proposed plan is superseded by ADR-014. The accepted sequence is: Controller target selection, construction of the matching ISA and concrete parser, lexing, parsing, semantic analysis, and code generation.
+
 ```text
 Source
   │
   ▼
 Target Selection
   │
-  ▼
-Architecture Definition
-  │
-  ▼
-Lexer
-  │
-  ▼
-Parser
-  │
-  ▼
-AST
+  ├──────────────┐
+  ▼              ▼
+ ISA        Concrete Parser
+  │              │
+  └──────┬───────┘
+         ▼
+       Lexer
+         ▼
+       Parser
+         ▼
+         AST
 ```
 
 ### 9.3 AST Responsibilities

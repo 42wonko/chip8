@@ -232,7 +232,8 @@ Known language/architecture work still documented elsewhere:
 
 - [ ] `DW` directive
 - [ ] `\xNN` character/string escape support
-- [ ] Generic architecture-driven parser framework
+- [x] Shared parser base and architecture-specific ClassicParser mnemonic validation
+- [ ] Parser recovery at statement boundaries, including multiple syntax diagnostics per source file
 - [ ] Additional CHIP-8 architecture targets / plug-ins
 
 ---

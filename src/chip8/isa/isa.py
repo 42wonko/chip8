@@ -128,6 +128,16 @@ class InstructionSetArchitecture(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def assembler_mnemonics(self) -> frozenset[str]:
+        """
+        @brief Return the assembler instruction mnemonics supported by this ISA.
+
+        @return
+            Set of assembler instruction mnemonics.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def assembler_operand_signatures( self, mnemonic: str, operand_count: int) -> tuple[tuple[AssemblerOperandType, ...], ...]:
         """
         @brief Return legal assembler operand signatures for an instruction.

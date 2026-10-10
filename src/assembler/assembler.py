@@ -38,7 +38,7 @@ class Assembler:
     @brief Entry point for the assembler.
     """
 
-    def __init__( self, diagnostics: AssemblerDiagnosticsReporter, isa: InstructionSetArchitecture) -> None:
+    def __init__( self, diagnostics: AssemblerDiagnosticsReporter, isa: InstructionSetArchitecture, parser: Parser) -> None:
         """
         @brief Construct an assembler.
 
@@ -48,8 +48,9 @@ class Assembler:
         @param isa
             Instruction-set architecture supplied by the controller.
         """
-        self._diagnostics = diagnostics
-        self._isa = isa
+        self._diagnostics   = diagnostics
+        self._isa           = isa
+        self._parser        = parser
 
 
     def assemble( self, source: str, options: AssemblyOptions | None = None) -> AssemblyResult:
@@ -119,12 +120,11 @@ class Assembler:
             return AssemblyResult(success=False)
 
 
-    @staticmethod
-    def _parse(source: str) -> AssemblyNode:
+    def _parse(self, source: str) -> AssemblyNode:
         """
         @brief Lex and parse assembler source.
         """
         tokens = Lexer(source).tokenize()
-        return Parser(tokens).parse()
-
+        self._parser.set_tokens(tokens)
+        return self._parser.parse()
 

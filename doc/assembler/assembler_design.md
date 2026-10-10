@@ -4,13 +4,13 @@
 
 **Date:** 2026-08-13
 
-**Status:** Proposed
+**Status:** Proposed overall design; parser sections superseded by ADR-014
 
 ---
 
 ## 1. Purpose
 
-This document defines the overall architecture of the CHIP-8 assembler.
+This document defines the overall architecture of the CHIP-8 assembler. The parser design in the original proposal is superseded by ADR-014; the current parser direction is a shared `Parser` base with concrete architecture-specific subclasses.
 
 The assembler is designed as an independent subsystem of the existing CHIP-8 emulator project while remaining suitable for later integration into the existing emulator and debugger GUI.
 
@@ -20,7 +20,7 @@ The assembler implementation is located under:
 src/assembler/
 ```
 
-The design separates source-language processing from target-specific architecture definitions, semantic analysis, and machine-code generation.
+The design separates source-language processing, target-specific parser selection, semantic analysis, and machine-code generation. The parser architecture described in this document has been superseded by ADR-014.
 
 The design also establishes the output products produced by the assembler and the information required for later GUI and debugger integration.
 
@@ -31,7 +31,7 @@ The design also establishes the output products produced by the assembler and th
 The assembler shall:
 
 - support multiple CHIP-8 architectures
-- provide a grammar-driven parser framework
+- reuse common parser grammar machinery through an architecture-specific parser hierarchy
 - select the target architecture before parsing
 - support target selection from either the source or an external caller
 - produce an explicit AST
@@ -92,11 +92,13 @@ Target Discovery
       ▼
 Target Selection
       │
-      ▼
-Architecture Definition
-      │
-      ▼
-Parsing
+      ├──────────────┐
+      ▼              ▼
+     ISA       Concrete Parser
+      │              │
+      └──────┬───────┘
+             ▼
+          Parsing
       │
       ▼
 Abstract Syntax Tree
@@ -113,7 +115,7 @@ Assembly Output Products
 
 The target architecture must be established before parsing because the selected architecture determines the language accepted by the parser.
 
-The parser therefore cannot be architecture-independent at the language level, even though the parser framework itself is generic.
+The shared `Parser` handles common syntax. A concrete parser uses the selected ISA to recognize target-specific instruction mnemonics.
 
 ---
 
@@ -164,46 +166,15 @@ If neither a source target nor an external target is available, assembly cannot 
 
 ---
 
-## 6. Architecture Definition
+## 6. Architecture-Specific Parser and ISA
 
-The architecture definition describes the assembly language accepted for the selected target.
+The accepted design does not use an `ArchitectureDefinition` object. The Controller selects the target and constructs the corresponding ISA and concrete parser. The same ISA instance is supplied to the parser and `Assembler`.
 
-It may contain information such as:
+The ISA exposes assembler mnemonic knowledge through `assembler_mnemonics()`. The concrete parser uses that API to reject unsupported mnemonics during parsing. It does not duplicate mnemonic lists or depend on `InstructionId`.
 
-- instruction mnemonics
-- directives
-- registers
-- operands
-- keywords
-- reserved words
-- expression forms
-- architecture-specific constructs
-- instruction encoding information
-- architecture-specific semantic rules
+The common `Parser` owns token handling, labels, directives, operands, expressions, AST construction, source locations, and parser errors. Semantic analysis validates operand signatures and types, resolves symbols, evaluates expressions, and checks ranges.
 
-The architecture definition is supplied to the parser framework.
-
-The parser framework does not contain hard-coded definitions for individual architectures.
-
-Conceptually:
-
-```text
-+---------------------------+
-| Architecture Definition   |
-+-------------+-------------+
-              │
-              ▼
-+---------------------------+
-| Parser Framework          |
-+-------------+-------------+
-              │
-              ▼
-+---------------------------+
-| Abstract Syntax Tree      |
-+---------------------------+
-```
-
----
+See ADR-014 and `parser_framework.md` for the accepted design.
 
 ## 7. Architecture-Specific Language
 
@@ -231,30 +202,13 @@ The selected architecture participates directly in parsing.
 
 ---
 
-## 8. Parser Framework
+## 8. Shared Parser and Concrete Parsers
 
-The parser framework provides generic parsing machinery.
+`Parser` provides shared recursive-descent parsing machinery. `ClassicParser` inherits from it and specializes instruction-mnemonic recognition by querying the selected ISA's `assembler_mnemonics()` API.
 
-It is driven by the grammar and architecture definition of the selected target.
+The parser handles syntax and AST construction. It does not validate whether a parsed operand combination is legal for an instruction; semantic analysis owns that responsibility. `Assembler` receives a parser instance through dependency injection and supplies a fresh token stream before each parse.
 
-The framework is responsible for:
-
-- tokenization
-- grammar processing
-- syntactic recognition
-- construction of AST nodes
-- syntax diagnostics
-- source-location tracking
-
-The framework is not responsible for:
-
-- machine-code generation
-- symbol resolution
-- final address assignment
-- emulator interaction
-- GUI interaction
-
----
+No generic grammar-driven parser framework or `ArchitectureDefinition` object is part of the accepted design. ADR-014 supersedes the corresponding sections of this proposed document.
 
 ## 9. Architecture Implementation Strategy
 
@@ -279,7 +233,7 @@ This is an implementation option rather than a mandatory class hierarchy.
 
 The architecture model should be selected based on the actual relationships between the supported architectures.
 
-The parser framework remains independent of the specific implementation mechanism.
+The shared parser base remains independent of a particular target; concrete parsers specialize target-specific recognition.
 
 ---
 
@@ -985,18 +939,20 @@ GUI tests should verify the assembler dialog independently from the assembler im
 
 ## 36. Summary
 
-The assembler is a separate subsystem located under `src/assembler`.
+The assembler is a separate subsystem located under `src/assembler`. The parser-related portions of this proposed design are superseded by ADR-014.
 
 Its architecture is based on a clear separation between:
 
 ```text
 Target Selection
       │
-      ▼
-Architecture Definition
-      │
-      ▼
-Parsing
+      ├──────────────┐
+      ▼              ▼
+     ISA       Concrete Parser
+      │              │
+      └──────┬───────┘
+             ▼
+          Parsing
       │
       ▼
 AST

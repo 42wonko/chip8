@@ -47,3 +47,7 @@ The title may evolve for clarity.
 - Accepted
 - Superseded
 - Deprecated
+
+## Current decisions
+
+- **ADR-014** — Use Inherited Architecture-Specific Parsers (supersedes ADR-010 and the parser-framework/language-definition portions of ADR-013).

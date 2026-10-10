@@ -7,6 +7,7 @@
 import unittest
 
 from assembler.ast import (
+    AssemblyNode,
     BinaryExpression,
     BinaryOperator,
     DirectiveNode,
@@ -16,9 +17,17 @@ from assembler.ast import (
     LabelNode,
     LiteralExpression,
 )
+from assembler.classicparser import ClassicParser
 from assembler.lexer import Lexer
 from assembler.parser import Parser, ParserError
+from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 
+
+class PermissiveParser(Parser):
+    """Test parser that accepts any instruction mnemonic."""
+
+    def _is_instruction_mnemonic(self, mnemonic: str) -> bool:
+        return True
 
 class ParserTest(unittest.TestCase):
     """
@@ -36,7 +45,9 @@ class ParserTest(unittest.TestCase):
             Parsed assembly tree.
         """
         tokens = Lexer(source).tokenize()
-        return Parser(tokens).parse()
+        parser = PermissiveParser()
+        parser.set_tokens(tokens)
+        return parser.parse()
 
     def test_empty_source(self) -> None:
         assembly = self._parse("")
@@ -207,7 +218,9 @@ class ParserTest(unittest.TestCase):
 
     def test_parse_org_directive(self) -> None:
         tokens = Lexer("ORG 0x300").tokenize()
-        assembly = Parser(tokens).parse()
+        parser = PermissiveParser()
+        parser.set_tokens(tokens)
+        assembly = parser.parse()
         statement = assembly.lines[0].statement
         self.assertIsInstance(statement, DirectiveNode)
         self.assertEqual(statement.name, "ORG")
@@ -225,7 +238,9 @@ class ParserTest(unittest.TestCase):
 
     def test_parse_org_expression(self) -> None:
         tokens = Lexer("ORG 0x200 + 0x20").tokenize()
-        assembly = Parser(tokens).parse()
+        parser = PermissiveParser()
+        parser.set_tokens(tokens)
+        assembly = parser.parse()
         statement = assembly.lines[0].statement
         self.assertIsInstance(statement, DirectiveNode)
         self.assertEqual(statement.name, "ORG")
@@ -255,5 +270,114 @@ class ParserTest(unittest.TestCase):
         operand = statement.operands[0]
         self.assertIsInstance( operand, IdentifierExpression)
         self.assertEqual( operand.name, "I")
+
+    def test_set_tokens_resets_parser_state(self) -> None:
+        parser = PermissiveParser()
+
+        parser.set_tokens(Lexer("CLS").tokenize())
+        first = parser.parse()
+        self.assertEqual(first.lines[0].statement.mnemonic, "CLS")
+
+        parser.set_tokens(Lexer("RET").tokenize())
+        second = parser.parse()
+        self.assertEqual(second.lines[0].statement.mnemonic, "RET")
+
+
+class TestClassicParser(unittest.TestCase):
+    """
+    @brief Tests for the Classic CHIP-8 assembler parser.
+    """
+
+    def setUp(self) -> None:
+        self._isa = ClassicInstructionSetArchitecture()
+        self._parser = ClassicParser(self._isa)
+
+
+    def _parse(self, source: str) -> AssemblyNode:
+        tokens = Lexer(source).tokenize()
+        self._parser.set_tokens(tokens)
+        return self._parser.parse()
+
+
+    def test_accepts_classic_instruction(self) -> None:
+        assembly = self._parse("CLS")
+        self.assertEqual(len(assembly.lines), 1)
+        self.assertIsInstance(assembly.lines[0].statement, InstructionNode)
+        self.assertEqual(assembly.lines[0].statement.mnemonic, "CLS")
+
+
+    def test_accepts_classic_instruction_case_insensitively(self) -> None:
+        assembly = self._parse("cls")
+        statement = assembly.lines[0].statement
+        self.assertIsInstance(statement, InstructionNode)
+        self.assertEqual(statement.mnemonic, "cls")
+
+
+    def test_rejects_unsupported_instruction(self) -> None:
+        with self.assertRaises(ParserError):
+            self._parse("PLANE 1")
+
+
+    def test_classic_parser_inherits_common_parser(self) -> None:
+        self._parser.set_tokens(Lexer("CLS").tokenize())
+        assembly = self._parser.parse()
+        statement = assembly.lines[0].statement
+        self.assertIsInstance(statement, InstructionNode)
+        self.assertEqual(statement.mnemonic, "CLS")
+
+    def test_set_tokens_resets_parser_state(self) -> None:
+        """
+        @brief Verify that a parser can parse independent token streams
+        sequentially.
+        """
+        parser = PermissiveParser()
+
+        first_tokens = Lexer("CLS\n").tokenize()
+        parser.set_tokens(first_tokens)
+        first = parser.parse()
+
+        second_tokens = Lexer("RET\n").tokenize()
+        parser.set_tokens(second_tokens)
+        second = parser.parse()
+
+        self.assertEqual(first.lines[0].statement.mnemonic, "CLS")
+        self.assertEqual(second.lines[0].statement.mnemonic, "RET")
+
+    def test_classic_parser_accepts_classic_instruction(self) -> None:
+        isa = ClassicInstructionSetArchitecture()
+        parser = ClassicParser(isa)
+        parser.set_tokens(Lexer("CLS\n").tokenize())
+        assembly = parser.parse()
+        self.assertEqual(len(assembly.lines), 1)
+
+    def test_classic_parser_rejects_unsupported_instruction(self) -> None:
+        isa = ClassicInstructionSetArchitecture()
+        parser = ClassicParser(isa)
+        parser.set_tokens(Lexer("NOT_A_CHIP8_INSTRUCTION\n").tokenize())
+        with self.assertRaises(ParserError):
+            parser.parse()
+
+    def test_classic_parser_accepts_lowercase_instruction(self) -> None:
+        isa = ClassicInstructionSetArchitecture()
+        parser = ClassicParser(isa)
+        parser.set_tokens(Lexer("cls\n").tokenize())
+        assembly = parser.parse()
+        self.assertEqual(len(assembly.lines), 1)
+
+    def test_base_parser_cannot_be_instantiated(self) -> None:
+        with self.assertRaises(TypeError):
+            Parser()
+
+    def test_parser_does_not_validate_operand_signatures(self) -> None:
+        """
+        @brief Verify that operand signature validation belongs to
+        semantic analysis rather than parsing.
+        """
+        assembly = self._parse("RND V1, V2")
+        self.assertEqual(len(assembly.lines), 1)
+        statement = assembly.lines[0].statement
+        self.assertIsInstance(statement, InstructionNode)
+        self.assertEqual(statement.mnemonic, "RND")
+        self.assertEqual(len(statement.operands), 2)
 
 

@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+
 from assembler.ast import (
     AssemblyNode,
     BinaryExpression,
@@ -30,21 +32,30 @@ class ParserError(ValueError):
         super().__init__(message)
         self.location = location
 
-class Parser:
+class Parser(ABC):
     """
     @brief Parses assembler tokens into an abstract syntax tree.
     """
 
-    def __init__(self, tokens: list[Token]) -> None:
+    def __init__(self) -> None:
         """
         @brief Initialize the parser.
 
         @param tokens
             Tokens produced by the assembler lexer.
         """
-        self._tokens = tokens
+        self._tokens: list[Token] = []
         self._position = 0
 
+    def set_tokens(self, tokens: list[Token]) -> None:
+        """
+        @brief Set the token stream to be parsed.
+
+        @param tokens
+            Tokens produced by the assembler lexer.
+        """
+        self._tokens = tokens
+        self._position = 0
 
     def parse(self) -> AssemblyNode:
         """
@@ -113,11 +124,28 @@ class Parser:
         @return
             Parsed statement.
         """
-        token = self._expect( TokenType.IDENTIFIER, "Expected instruction or directive.")
+        token = self._expect(TokenType.IDENTIFIER, "Expected instruction or directive.")
         if token.value.upper() in ("TARGET", "ORG", "EQU", "DB"):
             return self._parse_directive(token)
+        if not self._is_instruction_mnemonic(token.value):
+            raise ParserError( f"Unsupported instruction '{token.value}'.", token.location,)
         return self._parse_instruction(token)
 
+    @abstractmethod
+    def _is_instruction_mnemonic(self, mnemonic: str) -> bool:
+        """
+        @brief Determine whether a mnemonic is accepted as an instruction.
+
+        The base parser accepts identifier-shaped instruction names. Concrete
+        architecture-specific parsers may override this method.
+
+        @param mnemonic
+            Instruction mnemonic.
+
+        @return
+            True if the mnemonic is accepted.
+        """
+        raise NotImplementedError
 
     def _parse_instruction(self, mnemonic: Token) -> InstructionNode:
         """

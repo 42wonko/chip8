@@ -208,6 +208,36 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
         """
         return ADDRESS_MASK
 
+    def assembler_mnemonics(self) -> frozenset[str]:
+        """
+        @brief Return the assembler mnemonics supported by Classic CHIP-8.
+
+        @return
+            Classic CHIP-8 assembler instruction mnemonics.
+        """
+        return frozenset({
+            "SYS",
+            "CLS",
+            "RET",
+            "JP",
+            "CALL",
+            "SE",
+            "SNE",
+            "LD",
+            "ADD",
+            "OR",
+            "AND",
+            "XOR",
+            "SUB",
+            "SHR",
+            "SUBN",
+            "SHL",
+            "SKP",
+            "SKNP",
+            "RND",
+            "DRW",
+        })
+
     def create_assembler_instruction( self, mnemonic: str, operands: tuple[AssemblerOperand, ...]) -> AssemblerInstruction:
         """
         @brief Create a Classic CHIP-8 assembler instruction.

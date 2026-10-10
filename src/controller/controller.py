@@ -37,6 +37,7 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
 
 from assembler.assembler import Assembler
+from assembler.classicparser import ClassicParser
 from assembler.options import AssemblyOptions
 from assembler.target import Target
 from assembler.target_selector import TargetSelectionError, TargetSelector
@@ -95,7 +96,9 @@ class Chip8Controller:
         self._machine                               = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
         self._isa                                   = ClassicInstructionSetArchitecture()
         self._machine.set_isa(self._isa)
-        self._assembler                             = Assembler( self._assembler_diagnostics.reporter(), self._isa)    # type: ignore[arg-type]
+        assembler_isa                               = ClassicInstructionSetArchitecture()           # Chip8Machine and the assembler use different instances of the ISA
+        assembler_parser                            = ClassicParser(assembler_isa)
+        self._assembler                             = Assembler( self._assembler_diagnostics.reporter(), assembler_isa, assembler_parser,)
         self._log_manager.set_isa(self._isa)
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)
@@ -915,7 +918,8 @@ class Chip8Controller:
         """
         if target is Target.COSMAC:
             isa = ClassicInstructionSetArchitecture()
-            return Assembler(self._assembler_diagnostics.reporter(), isa)
+            parser = ClassicParser(isa)
+            return Assembler( self._assembler_diagnostics.reporter(), isa, parser)
         raise TargetSelectionError(f"Unsupported target architecture '{target}'.")
 
 

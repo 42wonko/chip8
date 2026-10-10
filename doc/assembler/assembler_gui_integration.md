@@ -107,8 +107,7 @@ The rules are:
 | Multiple `TARGET` directives | Any | Assembly is rejected |
 | Unknown target name | Any | Assembly is rejected |
 
-A selected assembler target determines which `Assembler` instance and ISA are supplied
-to the assembly operation.
+A selected assembler target determines which ISA and architecture-specific parser are constructed and supplied to the `Assembler`. The parser and assembler share the same ISA instance.
 
 This target selection **does not change the ISA of `Chip8Machine`**. Emulator machine
 architecture is selected independently by the application's machine configuration.
@@ -208,8 +207,7 @@ configuration.
 
 ## 10. Future Architecture Work
 
-The project contains separate proposed design documents for a generic parser framework,
-architecture definitions, and architecture plug-ins for CHIP-8 variants.
+ADR-014 records the accepted parser design: a shared parser base, target-specific subclasses, and mnemonic knowledge supplied by the ISA. `architecture_definitions.md` is retained only as a superseded proposal.
 
 Those designs are not prerequisites for the current COSMAC assembler integration and are
 not claimed as implemented by this document.

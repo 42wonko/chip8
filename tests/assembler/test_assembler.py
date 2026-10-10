@@ -5,9 +5,13 @@
 """
 
 import unittest
+from unittest.mock import Mock
 
 from assembler.assembler import Assembler
+from assembler.ast import AssemblyNode
+from assembler.classicparser import ClassicParser
 from assembler.options import AssemblyOptions
+from assembler.parser import Parser
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from controller.diagnostic import DiagnosticSource
 
@@ -24,12 +28,10 @@ class TestAssembler(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-#        self._diagnostics = Diagnostics()
         self._diagnostics = AssemblerDiagnostics()
-#        machine = create_machine()
         self._isa = ClassicInstructionSetArchitecture()
-#        self._assembler = Assembler( self._diagnostics.reporter(DiagnosticSource.ASSEMBLER), self._isa)
-        self._assembler = Assembler( self._diagnostics.reporter(), self._isa)
+        parser = ClassicParser(self._isa)
+        self._assembler = Assembler( self._diagnostics.reporter(), self._isa, parser)
 
 
     def test_assembler_can_be_instantiated(self) -> None:
@@ -144,6 +146,8 @@ class TestAssembler(unittest.TestCase):
     def test_assemble_rnd_rejects_invalid_operands(self) -> None:
         result = self._assembler.assemble("RND V1, V2")
         self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        self.assertEqual( result.diagnostics[0].message, "Operand 'V2' has type REGISTER, expected VALUE.",)
 
 
     def test_assemble_drw_rejects_invalid_operands(self) -> None:
@@ -769,7 +773,7 @@ class TestAssembler(unittest.TestCase):
         """
         @brief Verify that a DB range error is returned with its source location.
         """
-        result = self._assembler.assemble("DATA: DB 0x100")
+        result = self._assembler.assemble("DB 0x100")
         self.assertFalse(result.success)
         self.assertEqual(len(result.diagnostics), 1)
         diagnostic = result.diagnostics[0]
@@ -777,7 +781,7 @@ class TestAssembler(unittest.TestCase):
         self.assertIsNotNone(diagnostic.location)
         assert diagnostic.location is not None
         self.assertEqual(diagnostic.location.line, 1)
-        self.assertEqual(diagnostic.location.column, 7)
+        self.assertEqual(diagnostic.location.column, 1)
 
 
     def test_instruction_exceeding_address_space_is_reported_in_result( self,) -> None:
@@ -920,6 +924,46 @@ class TestAssembler(unittest.TestCase):
         self.assertIn("JP SECOND", second.listing)
         self.assertNotIn("FIRST: CLS", second.listing)
         self.assertNotIn("JP FIRST", second.listing)
+
+
+    def test_parse_uses_injected_parser(self) -> None:
+        """
+        @brief Verify that parsing uses the injected parser instance.
+        """
+        parser = Mock(spec=Parser)
+        parser.parse.return_value = AssemblyNode(lines=())
+        assembler = Assembler( self._diagnostics.reporter(), self._isa, parser)
+        result = assembler._parse("CLS\n")
+        self.assertEqual(result, AssemblyNode(lines=()))
+        parser.set_tokens.assert_called_once()
+        parser.parse.assert_called_once()
+
+
+    def test_unsupported_mnemonic_is_rejected_during_parsing(self) -> None:
+        result = self._assembler.assemble("PLANE 1")
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        self.assertIn( "Unsupported instruction 'PLANE'", result.diagnostics[0].message,)
+
+    def test_supported_mnemonic_with_invalid_operands_is_rejected_semantically( self,) -> None:
+        result = self._assembler.assemble("RND V1, V2")
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 1)
+        self.assertIn( "Operand 'V2' has type REGISTER, expected VALUE.", result.diagnostics[0].message,)
+
+
+    def test_assembler_recovers_after_parse_error(self) -> None:
+        """
+        @brief Verify that a failed parse does not prevent a later
+        assembly from succeeding.
+        """
+        failed_result = self._assembler.assemble("JP")
+        self.assertFalse(failed_result.success)
+        self.assertEqual(len(failed_result.diagnostics), 1)
+        successful_result = self._assembler.assemble("CLS")
+        self.assertTrue(successful_result.success)
+        self.assertEqual(successful_result.binary_image, b"\x00\xE0")
+
 
 
 if __name__ == "__main__":

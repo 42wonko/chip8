@@ -15,9 +15,7 @@ This document defines the public interface of the currently implemented CHIP-8 a
 The assembler is used by the application Controller and is independently testable. The
 assembler implementation itself has no dependency on PyQt6, the GUI, or `Chip8Machine`.
 
-The architecture described here reflects the current implementation. The proposed
-multi-architecture parser framework and architecture plug-in design are documented
-separately as future architecture work.
+The architecture described here reflects the current implementation. The parser uses the shared `Parser` base and the concrete parser selected by the Controller. The target-specific parser/ISA design is described in ADR-014.
 
 ---
 
@@ -75,13 +73,13 @@ class Assembler:
 Assembler(
     diagnostics: AssemblerDiagnosticsReporter,
     isa: InstructionSetArchitecture,
+    parser: Parser,
 )
 ```
 
 `diagnostics` receives assembler progress and diagnostic messages.
 
-`isa` supplies the instruction-set and address-space information used during assembly.
-The Controller selects the target and creates the assembler with the corresponding ISA.
+`isa` supplies instruction-set and address-space information used during assembly. `parser` is the parser instance selected for the same target. The Controller creates both dependencies and supplies the same ISA instance to the parser and assembler.
 
 The assembler does not select the emulator's `Chip8Machine` architecture and does not
 interact with the machine.

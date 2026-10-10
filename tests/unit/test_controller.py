@@ -14,6 +14,7 @@ from PyQt6.QtCore import QSettings
 from assembler.options import AssemblyOptions
 from assembler.result import AssemblyResult
 from assembler.target import Target
+from assembler.classicparser import ClassicParser
 from controller.controller import Chip8Controller
 from controller.diagnostics import AssemblerDiagnostics
 from controller.emulatorconfiguration import EmulatorConfiguration
@@ -30,6 +31,22 @@ class Chip8ControllerTest(unittest.TestCase):
         assembler = MagicMock()
         assembler.assemble.return_value = result
         controller._create_assembler = MagicMock(return_value=assembler)
+
+    def test_create_assembler_uses_matching_isa_and_parser(self) -> None:
+        """
+        @brief Verify that the real assembler factory injects a parser
+        configured for the same ISA as the assembler.
+        """
+        controller = create_controller()
+        assembler = controller._create_assembler(Target.COSMAC)
+        self.assertIsInstance(assembler._parser, ClassicParser)
+        self.assertIs(assembler._parser._isa, assembler._isa)
+        result = assembler.assemble("CLS\n", AssemblyOptions())
+        self.assertTrue(result.success)
+        result = assembler.assemble("PLANE 1\n", AssemblyOptions())
+        self.assertFalse(result.success)
+        self.assertIn( "Unsupported instruction 'PLANE'.", [diagnostic.message for diagnostic in result.diagnostics])
+
 
     def test_execute_cycle_preserves_display_changed_result(self) -> None:
         """
@@ -790,7 +807,8 @@ class Chip8ControllerTest(unittest.TestCase):
             messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
             self.assertIn("Started assembly.", messages)
             self.assertIn("Parsing source.", messages)
-            self.assertIn("Generating binary image.", messages)
+            self.assertIn("Unsupported instruction 'INVALID'.", messages)
+            self.assertNotIn("Generating binary image.", messages)
             self.assertNotIn( "Saving ROM file 'test.ch8'.", messages)
             self.assertNotIn( "ROM file 'test.ch8' saved.", messages)
             self.assertNotIn("Assembly complete.", messages)
@@ -1275,3 +1293,12 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertEqual(configuration.assembler_listing_file, "")
 
 
+
+    def test_assembler_uses_its_own_isa_and_matching_parser(self) -> None:
+        """Verify assembler dependencies are paired and isolated from the machine."""
+        controller = create_controller()
+        machine_isa = controller.machine.isa
+        assembler = controller._create_assembler(Target.COSMAC)
+        self.assertIsNot(assembler._isa, machine_isa)
+        self.assertIs(assembler._isa, assembler._parser._isa)
+        self.assertIs(controller.machine.isa, machine_isa)

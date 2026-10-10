@@ -22,11 +22,9 @@ The assembler is intended to support multiple CHIP-8 architectures while present
 
 The current implementation has one supported assembler target: `COSMAC`. Target selection is performed by `TargetSelector` in the Controller before the `Assembler` is created.
 
-The current lexer and parser are hand-written. The parser is not driven by architecture-definition objects and does not implement the generic parser framework described later in this documentation.
+The lexer and parser are hand-written. `Parser` contains common grammar machinery, and `ClassicParser` specializes instruction-mnemonic recognition for the Classic target. The Controller selects the target and supplies the matching ISA/parser pair to `Assembler`.
 
-The current implementation uses the shared ISA abstraction for instruction knowledge and encoding. Instruction validity and operand validity are resolved during semantic analysis rather than by an architecture-definition-driven parser.
-
-The multi-architecture architecture-definition and parser-framework material in this directory describes the intended future architecture. It is design documentation, not a description of components that currently exist in `src/assembler/`.
+The ISA abstraction is the authoritative source of assembler mnemonic knowledge through `assembler_mnemonics()`. The parser rejects unsupported mnemonics; semantic analysis validates operand signatures, types, symbol references, expressions, and ranges. No `ArchitectureDefinition` object is part of the accepted design.
 
 ---
 
@@ -39,17 +37,13 @@ This directory contains the complete design documentation for the assembler subs
 | **README.md** | Overview of the assembler subsystem |
 | **assembler_design.md** | Overall assembler architecture, processing pipeline, component responsibilities, and integration with the existing emulator |
 | **assembler_grammar.md** | Complete lexical and syntactical definition of the assembler language |
-| **parser_framework.md** | Generic grammar-driven parser framework and parser architecture |
-| **architecture_definitions.md** | Architecture-specific language and ISA definitions |
+| **parser_framework.md** | Shared parser base and architecture-specific parser hierarchy |
+| **architecture_definitions.md** | Historical rejected proposal, superseded by ADR-014 |
 | **ast.md** | Abstract Syntax Tree design |
 | **semantic_analysis.md** | Symbol table construction, expression evaluation, and semantic analysis |
 | **assembler_public_api.md** | Public interface between the assembler subsystem and the rest of the application |
 
-The documents are complementary.
-
-`assembler_design.md` describes the overall assembler architecture.
-
-`assembler_grammar.md`, `parser_framework.md`, `architecture_definitions.md`, `ast.md`, `semantic_analysis.md`, and `assembler_public_api.md` describe individual parts of that architecture in greater detail.
+The documents describe both the current implementation and proposed extensions. ADR-014 records the accepted parser direction. `architecture_definitions.md` is retained only as a historical, superseded proposal; it is not an implementation plan.
 
 ---
 
@@ -57,7 +51,7 @@ The documents are complementary.
 
 The assembler is intentionally designed as a sequence of well-defined phases.
 
-The target architecture must be known before the architecture-specific parser can be selected. Consequently, target discovery and target selection take place before parsing.
+The effective assembler target must be known before the matching ISA and parser are constructed. `TargetSelector` performs target selection in the Controller before the `Assembler` is created.
 
 ```text
 Source File
@@ -68,11 +62,13 @@ Target Discovery
       ▼
 Target Selection
       │
-      ▼
-Architecture Definition
-      │
-      ▼
-Lexer / Parser
+      ├──────────────┐
+      ▼              ▼
+     ISA       Architecture Parser
+      │              │
+      └──────┬───────┘
+             ▼
+         Assembler / Lexer / Parser
       │
       ▼
 Abstract Syntax Tree
@@ -141,11 +137,13 @@ The target selection process is therefore:
                         ▼
                  Effective Target
                         │
+                 ┌──────┴──────┐
+                 ▼             ▼
+                ISA      Concrete Parser
+                 │             │
+                 └──────┬──────┘
                         ▼
-              Architecture Definition
-                        │
-                        ▼
-                 Parser Framework
+                  Shared Parser
 ```
 
 If the source contains a target directive, the source-specified target is used.
@@ -173,7 +171,7 @@ Examples include:
 
 These architectures are closely related, but they may introduce new instructions, directives, registers, operands, or other language constructs.
 
-The parser therefore operates using the grammar and architecture definition of the currently selected target.
+The selected target determines the concrete parser. The parser uses the ISA interface to recognize supported instruction mnemonics.
 
 For example:
 
@@ -203,63 +201,13 @@ An instruction that does not exist in the selected architecture is therefore not
 
 ---
 
-# Proposed Grammar-Driven Parser Framework
+# Parser Architecture
 
-The proposed parser implementation is driven by the grammar definition of the architecture selected during target discovery. This is not the parser implementation currently used by `src/assembler/parser.py`.
+The accepted parser design is described in ADR-014. `Parser` owns common grammar machinery, and `ClassicParser` provides Classic-target mnemonic recognition. The ISA exposes the accepted mnemonic set through `assembler_mnemonics()`; the parser does not duplicate that list or depend on `InstructionId`.
 
-The architecture definition and parser framework are separate components.
+The Controller selects the effective target and constructs a matching ISA/parser pair before creating the `Assembler`. `Assembler` receives the parser instance through dependency injection and supplies each source's token stream before parsing.
 
-```text
-+---------------------------+
-| Architecture Definition   |
-+-------------+-------------+
-              │
-              │
-              ▼
-+---------------------------+
-| Parser Framework          |
-+-------------+-------------+
-              │
-              ▼
-+---------------------------+
-| Abstract Syntax Tree      |
-+---------------------------+
-```
-
-The architecture definition supplies the information required to describe the language of the selected target.
-
-This may include:
-
-- keywords
-- mnemonics
-- directives
-- registers
-- operand forms
-- expressions
-- reserved words
-- architecture-specific constructs
-
-The parser framework provides the generic machinery required to interpret those definitions and construct the AST.
-
-The parser framework itself contains no hard-coded knowledge of individual CHIP-8 architectures.
-
----
-
-# Proposed Architecture-Specific Parsers
-
-The parser framework is generic, but the language being parsed is architecture-specific.
-
-The architecture definition determines which constructs are recognized by the parser.
-
-The architecture subsystem may provide architecture-specific parser definitions or parser components where required.
-
-Because the various CHIP-8 architectures are closely related extensions of the original COSMAC instruction set, an object-oriented implementation using inheritance may be appropriate.
-
-This is an implementation option rather than a fixed architectural requirement.
-
-The design does not require every architecture to use inheritance if another implementation provides a cleaner solution.
-
-The important requirement is that architecture-specific language definitions remain separate from the generic parser framework.
+Parsing recognizes whether a mnemonic belongs to the selected target language. Semantic analysis remains responsible for operand signatures and types, expression evaluation, symbol resolution, and range validation. `ArchitectureDefinition` and the generic grammar-driven parser framework described in older material are not part of the accepted design.
 
 ---
 
@@ -276,10 +224,10 @@ Assembly Source
 Target / Architecture Selection
       │
       ▼
-Architecture Definition
+ISA + Concrete Parser
       │
       ▼
-Parser Framework
+Shared Parser Base
       │
       ▼
      AST
@@ -352,7 +300,7 @@ The code-generation stage consumes the result of semantic analysis and produces 
 
 # Proposed Multi-Architecture Design
 
-The assembler is designed so that additional CHIP-8 architectures can be added without duplicating the generic parser framework.
+Additional architectures can reuse the shared parser base and provide concrete parser subclasses when their accepted instruction language differs.
 
 A new architecture provides the definitions required by the parser and code-generation stages.
 
@@ -364,7 +312,7 @@ Conceptually:
               +--------------+--------------+
               │                             │
               ▼                             ▼
-     Parser Framework                Code Generator
+     Parser Base                    Code Generator
               │                             │
        +------+------+                +-----+------+
        │             │                │            │

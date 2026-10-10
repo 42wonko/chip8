@@ -1,340 +1,76 @@
-# Parser Framework
+# Parser Architecture
 
-**Status:** Proposed design
+**Status:** Proposed architecture, with the `Parser` / `ClassicParser` foundation implemented.
 
-This document describes the intended future assembler architecture. It does not describe the complete current implementation. Where this document differs from the implementation under `src/assembler/`, the current source and current-status documentation are authoritative.
+This document describes the shared parser design. The current source code and tests are authoritative where implementation details differ from this design description.
 
 ## Purpose
 
-This document describes the parser framework used by the CHIP-8 assembler.
+The assembler uses a hand-written parser hierarchy. `Parser` contains common grammar machinery, and concrete architecture parsers specialize instruction-mnemonic recognition. The design does not use an `ArchitectureDefinition` object or a grammar-driven parser framework.
 
-Unlike traditional assemblers, which hard-code the complete assembly language into a single parser, this project separates the parser implementation from the language definition.
+The Controller selects the effective assembler target before constructing the assembler. It supplies an ISA and a parser that correspond to that target. The same ISA instance is shared by the concrete parser and the `Assembler`.
 
-The parser framework is responsible only for parsing according to the grammar definition of an already selected architecture.
+## Responsibilities
 
-The architecture definition specifies the language. Target discovery must select the architecture before the parser framework is invoked.
+The base `Parser` owns common syntax handling:
 
-Together, the selected architecture definition and the parser framework produce the Abstract Syntax Tree (AST).
+- token stream and current position;
+- labels and source lines;
+- common directives;
+- comma-separated operands;
+- expressions, parentheses, and indirect expressions;
+- AST construction;
+- source locations and parser errors.
 
----
+A concrete architecture parser determines whether an instruction mnemonic is part of the selected target's assembler language. It should not duplicate the supported mnemonic list or depend on `InstructionId`.
 
-# Design Goals
+The ISA abstraction exposes assembler mnemonic knowledge through `assembler_mnemonics() -> frozenset[str]`.
 
-The parser framework has the following objectives.
+## Parsing and Semantic Validation
 
-- Completely independent of any CHIP-8 architecture.
-- Driven entirely by grammar definitions.
-- Produce a common AST for all architectures.
-- Generate precise diagnostics.
-- Be easily extensible.
-- Support future architectures without modifying the framework.
-- Remain suitable for handwritten recursive-descent parsing.
+The parser rejects an unsupported mnemonic as a syntax error. It parses operands using the common grammar, without determining whether their combination is valid for that instruction.
 
----
+Semantic analysis remains responsible for:
 
-# Overall Architecture
+- validating operand signatures and types;
+- evaluating expressions;
+- resolving symbols;
+- checking operand ranges and addresses;
+- producing semantic diagnostics.
 
-```
-                    Source File
-                         │
-                         ▼
-                    Lexer
-                         │
-                         ▼
-                 Token Stream
-                         │
-            ┌────────────┴────────────┐
-            │                         │
-            ▼                         ▼
-   Architecture Definition     Parser Framework
-            │                         │
-            └────────────┬────────────┘
-                         ▼
-                         AST
-```
+For example, an unsupported mnemonic is rejected by the architecture-specific parser. A recognized mnemonic with an invalid operand type is rejected by semantic analysis.
 
-The parser framework never contains architecture-specific knowledge.
+## Parser Lifecycle
 
-All language rules originate from the architecture definition.
+`Assembler` receives a parser instance through constructor injection. For each assembly operation it lexes the source, supplies the token list to the injected parser, and invokes `parse()`. The parser resets its position when a new token stream is supplied so that repeated assembly operations do not leak parser state.
 
----
+The parser is therefore reusable, but the caller must supply a fresh token stream for each parse operation. Reuse between assembly calls is distinct from recovery within one source file; both behaviors are required.
 
-# Responsibilities
+## Statement-Boundary Error Recovery
 
-The parser framework is responsible for
+Within a source file, a parser error in one statement must not prevent the parser from checking later statements. After reporting the error, the parser must synchronize at the next statement boundary (the end of the malformed statement) and resume parsing. For the current line-oriented language, the next source line is the normal synchronization point. End-of-input is also a valid boundary.
 
-- consuming the token stream,
-- validating the syntax against the selected architecture,
-- selecting grammar productions,
-- constructing AST nodes,
-- preserving source locations,
-- reporting syntax errors.
+Recovery must make progress: it must consume input or reach end-of-input, so the same malformed token cannot cause an infinite recovery loop. The parser must preserve the source location and diagnostic for each detected error and continue collecting subsequent parser diagnostics.
 
-It is **not** responsible for
+The AST produced during recovery is partial and must not be treated as a valid program. If any parser errors were reported, the assembler must retain those diagnostics and stop the compilation pipeline before semantic analysis and code generation. This prevents a partial AST from producing a binary image that could be mistaken for a successful assembly. The recovery requirement does not prescribe a particular AST representation for malformed statements; an explicit error node is optional if the implementation can otherwise preserve the required diagnostics and continue safely.
 
-- opcode generation,
-- symbol resolution,
-- expression evaluation,
-- architecture validation beyond the supplied grammar,
-- binary output.
+The current implementation stops at the first `ParserError`; statement-boundary recovery remains implementation work. The existing reuse regression test covers a later assembly call after a failed call, not multiple errors within a single source file.
 
----
+## Initial Hierarchy
 
-# Architecture Definition
-
-An architecture definition provides the parser with all information required to recognize a language. It is selected before the parser is initialized.
-
-Typical information includes
-
-- instruction mnemonics,
-- directives,
-- reserved words,
-- operand forms,
-- special registers,
-- expression grammar,
-- lexical extensions.
-
-The parser itself does not know the meaning of any instruction.
-
----
-
-# Parsing Process
-
-The parser operates in a sequence of well-defined stages.
-
-```
-Token Stream
-      │
-      ▼
-Statement Parser
-      │
-      ▼
-Instruction / Directive Parser
-      │
-      ▼
-Operand Parser
-      │
-      ▼
-Expression Parser
-      │
-      ▼
-AST
+```text
+Parser
+  └── ClassicParser
+        └── InstructionSetArchitecture
+              └── assembler_mnemonics()
 ```
 
-Each stage has a single responsibility.
+The diagram indicates the parser's dependency on the ISA interface; it does not mean the ISA inherits from the parser.
 
----
+## Target and Machine Isolation
 
-# Parser Components
+The Controller creates the assembler's ISA/parser pair based on the selected assembler target. This pair is separate from the ISA configured on `Chip8Machine`. Selecting an assembler target must not change the machine's architecture or the machine interface.
 
-## Statement Parser
+## Extension Strategy
 
-Parses one source line.
-
-Recognizes
-
-- labels,
-- instructions,
-- directives,
-- empty lines.
-
----
-
-## Instruction Parser
-
-Recognizes instruction mnemonics.
-
-The parser consults the architecture definition to determine
-
-- whether the mnemonic exists,
-- expected operand count,
-- operand kinds.
-
----
-
-## Directive Parser
-
-Recognizes assembler directives.
-
-Supported directives are supplied by the active architecture.
-
-Unknown directives result in syntax errors.
-
----
-
-## Operand Parser
-
-Parses operands independently of any instruction.
-
-Recognized operand categories include
-
-- register operands,
-- special registers,
-- immediate expressions,
-- address expressions,
-- indexed operands.
-
-The instruction definition determines which operand kinds are valid.
-
----
-
-## Expression Parser
-
-Responsible only for parsing expressions.
-
-Evaluation is deferred until semantic analysis.
-
-This allows
-
-- forward references,
-- symbolic constants,
-- label arithmetic.
-
----
-
-# Abstract Syntax Tree Construction
-
-The parser constructs a complete AST.
-
-Example
-
-```asm
-Loop:
-    ADD V0, 1
-```
-
-becomes
-
-```
-Program
- └── Label
-      └── Instruction
-            ├── Mnemonic(ADD)
-            ├── Register(V0)
-            └── Constant(1)
-```
-
-The parser never generates machine code.
-
----
-
-# Error Recovery
-
-Whenever possible, the parser continues after encountering a syntax error.
-
-Recovery typically skips tokens until the next source line.
-
-This allows multiple syntax errors to be reported during a single assembly.
-
----
-
-# Source Locations
-
-Every AST node records
-
-- filename,
-- line,
-- column.
-
-These source locations are preserved throughout the remaining compilation stages.
-
-This enables precise diagnostics.
-
----
-
-# Parser Diagnostics
-
-The parser reports only syntax errors.
-
-Examples include
-
-```
-Unknown instruction
-
-Unexpected operand
-
-Unexpected comma
-
-Missing operand
-
-Unexpected end of line
-
-Expected register
-
-Expected expression
-```
-
-The parser never reports
-
-- undefined labels,
-- duplicate labels,
-- range violations,
-- address overflows.
-
-These belong to semantic analysis.
-
----
-
-# Parser Interface
-
-The parser framework exposes a simple interface.
-
-```
-Token Stream
-        │
-        ▼
-Parser.parse()
-        │
-        ▼
-AST
-```
-
-Errors are reported through the diagnostics subsystem.
-
-The parser never writes directly to the console.
-
----
-
-# Interaction with the Architecture Definition
-
-The parser frequently queries the architecture definition.
-
-Typical queries include
-
-- Is this a valid mnemonic?
-- Is this a directive?
-- How many operands are required?
-- Which operand kinds are accepted?
-- Is this keyword reserved?
-- Which grammar rule applies?
-
-The parser framework remains completely generic.
-
----
-
-# Future Extensions
-
-The framework is designed to support future language features without architectural changes.
-
-Examples include
-
-- macros,
-- conditional assembly,
-- include files,
-- local labels,
-- repeat directives,
-- user-defined data types.
-
-Such features should be introduced by extending the grammar definitions rather than modifying the parser core whenever possible.
-
----
-
-# Summary
-
-The parser framework is intentionally architecture-independent.
-
-Its only task is to transform a stream of tokens into an Abstract Syntax Tree according to the architecture definition selected by the target-discovery phase.
-
-The parser framework contains no knowledge of CHIP-8 instructions, directives, or opcode encodings.
-
-Those language-specific details are supplied entirely by the architecture definition.
+Add a concrete parser when a future target requires a different set of accepted instruction mnemonics or other target-specific syntax. Reuse the base parser's common machinery and override only the target-specific behavior that actually differs. Do not introduce a generic instruction-definition or architecture-definition abstraction without a demonstrated need.

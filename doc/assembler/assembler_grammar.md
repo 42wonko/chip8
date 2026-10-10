@@ -4,11 +4,11 @@
 
 This document defines the formal grammar of the CHIP-8 assembly language.
 
-The grammar serves as the language specification for the supported CHIP-8 architectures and forms the contract between the architecture definitions and the parser framework.
+The grammar describes the intended assembler source language. The accepted parser architecture is recorded in ADR-014: common grammar handling is implemented by `Parser`, while concrete parsers recognize target-specific instruction mnemonics through the ISA interface.
 
 The architecture-specific grammar is used only after the target architecture has been selected. Target selection itself is handled by a small architecture-independent target-discovery phase.
 
-The grammar intentionally describes the architecture-specific language independently of any parser implementation. The parser framework interprets the selected grammar definition and produces a common Abstract Syntax Tree (AST).
+The grammar describes the intended source language. The current hand-written parser hierarchy constructs the common Abstract Syntax Tree (AST); target-specific mnemonic recognition is provided by the concrete parser through the ISA interface.
 
 ---
 ## Current Implementation Status
@@ -18,14 +18,14 @@ This document defines the intended assembler language. The current implementatio
 - The current assembler has one implemented target architecture: COSMAC.
 - Target selection is performed by `TargetSelector` in the Controller before `Assembler.assemble()` is called. A `TARGET` declaration in source takes precedence over the externally supplied target.
 - The current lexer is a hand-written lexer. It accepts identifiers using Python's `isalpha()`/`isalnum()` behavior plus underscore; this is broader than the ASCII-only identifier grammar specified below.
-- The current parser is a hand-written parser and is not driven by an external architecture-definition grammar.
-- The current parser accepts identifier-shaped instruction mnemonics syntactically. Whether an instruction exists and whether its operands are valid is resolved later using the selected ISA.
-- The current parser stops at the first `ParserError`; the error-recovery behavior described in the parser-framework design is not currently implemented.
+- The current parser is a hand-written parser hierarchy (`Parser` and `ClassicParser`); it is not driven by an external architecture-definition grammar.
+- `ClassicParser` accepts only instruction mnemonics exposed by the selected ISA. Operand legality is resolved later during semantic analysis.
+- Statement-boundary parser recovery is a requirement for the current assembler but is not yet implemented: after a statement produces a parser error, parsing must synchronize at the next statement boundary and continue checking later statements. The assembler must retain all parser diagnostics and must not run semantic analysis or code generation on a parse containing errors.
 - `ORG`, `DB`, and `EQU` are implemented. `DW` is specified by this grammar but is not currently implemented.
 - The documented `\xNN` character/string escape is specified but is not currently implemented. The current lexer supports `\n`, `\r`, `\t`, `\\`, `\'`, and `\"`.
 - `SourceLocation` currently contains line and column only; it does not contain a filename.
 
-These are implementation-status notes, not changes to the intended language requirements. Future architecture/parser work remains covered by the architecture and parser-framework design documents.
+These are implementation-status notes, not changes to the intended language requirements. The accepted parser architecture is documented in ADR-014 and `parser_framework.md`; `architecture_definitions.md` is a superseded proposal.
 
 # Design Goals
 
@@ -33,7 +33,7 @@ The grammar has been designed to satisfy the following goals.
 
 - Simple enough for hand-written recursive-descent parsers.
 - Independent of parser implementation.
-- Suitable for grammar-driven parser generation.
+- Suitable as a precise reference for hand-written recursive-descent parsers.
 - Architecture-specific.
 - Easy to extend for future CHIP-8 variants.
 - Produces high-quality diagnostics.
@@ -179,7 +179,7 @@ Reserved words include
 - special registers
 - future language keywords
 
-The exact reserved-word list depends on the selected target architecture.
+The supported instruction mnemonic set depends on the selected target ISA and is exposed through `assembler_mnemonics()`. Common directives are currently handled by the shared parser.
 
 ---
 
@@ -364,7 +364,7 @@ OperandList
      | Operand "," Operand "," Operand
 ```
 
-The parser validates the required operand count using the selected architecture definition.
+The parser recognizes the mnemonic and parses its operand list. Semantic analysis validates the operand count, types, and combinations using the selected ISA.
 
 ---
 
@@ -434,13 +434,13 @@ EQU
 
 Future architectures may introduce additional architecture-specific directives.
 
-The parser recognizes only directives defined by the selected architecture.
+The shared parser currently recognizes the implemented common directives. Directive extensibility is separate from architecture-specific instruction-mnemonic recognition.
 
 ---
 
 # TARGET Directive
 
-`TARGET` is a special, architecture-independent declaration used to select the target architecture before the architecture-specific parser is invoked.
+`TARGET` is checked by `TargetSelector` in the Controller before the architecture-specific parser is constructed; the parser does not select the target.
 
 Example
 
@@ -469,9 +469,7 @@ The selected target determines
 
 # Architecture-Specific Grammar
 
-The parser framework itself does not define any instruction mnemonics.
-
-Instead, every target architecture contributes its own language definition.
+The parser base class does not contain a target-specific mnemonic list. Each concrete parser consults the selected ISA through `assembler_mnemonics()`.
 
 This language definition specifies
 
@@ -481,7 +479,7 @@ This language definition specifies
 - reserved words
 - lexical extensions
 
-The parser framework interprets this definition to perform syntax analysis.
+The concrete parser uses the ISA-provided mnemonic set for target-specific mnemonic recognition; common operand and expression syntax remains in the base parser.
 
 ---
 
@@ -525,4 +523,4 @@ The grammar is intentionally architecture-dependent.
 
 Rather than defining a single universal CHIP-8 language, each supported architecture contributes its own language definition.
 
-The parser framework remains architecture-independent while enforcing the exact language specified by the selected target.
+The base parser provides common syntax machinery, while the concrete parser enforces target-specific mnemonic recognition. Operand legality remains a semantic-analysis responsibility.

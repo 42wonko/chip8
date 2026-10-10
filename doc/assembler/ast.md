@@ -8,7 +8,7 @@ This document describes the intended future assembler architecture. It does not 
 
 This document defines the Abstract Syntax Tree (AST) used internally by the CHIP-8 assembler.
 
-The AST is the output of the parser framework and the input to semantic analysis. The parser is invoked only after the effective target architecture has been selected.
+The AST is the output of the selected concrete parser and the input to semantic analysis. The parser is invoked only after the effective target architecture has been selected.
 
 It represents the syntactic structure of a CHIP-8 assembly program while remaining independent of machine code generation.
 
@@ -42,7 +42,7 @@ Target Discovery
 Effective Target
      │
      ▼
-Lexer / Parser Framework
+Lexer / Parser Hierarchy
      │
      ▼
 Abstract Syntax Tree
@@ -329,23 +329,11 @@ This keeps parsing and semantic analysis clearly separated.
 
 ---
 
-# Error Nodes
+# Error Nodes and Parser Recovery
 
-The parser may optionally insert dedicated error nodes.
+The parser must recover at statement boundaries after a syntax error so that later statements can also be checked and additional parser diagnostics can be reported. The representation of a malformed statement in the AST is an implementation choice; a dedicated error node is optional.
 
-Example
-
-```
-Program
-
-    ├── Instruction
-
-    ├── ErrorNode
-
-    └── Instruction
-```
-
-This allows parsing to continue after syntax errors while preserving source structure.
+For example, a recovered parse may retain valid statements before and after a malformed statement while omitting the malformed statement itself. Such an AST is partial, not a valid program. If parsing reports any errors, the assembler must retain the parser diagnostics and must not pass the partial AST to semantic analysis or code generation.
 
 ---
 
