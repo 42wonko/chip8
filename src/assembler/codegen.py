@@ -154,6 +154,10 @@ class CodeGenerator:
                     address = self._emit_db( statement, address, image)
                     continue
 
+                if name == "DW":
+                    address = self._emit_dw(statement, address, image)
+                    continue
+
                 raise ValueError( f"Unsupported directive '{statement.name}'.")
 
             raise ValueError( f"Unsupported statement type: {type(statement).__name__}")
@@ -195,6 +199,38 @@ class CodeGenerator:
             )
         )
         return address
+
+    def _emit_dw( self, directive: DirectiveNode, address: int, image: dict[int, int]) -> int:
+        """
+        @brief Emit a DW directive as big-endian 16-bit words.
+
+        @details
+        Validation has already been performed by semantic analysis.
+        """
+        start_address = address
+        generated: list[int] = []
+        for operand in directive.operands:
+            value = self._evaluator.evaluate(operand)
+            if address + 1 > self._address_limit:
+                raise SemanticAnalysisError(
+                    "DW data exceeds the assembler address space.",
+                    directive.location,
+                )
+            high_byte = (value >> 8) & 0xFF
+            low_byte = value & 0xFF
+            image[address] = high_byte
+            image[address + 1] = low_byte
+            generated.extend((high_byte, low_byte))
+            address += 2
+        self._records.append(
+            CodeGenerationRecord(
+                line=directive.location.line,
+                address=start_address,
+                data=bytes(generated)
+            )
+        )
+        return address
+
 
     @property
     def records(self) -> tuple[CodeGenerationRecord, ...]:

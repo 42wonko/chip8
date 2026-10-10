@@ -13,7 +13,7 @@ This document describes the intended semantic-analysis responsibilities. The cur
 - The implemented semantic pipeline is built around `SymbolCollector`, `ExpressionEvaluator`, `InstructionResolver`, and the code generator.
 - Forward label references are supported because labels are collected before instruction resolution.
 - Forward `EQU` references are not currently supported: an `EQU` expression must resolve using symbols already defined when that `EQU` is processed.
-- `ORG`, `DB`, and `EQU` are implemented. `DW` is specified but is not currently implemented.
+- `ORG`, `DB`, `DW`, and `EQU` are implemented. `DW` operands are validated after symbol collection so they can refer to forward labels; each value must be in the range `0x0000` through `0xFFFF`.
 - `TARGET` syntax is validated by semantic analysis, but target selection itself is performed by `TargetSelector` in the Controller before the assembler is invoked.
 - `SourceLocation` currently contains line and column only; filename information described elsewhere in the documentation is not currently represented by the assembler diagnostic location.
 - The current implementation performs address accounting and semantic validation before code generation; code generation remains responsible for emitting bytes.
@@ -249,7 +249,7 @@ requires byte-sized values.
 
 DW
 
-requires word-sized values.
+requires a label and at least one numeric expression. Each expression must resolve to an unsigned 16-bit value (`0x0000` through `0xFFFF`). Each value occupies two bytes in big-endian order, so address assignment advances by two bytes per operand. DW values are checked after symbol collection to permit forward label references.
 ```
 
 The `TARGET` declaration is not semantically validated here. Target discovery has already determined the effective architecture before parsing begins. Unknown or conflicting target declarations are reported by the target-discovery phase.

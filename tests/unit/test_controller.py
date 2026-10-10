@@ -11,10 +11,10 @@ from unittest.mock import MagicMock, Mock, patch
 
 from PyQt6.QtCore import QSettings
 
+from assembler.classicparser import ClassicParser
 from assembler.options import AssemblyOptions
 from assembler.result import AssemblyResult
 from assembler.target import Target
-from assembler.classicparser import ClassicParser
 from controller.controller import Chip8Controller
 from controller.diagnostics import AssemblerDiagnostics
 from controller.emulatorconfiguration import EmulatorConfiguration

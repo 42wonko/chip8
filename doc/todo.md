@@ -215,7 +215,7 @@ Implemented in the current assembler:
 - [x] Symbol table
 - [x] Expressions and constants
 - [x] `DB` directive
-- [ ] `DW` directive
+- [x] `DW` directive
 - [x] `ORG` directive
 - [x] `EQU` directive
 - [x] Binary, decimal and hexadecimal literals
@@ -230,10 +230,10 @@ Implemented in the current assembler:
 
 Known language/architecture work still documented elsewhere:
 
-- [ ] `DW` directive
 - [ ] `\xNN` character/string escape support
 - [x] Shared parser base and architecture-specific ClassicParser mnemonic validation
-- [ ] Parser recovery at statement boundaries, including multiple syntax diagnostics per source file
+- [x] Parser recovery at statement boundaries, including multiple syntax diagnostics per source file
+- [ ] Lexer error recovery: collect multiple lexical diagnostics and resume at later source lines (future enhancement; currently the first `LexerError` stops tokenization)
 - [ ] Additional CHIP-8 architecture targets / plug-ins
 
 ---

@@ -68,6 +68,42 @@ class CodeGeneratorTest(unittest.TestCase):
         self.assertEqual( self.generator.generate(assembly), b"\x12\x34\x56")
 
 
+    def test_dw_emits_word_in_big_endian_order(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DW",
+                        operands=(LiteralExpression(value=0x1234, location=self.location),),
+                        location=self.location,
+                    ),
+                ),
+            )
+        )
+        self.assertEqual(self.generator.generate(assembly), b"\x12\x34")
+        self.assertEqual(self.generator.records[0].address, 0x200)
+        self.assertEqual(self.generator.records[0].data, b"\x12\x34")
+
+    def test_dw_emits_multiple_words(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DW",
+                        operands=(
+                            LiteralExpression(value=0x1234, location=self.location),
+                            LiteralExpression(value=0xABCD, location=self.location),
+                        ),
+                        location=self.location,
+                    ),
+                ),
+            )
+        )
+        self.assertEqual(self.generator.generate(assembly), b"\x12\x34\xAB\xCD")
+
+
     def test_db_emits_string(self) -> None:
         assembly = AssemblyNode(
             lines=(

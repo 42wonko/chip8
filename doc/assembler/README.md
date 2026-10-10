@@ -24,7 +24,7 @@ The current implementation has one supported assembler target: `COSMAC`. Target 
 
 The lexer and parser are hand-written. `Parser` contains common grammar machinery, and `ClassicParser` specializes instruction-mnemonic recognition for the Classic target. The Controller selects the target and supplies the matching ISA/parser pair to `Assembler`.
 
-The ISA abstraction is the authoritative source of assembler mnemonic knowledge through `assembler_mnemonics()`. The parser rejects unsupported mnemonics; semantic analysis validates operand signatures, types, symbol references, expressions, and ranges. No `ArchitectureDefinition` object is part of the accepted design.
+The ISA abstraction is the authoritative source of assembler mnemonic knowledge through `assembler_mnemonics()`. The parser rejects unsupported mnemonics and recovers at statement boundaries to collect additional parser diagnostics. If parsing reports errors, semantic analysis and code generation are not run. Semantic analysis validates operand signatures, types, symbol references, expressions, and ranges. Lexical recovery remains future work; the first `LexerError` stops tokenization. No `ArchitectureDefinition` object is part of the accepted design.
 
 ---
 
@@ -54,33 +54,39 @@ The assembler is intentionally designed as a sequence of well-defined phases.
 The effective assembler target must be known before the matching ISA and parser are constructed. `TargetSelector` performs target selection in the Controller before the `Assembler` is created.
 
 ```text
-Source File
-      │
-      ▼
-Target Discovery
-      │
-      ▼
-Target Selection
-      │
-      ├──────────────┐
-      ▼              ▼
-     ISA       Architecture Parser
-      │              │
-      └──────┬───────┘
-             ▼
-         Assembler / Lexer / Parser
-      │
-      ▼
-Abstract Syntax Tree
-      │
-      ▼
-Semantic Analysis
-      │
-      ▼
-Code Generation
-      │
-      ▼
-Binary Output
+Source + External Target
+          │
+          ▼
+Controller / TargetSelector
+          │
+          ▼
+    Effective Target
+          │
+          ├───────────────┐
+          ▼               ▼
+   Matching ISA     Concrete Parser
+          │          (Parser subclass)
+          └───────┬───────┘
+                  ▼
+              Assembler
+                  │
+                  ▼
+                Lexer
+                  │
+                  ▼
+       Concrete Parser (uses shared Parser base)
+                  │
+                  ▼
+                 AST
+                  │
+                  ▼
+          Semantic Analysis
+                  │
+                  ▼
+           Code Generation
+                  │
+                  ▼
+             Binary Output
 ```
 
 Each phase has a single responsibility and communicates with the next phase through well-defined interfaces.
@@ -468,7 +474,7 @@ The assembler follows the same engineering principles as the rest of the project
 - Keep parsing separate from semantic analysis.
 - Keep parsing and semantic analysis separate from code generation.
 - Establish the target architecture before parsing.
-- Make architecture-specific language definitions explicit rather than embedding them in generic parser code.
+- Make target-specific mnemonic recognition explicit through concrete parsers and the ISA's `assembler_mnemonics()` interface.
 
 ---
 

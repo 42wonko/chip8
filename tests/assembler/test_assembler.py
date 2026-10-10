@@ -68,10 +68,54 @@ class TestAssembler(unittest.TestCase):
         self.assertEqual(result.binary_image, b"\x12\x34")
 
 
+    def test_assemble_dw_emits_big_endian_words(self) -> None:
+        result = self._assembler.assemble("DATA: DW 0x1234, 0xABCD")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x12\x34\xAB\xCD")
+
+    def test_assemble_dw_rejects_data_past_address_limit(self) -> None:
+        result = self._assembler.assemble("ORG 0xFFF\nDATA: DW 0x1234")
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+        self.assertTrue(
+            any(
+                "DW data exceeds the assembler address space." in diagnostic.message
+                for diagnostic in result.diagnostics
+            )
+        )
+
+
+    def test_assemble_dw_resolves_forward_label(self) -> None:
+        result = self._assembler.assemble("DATA: DW TARGET\nTARGET: RET")
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, b"\x02\x02\x00\xEE")
+
     def test_assemble_cls(self) -> None:
         result = self._assembler.assemble( "CLS")
         self.assertTrue(result.success)
         self.assertEqual(result.binary_image, b"\x00\xE0")
+
+
+    def test_parser_errors_block_output_and_are_all_reported(self) -> None:
+        """Verify parse errors are collected and block semantic/code generation."""
+        result = self._assembler.assemble(
+            "CLS\n"
+            "PLANE 1\n"
+            "LD V0,\n"
+            "RET\n"
+        )
+
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+        self.assertEqual(len(result.diagnostics), 2)
+        self.assertEqual(
+            [diagnostic.location.line for diagnostic in result.diagnostics if diagnostic.location],
+            [2, 3],
+        )
+        messages = [diagnostic.message for diagnostic in self._diagnostics]
+        self.assertIn("Unsupported instruction 'PLANE'.", messages)
+        self.assertTrue(any("Expected operand after comma" in message for message in messages))
+        self.assertNotIn("Generating binary image.", messages)
 
 
     def test_assemble_instruction_with_label(self) -> None:

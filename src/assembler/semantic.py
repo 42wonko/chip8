@@ -73,6 +73,9 @@ class SymbolCollector:
                     if name == "DB":
                         address += self._resolve_db_size(statement, evaluator)
                         continue
+                    if name == "DW":
+                        address += self._resolve_dw_size(statement)
+                        continue
                     if name == "TARGET":
                         self._validate_target(statement)
                         continue
@@ -104,6 +107,8 @@ class SymbolCollector:
                 address += self._isa.assembler_instruction_size( statement.mnemonic, len(statement.operands))
                 continue
             raise ValueError( f"Unsupported statement type: {type(statement).__name__}")
+
+        self._validate_dw_values(assembly, evaluator)
 
     ###########################################################################
     # private helper functions
@@ -194,6 +199,42 @@ class SymbolCollector:
             size += 1
         return size
 
+    def _resolve_dw_size( self, directive: DirectiveNode) -> int:
+        """
+        @brief Validate DW operand shape and return its emitted byte count.
+
+        Values are checked after symbol collection so DW can reference a
+        label defined later in the source.
+        """
+        if len(directive.operands) == 0:
+            raise ValueError("DW requires at least one operand.")
+        for operand in directive.operands:
+            if isinstance(operand, LiteralExpression) and isinstance(operand.value, str):
+                raise ValueError("DW operands must be numeric expressions.")
+        return len(directive.operands) * 2
+
+    def _validate_dw_values(
+        self, assembly: AssemblyNode, evaluator: ExpressionEvaluator
+    ) -> None:
+        """
+        @brief Validate DW values after all labels have been collected.
+        """
+        for source_line in assembly.lines:
+            statement = source_line.statement
+            if not isinstance(statement, DirectiveNode) or statement.name.upper() != "DW":
+                continue
+            for operand in statement.operands:
+                try:
+                    value = evaluator.evaluate(operand)
+                except ExpressionEvaluationError as error:
+                    location = error.location if error.location is not None else operand.location
+                    raise SemanticAnalysisError(str(error), location) from error
+                if not 0 <= value <= 0xFFFF:
+                    raise SemanticAnalysisError(
+                        f"DW value {value} is outside the range 0x0000 to 0xFFFF.",
+                        operand.location,
+                    )
+
 
 @dataclass(frozen=True, slots=True)
 class Reference:
@@ -244,7 +285,7 @@ class SymbolReferenceCollector:
                     for operand in statement.operands:
                         self._collect_expression(operand)
                     continue
-                if name == "DB":
+                if name in ("DB", "DW"):
                     for operand in statement.operands:
                         self._collect_expression(operand)
                     continue

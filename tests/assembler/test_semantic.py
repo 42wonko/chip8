@@ -122,6 +122,30 @@ class SymbolReferenceCollectorTest(unittest.TestCase):
         self.assertEqual( symbols.references("VALUE"), (SourceLocation(line=5, column=4),),)
 
 
+    def test_collects_symbol_reference_from_dw(self) -> None:
+        symbols = SymbolTable()
+        symbols.define("VALUE", 0x1234, SourceLocation(line=1, column=1))
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="DATA", location=SourceLocation(line=2, column=1)),
+                    statement=DirectiveNode(
+                        name="DW",
+                        operands=(
+                            IdentifierExpression(
+                                name="VALUE",
+                                location=SourceLocation(line=2, column=10),
+                            ),
+                        ),
+                        location=SourceLocation(line=2, column=6),
+                    ),
+                ),
+            )
+        )
+        SymbolReferenceCollector(symbols).collect(assembly)
+        self.assertEqual(symbols.references("VALUE"), (SourceLocation(line=2, column=10),))
+
+
     def test_target_directive_does_not_create_symbol_reference(self) -> None:
         """
         @brief Verify that TARGET is metadata and has no symbol references.
@@ -842,6 +866,108 @@ class SymbolCollectorTest(unittest.TestCase):
             symbols.lookup("NEXT").value,
             PROGRAM_START + 3
         )
+
+    def test_dw_advances_address_by_two_bytes_per_word(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="DATA", location=self.location),
+                    statement=DirectiveNode(
+                        name="DW",
+                        operands=(
+                            LiteralExpression(value=0x1234, location=self.location),
+                            LiteralExpression(value=0xABCD, location=self.location),
+                        ),
+                        location=self.location,
+                    ),
+                ),
+                SourceLine(label=LabelNode(name="NEXT", location=self.location), statement=None),
+            )
+        )
+        symbols = SymbolTable()
+        SymbolCollector(symbols, self.isa).collect(assembly)
+        self.assertEqual(symbols.lookup("DATA").value, PROGRAM_START)
+        self.assertEqual(symbols.lookup("NEXT").value, PROGRAM_START + 4)
+
+    def test_dw_allows_forward_label_reference(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="DATA", location=self.location),
+                    statement=DirectiveNode(
+                        name="DW",
+                        operands=(IdentifierExpression(name="TARGET", location=self.location),),
+                        location=self.location,
+                    ),
+                ),
+                SourceLine(label=LabelNode(name="TARGET", location=self.location), statement=None),
+            )
+        )
+        symbols = SymbolTable()
+        SymbolCollector(symbols, self.isa).collect(assembly)
+        self.assertEqual(symbols.lookup("TARGET").value, PROGRAM_START + 2)
+
+    def test_dw_rejects_missing_operand(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="DATA", location=self.location),
+                    statement=DirectiveNode(name="DW", operands=(), location=self.location),
+                ),
+            )
+        )
+        with self.assertRaises(ValueError):
+            SymbolCollector(SymbolTable(), self.isa).collect(assembly)
+
+    def test_dw_rejects_string_operand(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="DATA", location=self.location),
+                    statement=DirectiveNode(
+                        name="DW",
+                        operands=(LiteralExpression(value="AB", location=self.location),),
+                        location=self.location,
+                    ),
+                ),
+            )
+        )
+        with self.assertRaises(ValueError):
+            SymbolCollector(SymbolTable(), self.isa).collect(assembly)
+
+
+    def test_dw_rejects_negative_value(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="DATA", location=self.location),
+                    statement=DirectiveNode(
+                        name="DW",
+                        operands=(LiteralExpression(value=-1, location=self.location),),
+                        location=self.location,
+                    ),
+                ),
+            )
+        )
+        with self.assertRaises(ValueError):
+            SymbolCollector(SymbolTable(), self.isa).collect(assembly)
+
+    def test_dw_rejects_value_above_ffff(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="DATA", location=self.location),
+                    statement=DirectiveNode(
+                        name="DW",
+                        operands=(LiteralExpression(value=0x10000, location=self.location),),
+                        location=self.location,
+                    ),
+                ),
+            )
+        )
+        with self.assertRaises(ValueError):
+            SymbolCollector(SymbolTable(), self.isa).collect(assembly)
+
 
     def test_db_rejects_missing_operand(self) -> None:
         assembly = AssemblyNode(

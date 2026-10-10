@@ -72,7 +72,20 @@ class Assembler:
             self._diagnostics.info("Started assembly.")
 #            TargetSelector().select(source, target)
             self._diagnostics.info("Parsing source.")
-            assembly = self._parse(source)
+            assembly, parser_errors = self._parse_recovering(source)
+            if parser_errors:
+                diagnostics = tuple(
+                    AssemblerDiagnostic(
+                        severity=DiagnosticSeverity.ERROR,
+                        source=DiagnosticSource.ASSEMBLER,
+                        message=str(error),
+                        location=error.location,
+                    )
+                    for error in parser_errors
+                )
+                for diagnostic in diagnostics:
+                    self._diagnostics.error(diagnostic.message, diagnostic.location)
+                return AssemblyResult(success=False, diagnostics=diagnostics)
             if not assembly.lines:
                 self._diagnostics.error("Assembly source is empty.")
                 return AssemblyResult(success=False)
@@ -122,9 +135,19 @@ class Assembler:
 
     def _parse(self, source: str) -> AssemblyNode:
         """
-        @brief Lex and parse assembler source.
+        @brief Lex and parse assembler source, stopping at the first error.
         """
         tokens = Lexer(source).tokenize()
         self._parser.set_tokens(tokens)
         return self._parser.parse()
 
+
+    def _parse_recovering(
+        self, source: str
+    ) -> tuple[AssemblyNode, tuple[ParserError, ...]]:
+        """
+        @brief Lex and parse source, recovering at source-line boundaries.
+        """
+        tokens = Lexer(source).tokenize()
+        self._parser.set_tokens(tokens)
+        return self._parser.parse_recovering()

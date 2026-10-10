@@ -42,7 +42,7 @@ For example, an unsupported mnemonic is rejected by the architecture-specific pa
 
 ## Parser Lifecycle
 
-`Assembler` receives a parser instance through constructor injection. For each assembly operation it lexes the source, supplies the token list to the injected parser, and invokes `parse()`. The parser resets its position when a new token stream is supplied so that repeated assembly operations do not leak parser state.
+`Assembler` receives a parser instance through constructor injection. For each assembly operation it lexes the source, supplies the token list to the injected parser, and invokes `parse_recovering()`. The parser resets its position when a new token stream is supplied so that repeated assembly operations do not leak parser state. A lexical error is raised during tokenization and is handled separately; the lexer does not currently recover to collect further lexical errors.
 
 The parser is therefore reusable, but the caller must supply a fresh token stream for each parse operation. Reuse between assembly calls is distinct from recovery within one source file; both behaviors are required.
 
@@ -54,18 +54,18 @@ Recovery must make progress: it must consume input or reach end-of-input, so the
 
 The AST produced during recovery is partial and must not be treated as a valid program. If any parser errors were reported, the assembler must retain those diagnostics and stop the compilation pipeline before semantic analysis and code generation. This prevents a partial AST from producing a binary image that could be mistaken for a successful assembly. The recovery requirement does not prescribe a particular AST representation for malformed statements; an explicit error node is optional if the implementation can otherwise preserve the required diagnostics and continue safely.
 
-The current implementation stops at the first `ParserError`; statement-boundary recovery remains implementation work. The existing reuse regression test covers a later assembly call after a failed call, not multiple errors within a single source file.
+The implementation recovers from `ParserError` at statement boundaries and collects subsequent parser diagnostics. This is distinct from parser reuse between assembly calls, which is also covered by a regression test. Lexical-error recovery is not part of the current parser-recovery behavior.
 
 ## Initial Hierarchy
 
 ```text
 Parser
-  └── ClassicParser
-        └── InstructionSetArchitecture
-              └── assembler_mnemonics()
+  └── ClassicParser ───── uses ─────> InstructionSetArchitecture
+                                         │
+                                         └── assembler_mnemonics()
 ```
 
-The diagram indicates the parser's dependency on the ISA interface; it does not mean the ISA inherits from the parser.
+`ClassicParser` inherits from `Parser` and depends on the ISA interface for its supported mnemonic set. The ISA does not inherit from either parser class.
 
 ## Target and Machine Isolation
 

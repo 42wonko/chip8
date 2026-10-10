@@ -59,7 +59,7 @@ class Parser(ABC):
 
     def parse(self) -> AssemblyNode:
         """
-        @brief Parse the complete token stream.
+        @brief Parse the complete token stream, stopping at the first error.
 
         @return
             Parsed assembler AST.
@@ -73,6 +73,57 @@ class Parser(ABC):
                 continue
             lines.append(self._parse_line())
         return AssemblyNode(lines=tuple(lines))
+
+
+    def parse_recovering(self) -> tuple[AssemblyNode, tuple[ParserError, ...]]:
+        """
+        @brief Parse source lines while collecting recoverable syntax errors.
+
+        A malformed line is discarded and parsing resumes at the next source
+        line. The returned AST may therefore be partial and must not be used
+        for semantic analysis or code generation when errors were reported.
+
+        @return
+            The successfully parsed lines and all parser errors encountered.
+        """
+        lines: list[SourceLine] = []
+        errors: list[ParserError] = []
+
+        while not self._check(TokenType.END_OF_FILE):
+            if self._match(TokenType.END_OF_LINE):
+                continue
+
+            position_before_line = self._position
+            try:
+                lines.append(self._parse_line())
+            except ParserError as error:
+                errors.append(error)
+                self._synchronize_to_next_line()
+
+            # Guard against a malformed parser branch that fails to consume
+            # input. This guarantees forward progress unless at end-of-file.
+            if (
+                self._position == position_before_line
+                and not self._check(TokenType.END_OF_FILE)
+            ):
+                self._advance()
+
+        return AssemblyNode(lines=tuple(lines)), tuple(errors)
+
+
+    def _synchronize_to_next_line(self) -> None:
+        """
+        @brief Skip the remainder of a malformed line.
+
+        The end-of-line token is consumed so the next parse iteration starts
+        at the beginning of the next source line. End-of-file is left intact.
+        """
+        while (
+            not self._check(TokenType.END_OF_LINE)
+            and not self._check(TokenType.END_OF_FILE)
+        ):
+            self._advance()
+        self._match(TokenType.END_OF_LINE)
 
 
     def _parse_line(self) -> SourceLine:
@@ -95,7 +146,7 @@ class Parser(ABC):
             directive = statement.name.upper()
             if label is not None and directive in ("TARGET", "ORG"):
                 raise ParserError( f"A label cannot be used with the {directive} directive.", label.location)
-            if label is None and directive in ("EQU", "DB"):
+            if label is None and directive in ("EQU", "DB", "DW"):
                 raise ParserError( f"{directive} requires a label.", statement.location)
         if self._match(TokenType.END_OF_LINE):
             return SourceLine( label=label, statement=statement)
@@ -125,7 +176,7 @@ class Parser(ABC):
             Parsed statement.
         """
         token = self._expect(TokenType.IDENTIFIER, "Expected instruction or directive.")
-        if token.value.upper() in ("TARGET", "ORG", "EQU", "DB"):
+        if token.value.upper() in ("TARGET", "ORG", "EQU", "DB", "DW"):
             return self._parse_directive(token)
         if not self._is_instruction_mnemonic(token.value):
             raise ParserError( f"Unsupported instruction '{token.value}'.", token.location,)

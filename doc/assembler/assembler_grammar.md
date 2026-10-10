@@ -6,9 +6,7 @@ This document defines the formal grammar of the CHIP-8 assembly language.
 
 The grammar describes the intended assembler source language. The accepted parser architecture is recorded in ADR-014: common grammar handling is implemented by `Parser`, while concrete parsers recognize target-specific instruction mnemonics through the ISA interface.
 
-The architecture-specific grammar is used only after the target architecture has been selected. Target selection itself is handled by a small architecture-independent target-discovery phase.
-
-The grammar describes the intended source language. The current hand-written parser hierarchy constructs the common Abstract Syntax Tree (AST); target-specific mnemonic recognition is provided by the concrete parser through the ISA interface.
+The architecture-specific language is considered only after the target architecture has been selected. Target selection itself is handled by the architecture-independent target-discovery phase. The current hand-written parser hierarchy constructs the common Abstract Syntax Tree (AST); no external grammar-definition object drives the parser.
 
 ---
 ## Current Implementation Status
@@ -20,8 +18,8 @@ This document defines the intended assembler language. The current implementatio
 - The current lexer is a hand-written lexer. It accepts identifiers using Python's `isalpha()`/`isalnum()` behavior plus underscore; this is broader than the ASCII-only identifier grammar specified below.
 - The current parser is a hand-written parser hierarchy (`Parser` and `ClassicParser`); it is not driven by an external architecture-definition grammar.
 - `ClassicParser` accepts only instruction mnemonics exposed by the selected ISA. Operand legality is resolved later during semantic analysis.
-- Statement-boundary parser recovery is a requirement for the current assembler but is not yet implemented: after a statement produces a parser error, parsing must synchronize at the next statement boundary and continue checking later statements. The assembler must retain all parser diagnostics and must not run semantic analysis or code generation on a parse containing errors.
-- `ORG`, `DB`, and `EQU` are implemented. `DW` is specified by this grammar but is not currently implemented.
+- The parser recovers from `ParserError` at statement boundaries and collects multiple parser diagnostics in one source file. If any parser errors occur, the assembler returns an unsuccessful result before semantic analysis or code generation. Lexical errors are still reported at the first error; lexer recovery is future work.
+- `ORG`, `DB`, `DW`, and `EQU` are implemented. `DW` accepts one or more numeric expressions, each in the range `0x0000` through `0xFFFF`; each value is emitted as a 16-bit big-endian word. The required label denotes the first byte, and each operand advances the address by two bytes. Forward label references in `DW` expressions are supported.
 - The documented `\xNN` character/string escape is specified but is not currently implemented. The current lexer supports `\n`, `\r`, `\t`, `\\`, `\'`, and `\"`.
 - `SourceLocation` currently contains line and column only; it does not contain a filename.
 
@@ -434,7 +432,7 @@ EQU
 
 Future architectures may introduce additional architecture-specific directives.
 
-The shared parser currently recognizes the implemented common directives. Directive extensibility is separate from architecture-specific instruction-mnemonic recognition.
+The shared parser currently recognizes the implemented common directives. `DW` requires a label and at least one numeric expression. Multiple values may be comma-separated; values must fit in an unsigned 16-bit word and are emitted most-significant byte first. Directive extensibility is separate from architecture-specific instruction-mnemonic recognition.
 
 ---
 

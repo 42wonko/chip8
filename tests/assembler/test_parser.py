@@ -318,6 +318,57 @@ class TestClassicParser(unittest.TestCase):
             self._parse("PLANE 1")
 
 
+    def test_parse_recovering_reports_multiple_errors_and_continues(self) -> None:
+        """Verify recovery skips malformed lines and parses later statements."""
+        self._parser.set_tokens(Lexer("CLS\nPLANE 1\nLD V0,\nRET\n").tokenize())
+
+        assembly, errors = self._parser.parse_recovering()
+
+        self.assertEqual(len(errors), 2)
+        self.assertEqual([error.location.line for error in errors], [2, 3])
+        self.assertEqual(len(assembly.lines), 2)
+        statements = [line.statement for line in assembly.lines]
+        self.assertIsInstance(statements[0], InstructionNode)
+        self.assertEqual(statements[0].mnemonic, "CLS")
+        self.assertIsInstance(statements[1], InstructionNode)
+        self.assertEqual(statements[1].mnemonic, "RET")
+
+
+    def test_parse_recovering_terminates_after_error_at_eof(self) -> None:
+        """Verify a malformed final statement is reported without looping."""
+        self._parser.set_tokens(Lexer("CLS\nLD V0,").tokenize())
+
+        assembly, errors = self._parser.parse_recovering()
+
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0].location.line, 2)
+        self.assertEqual(len(assembly.lines), 1)
+        self.assertEqual(assembly.lines[0].statement.mnemonic, "CLS")
+
+
+    def test_parse_recovering_handles_malformed_labels_directives_and_expressions(self) -> None:
+        """Verify recovery resumes after different kinds of malformed statements."""
+        source = (
+            "CLS\n"
+            "START:: JP 0x200\n"
+            "DB 1\n"
+            "LD V0, (1 + )\n"
+            "RET\n"
+        )
+        self._parser.set_tokens(Lexer(source).tokenize())
+
+        assembly, errors = self._parser.parse_recovering()
+
+        self.assertEqual(len(errors), 3)
+        self.assertEqual([error.location.line for error in errors], [2, 3, 4])
+        self.assertEqual(len(assembly.lines), 2)
+        statements = [line.statement for line in assembly.lines]
+        self.assertIsInstance(statements[0], InstructionNode)
+        self.assertEqual(statements[0].mnemonic, "CLS")
+        self.assertIsInstance(statements[1], InstructionNode)
+        self.assertEqual(statements[1].mnemonic, "RET")
+
+
     def test_classic_parser_inherits_common_parser(self) -> None:
         self._parser.set_tokens(Lexer("CLS").tokenize())
         assembly = self._parser.parse()
