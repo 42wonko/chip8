@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import unittest
 
+from PyQt6.QtCore import QModelIndex, QPoint
+from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTableView
 
 from gui.codetablemodel import CodeTableModel
@@ -29,6 +31,17 @@ class TrackingTableView(QTableView):
         @brief Record a request to resize the columns.
         """
         self.resize_columns_count += 1
+
+
+class ContextMenuTableView(TrackingTableView):
+    """Table view that returns a configured index for context-menu tests."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.context_index = QModelIndex()
+
+    def indexAt(self, _position: QPoint) -> QModelIndex:
+        return self.context_index
 
 
 class TestMainWindow(unittest.TestCase):
@@ -53,7 +66,7 @@ class TestMainWindow(unittest.TestCase):
         QMainWindow.__init__(self.window)
 
         self.memory_table = TrackingTableView()
-        self.code_table = TrackingTableView()
+        self.code_table = ContextMenuTableView()
 
         self.window.memoryTableView = self.memory_table
         self.window.codeTableView = self.code_table
@@ -83,6 +96,23 @@ class TestMainWindow(unittest.TestCase):
             self.memory_table.resize_columns_count,
             initial_count + 1,
         )
+
+    def test_code_context_menu_is_available_from_non_breakpoint_column(self) -> None:
+        model = QStandardItemModel(1, 3)
+        self.code_table.setModel(model)
+        clicked_index = model.index(0, 1)
+        self.code_table.context_index = clicked_index
+        requests: list[tuple[int, QPoint]] = []
+        self.window.code_context_menu_requested.connect(
+            lambda row, position: requests.append((row, position))
+        )
+        position = QPoint(10, 10)
+
+        self.window._code_table_context_menu(position)
+
+        self.assertEqual(requests, [(0, position)])
+        self.assertFalse(self.code_table.currentIndex().isValid())
+
 
     def test_set_code_model_resizes_columns_when_model_is_reset(self) -> None:
         """

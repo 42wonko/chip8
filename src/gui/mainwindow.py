@@ -36,13 +36,14 @@ from typing import TYPE_CHECKING, cast
 
 from PyQt6 import uic
 from PyQt6.QtCore import QEvent, QModelIndex, QObject, QPoint, QSettings, Qt, pyqtSignal
-from PyQt6.QtGui import QFontDatabase, QKeyEvent
+from PyQt6.QtGui import QAction, QFontDatabase, QKeyEvent
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QDialog,
     QHeaderView,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QStatusBar,
 )
@@ -63,7 +64,8 @@ class MainWindow(QMainWindow):
     """
 
     breakpoint_toggled = pyqtSignal(int)    # handle enabling/disabling breakpoints
-    breakpoint_context_menu_requested = pyqtSignal(int, QPoint)
+    code_context_menu_requested = pyqtSignal(int, QPoint)
+    rom_byte_search_requested = pyqtSignal()
 
 
     def __init__(self, controller: Chip8Controller) -> None:
@@ -256,6 +258,14 @@ class MainWindow(QMainWindow):
         self.clockFreqSlider.setValue(self._controller.cpu_frequency)
         self.clockFreqLabel.setText(f"{self._controller.cpu_frequency} Hz")
         self._connect_signals()
+        menu_bar = self.menuBar
+        if menu_bar is None:
+            raise RuntimeError("Main window menu bar is not available.")
+        tools_menu = QMenu("Tools", self)
+        menu_bar.addMenu(tools_menu)
+        search_rom_action = QAction("Search ROM Bytes…", self)
+        search_rom_action.triggered.connect(self.rom_byte_search_requested.emit)
+        tools_menu.addAction(search_rom_action)
         self.show_status_message("Ready")
         self._register_labels = [ self.V0_Label, self.V1_Label, self.V2_Label, self.V3_Label,
         self.V4_Label, self.V5_Label, self.V6_Label, self.V7_Label, self.V8_Label, self.V9_Label,
@@ -296,7 +306,7 @@ class MainWindow(QMainWindow):
 
     def _code_table_context_menu(self, position: QPoint) -> None:
         """
-        @brief Show the breakpoint context menu.
+        @brief Show the code-row context menu.
 
         @param position
             Mouse position in viewport coordinates.
@@ -304,9 +314,7 @@ class MainWindow(QMainWindow):
         index = self.codeTableView.indexAt(position)
         if not index.isValid():
             return
-        if index.column() != CodeTableModel.Column.BP:
-            return
-        self.breakpoint_context_menu_requested.emit(index.row(), position)
+        self.code_context_menu_requested.emit(index.row(), position)
 
 
     def configure(self) -> int:

@@ -18,9 +18,9 @@ This document defines the intended assembler language. The current implementatio
 - The current lexer is a hand-written lexer. It accepts identifiers using Python's `isalpha()`/`isalnum()` behavior plus underscore; this is broader than the ASCII-only identifier grammar specified below.
 - The current parser is a hand-written parser hierarchy (`Parser` and `ClassicParser`); it is not driven by an external architecture-definition grammar.
 - `ClassicParser` accepts only instruction mnemonics exposed by the selected ISA. Operand legality is resolved later during semantic analysis.
-- The parser recovers from `ParserError` at statement boundaries and collects multiple parser diagnostics in one source file. If any parser errors occur, the assembler returns an unsuccessful result before semantic analysis or code generation. Lexical errors are still reported at the first error; lexer recovery is future work.
+- The lexer collects multiple lexical diagnostics by recovering at source-line boundaries. If lexical errors occur, the assembler returns an unsuccessful result before parsing, semantic analysis, or code generation. The parser separately recovers from `ParserError` at statement boundaries and collects multiple parser diagnostics in one source file; parser errors also stop semantic analysis and code generation.
 - `ORG`, `DB`, `DW`, and `EQU` are implemented. `DW` accepts one or more numeric expressions, each in the range `0x0000` through `0xFFFF`; each value is emitted as a 16-bit big-endian word. The required label denotes the first byte, and each operand advances the address by two bytes. Forward label references in `DW` expressions are supported.
-- The documented `\xNN` character/string escape is specified but is not currently implemented. The current lexer supports `\n`, `\r`, `\t`, `\\`, `\'`, and `\"`.
+- The lexer supports `\n`, `\r`, `\t`, `\\`, `\'`, `\"`, and `\xNN` escapes in character and string literals. The `\xNN` escape requires exactly two hexadecimal digits.
 - `SourceLocation` currently contains line and column only; it does not contain a filename.
 
 These are implementation-status notes, not changes to the intended language requirements. The accepted parser architecture is documented in ADR-014 and `parser_framework.md`; `architecture_definitions.md` is a superseded proposal.

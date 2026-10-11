@@ -997,6 +997,7 @@ class Chip8ControllerTest(unittest.TestCase):
         controller._diagnostics.clear()
         controller._current_rom = Path("PONG.ch8")
         controller.run()
+        controller._main_window.clear_code_selection.assert_called_once_with()
         messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
         self.assertEqual( messages, ["Running ROM file 'PONG.ch8'."])
 
@@ -1102,6 +1103,7 @@ class Chip8ControllerTest(unittest.TestCase):
         controller._diagnostics.clear()
         controller._execute_cycle = MagicMock()
         controller.step()
+        controller._main_window.clear_code_selection.assert_called_once_with()
         controller._execute_cycle.assert_called_once_with()
         messages = [ diagnostic.message for diagnostic in controller._diagnostics ]
         self.assertEqual(messages, ["Single step."])
@@ -1113,6 +1115,7 @@ class Chip8ControllerTest(unittest.TestCase):
         controller._running = True
         controller._execute_cycle = MagicMock()
         controller.step()
+        controller._main_window.clear_code_selection.assert_not_called()
         controller._execute_cycle.assert_not_called()
         self.assertEqual(len(controller._diagnostics), 0)
 
@@ -1148,6 +1151,42 @@ class Chip8ControllerTest(unittest.TestCase):
         controller.run = MagicMock()
         controller.run_to_address()
         controller.run.assert_not_called()
+        self.assertEqual(len(controller._diagnostics), 0)
+
+
+    ###########################################################################
+    # Set-PC tests
+    ###########################################################################
+    def test_set_program_counter_updates_machine_and_gui(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._update_register_view = MagicMock()
+        controller._update_code_view = MagicMock()
+        controller._machine.registers.pc = 0x200
+        controller._debugger.set_temporary_breakpoint(0x240)
+
+        controller._set_program_counter(0x300)
+
+        self.assertEqual(controller._machine.registers.pc, 0x300)
+        self.assertIsNone(controller._debugger.temporary_breakpoint)
+        controller._update_register_view.assert_called_once_with()
+        controller._update_code_view.assert_called_once_with()
+        messages = [diagnostic.message for diagnostic in controller._diagnostics]
+        self.assertEqual(messages, ["Program counter set to address 0x300."])
+
+    def test_set_program_counter_does_nothing_while_running(self) -> None:
+        controller = create_controller()
+        controller._diagnostics.clear()
+        controller._running = True
+        controller._update_register_view = MagicMock()
+        controller._update_code_view = MagicMock()
+        controller._machine.registers.pc = 0x200
+
+        controller._set_program_counter(0x300)
+
+        self.assertEqual(controller._machine.registers.pc, 0x200)
+        controller._update_register_view.assert_not_called()
+        controller._update_code_view.assert_not_called()
         self.assertEqual(len(controller._diagnostics), 0)
 
 

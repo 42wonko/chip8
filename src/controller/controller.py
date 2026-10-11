@@ -34,7 +34,13 @@ from pathlib import Path
 
 from PyQt6.QtCore import QPoint, QTimer
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMenu
+from PyQt6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QInputDialog,
+    QMenu,
+    QMessageBox,
+)
 
 from assembler.assembler import Assembler
 from assembler.classicparser import ClassicParser
@@ -53,6 +59,7 @@ from controller.diagnostics import AssemblerDiagnostics, Diagnostics
 from controller.emulatorconfiguration import EmulatorConfiguration
 from controller.keyboardmap import KeyboardMap
 from controller.logging import LogManager
+from controller.romsearch import find_byte_sequences
 from emulator.chip8machine import Chip8Machine
 from emulator.constants import DEFAULT_CPU_FREQUENCY, PROGRAM_START, TIMER_FREQUENCY
 from emulator.stepresult import StepResult
@@ -102,7 +109,8 @@ class Chip8Controller:
         self._log_manager.set_isa(self._isa)
         self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
         self._main_window.config_dialog.test_sound_requested.connect( self._test_sound)
-        self._main_window.breakpoint_context_menu_requested.connect( self._show_breakpoint_context_menu)
+        self._main_window.code_context_menu_requested.connect( self._show_code_context_menu)
+        self._main_window.rom_byte_search_requested.connect(self.search_rom_bytes)
         self._main_window.assembler_dialog.set_assembler(self._assembler)
         self._main_window.assembler_dialog.set_diagnostics(self._assembler_diagnostics)
         self._cpu_timer = QTimer()
@@ -226,6 +234,79 @@ class Chip8Controller:
             self._logger.leave("load_rom")
             return
         self._load_rom(Path(filename))
+
+
+    def search_rom_bytes(self) -> None:
+        """Search the currently loaded ROM for a hexadecimal byte sequence."""
+        if self._current_rom_data is None:
+            QMessageBox.information(
+                self._main_window,
+                "Search ROM Bytes",
+                "Load a ROM before searching for bytes.",
+            )
+            return
+
+        text, accepted = QInputDialog.getText(
+            self._main_window,
+            "Search ROM Bytes",
+            "Enter hexadecimal bytes separated by spaces (for example: A2 30 00 E0):",
+        )
+        if not accepted:
+            return
+
+        tokens = text.split()
+        try:
+            if not tokens:
+                raise ValueError
+            digits = [
+                token[2:] if token.lower().startswith("0x") else token
+                for token in tokens
+            ]
+            if any(
+                len(token) != 2
+                or any(character not in "0123456789abcdefABCDEF" for character in token)
+                for token in digits
+            ):
+                raise ValueError
+            needle = bytes(int(token, 16) for token in digits)
+        except ValueError:
+            QMessageBox.warning(
+                self._main_window,
+                "Invalid Byte Sequence",
+                "Enter one or more bytes as two hexadecimal digits each, separated by spaces.",
+            )
+            return
+
+        offsets = find_byte_sequences(self._current_rom_data, needle)
+        if not offsets:
+            QMessageBox.information(
+                self._main_window,
+                "Search ROM Bytes",
+                "The byte sequence was not found in the loaded ROM.",
+            )
+            return
+
+        addresses = [PROGRAM_START + offset for offset in offsets]
+        choices = [f"0x{address:03X}" for address in addresses]
+        if len(choices) == 1:
+            selected = choices[0]
+        else:
+            selected, accepted = QInputDialog.getItem(
+                self._main_window,
+                "ROM Search Results",
+                f"Found {len(choices)} matches. Select an address:",
+                choices,
+                0,
+                False,
+            )
+            if not accepted:
+                return
+
+        address = int(selected, 16)
+        self._memory_model.refresh_range(address, address + len(needle) - 1)
+        self._diagnostics_reporter.info(
+            f"Found byte sequence at address 0x{address:03X}."
+        )
 
 
     def reload_rom(self) -> None:
@@ -484,6 +565,7 @@ class Chip8Controller:
         if self._running:
             self._logger.leave("run")
             return
+        self._main_window.clear_code_selection()
         self._running = True
         if self._current_rom is not None:
             self._diagnostics_reporter.info( f"Running ROM file '{self._current_rom.name}'.")
@@ -547,6 +629,7 @@ class Chip8Controller:
         if self._running:
             self._logger.leave("step")
             return
+        self._main_window.clear_code_selection()
         self._execute_cycle()
         self._diagnostics_reporter.info("Single step.")
         self._logger.info("Single step")
@@ -855,15 +938,21 @@ class Chip8Controller:
         self._code_model.refresh_address(address)
 
 
-    def _show_breakpoint_context_menu(self, row: int, position: QPoint) -> None:
+    def _show_code_context_menu(self, row: int, position: QPoint) -> None:
         """
-        @brief Show the breakpoint context menu.
+        @brief Show the code-row context menu.
 
         @param row
             Code analysis row.
+        @param position
+            Mouse position in viewport coordinates.
         """
         address = self._code_analysis.row(row).address
         menu = QMenu(self._main_window)
+        set_pc_action = QAction(f"Set PC to 0x{address:03X}", menu)
+        menu.addAction(set_pc_action)
+        set_pc_action.setEnabled(not self._running)
+        menu.addSeparator()
         set_action: QAction | None = None
         clear_action: QAction | None = None
         enable_action: QAction | None = None
@@ -884,6 +973,9 @@ class Chip8Controller:
         action = menu.exec( self._main_window.codeTableView.viewport().mapToGlobal(position))
         if action is None:
             return
+        if action == set_pc_action:
+            self._set_program_counter(address)
+            return
         if action == set_action:
             self._debugger.set_breakpoint(address)
             self._diagnostics_reporter.info( f"Breakpoint set at address 0x{address:03X}.")
@@ -901,6 +993,23 @@ class Chip8Controller:
             self._diagnostics_reporter.info("All breakpoints cleared.")
 
         self._code_model.refresh()
+
+
+    def _set_program_counter(self, address: int) -> None:
+        """
+        @brief Set the program counter to a selected code address.
+
+        @param address
+            Address of the instruction selected in the code view.
+        """
+        if self._running:
+            return
+        self._machine.registers.pc = address
+        self._debugger.clear_temporary_breakpoint()
+        self._stopped_on_breakpoint = False
+        self._update_register_view()
+        self._update_code_view()
+        self._diagnostics_reporter.info(f"Program counter set to address 0x{address:03X}.")
 
 
     def _create_assembler(self, target: Target) -> Assembler:

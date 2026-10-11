@@ -38,7 +38,7 @@ class Lexer:
 
     def tokenize(self) -> list[Token]:
         """
-        @brief Tokenize the complete source.
+        @brief Tokenize the complete source, stopping at the first error.
 
         @return
             List of tokens including an END_OF_FILE token.
@@ -46,60 +46,96 @@ class Lexer:
         @exception LexerError
             If invalid lexical input is encountered.
         """
+        tokens, _ = self._tokenize(recover=False)
+        return tokens
+
+
+    def tokenize_recovering(self) -> tuple[list[Token], tuple[LexerError, ...]]:
+        """
+        @brief Tokenize the source while collecting lexical errors by line.
+
+        A malformed token causes the remainder of its source line to be
+        skipped. Tokenization then resumes at the next line.
+
+        @return
+            Tokens and all lexical errors encountered.
+        """
+        tokens, errors = self._tokenize(recover=True)
+        return tokens, tuple(errors)
+
+
+    def _tokenize(self, recover: bool) -> tuple[list[Token], list[LexerError]]:
+        """Tokenize source, optionally recovering after a lexical error."""
         tokens: list[Token] = []
+        errors: list[LexerError] = []
 
         while not self._at_end():
-            character = self._current()
-            if character in " \t\r":
-                self._advance()
-                continue
-            if character == "\n":
-                tokens.append(self._single_character_token( TokenType.END_OF_LINE))
-                continue
-            if character == ";":
-                self._skip_comment()
-                continue
-            if character.isalpha() or character == "_":
-                tokens.append(self._identifier())
-                continue
-            if character.isdigit():
-                tokens.append(self._number())
-                continue
-            if character == "'":
-                tokens.append(self._character())
-                continue
-            if character == '"':
-                tokens.append(self._string())
-                continue
+            try:
+                character = self._current()
+                if character in " \t\r":
+                    self._advance()
+                    continue
+                if character == "\n":
+                    tokens.append(self._single_character_token(TokenType.END_OF_LINE))
+                    continue
+                if character == ";":
+                    self._skip_comment()
+                    continue
+                if character.isalpha() or character == "_":
+                    tokens.append(self._identifier())
+                    continue
+                if character.isdigit():
+                    tokens.append(self._number())
+                    continue
+                if character == "'":
+                    tokens.append(self._character())
+                    continue
+                if character == '"':
+                    tokens.append(self._string())
+                    continue
 
-            punctuation = {
-                ":": TokenType.COLON,
-                ",": TokenType.COMMA,
-                "+": TokenType.PLUS,
-                "-": TokenType.MINUS,
-                "(": TokenType.LPAREN,
-                ")": TokenType.RPAREN,
-                "[": TokenType.LBRACKET,
-                "]": TokenType.RBRACKET
-            }
+                punctuation = {
+                    ":": TokenType.COLON,
+                    ",": TokenType.COMMA,
+                    "+": TokenType.PLUS,
+                    "-": TokenType.MINUS,
+                    "(": TokenType.LPAREN,
+                    ")": TokenType.RPAREN,
+                    "[": TokenType.LBRACKET,
+                    "]": TokenType.RBRACKET,
+                }
 
-            token_type = punctuation.get(character)
+                token_type = punctuation.get(character)
+                if token_type is not None:
+                    tokens.append(self._single_character_token(token_type))
+                    continue
 
-            if token_type is not None:
-                tokens.append(self._single_character_token(token_type))
-                continue
-            location = self._location()
-            raise LexerError( f"Unexpected character '{character}' at " f"{location.line}:{location.column}.", location)
+                location = self._location()
+                raise LexerError(
+                    f"Unexpected character '{character}' at "
+                    f"{location.line}:{location.column}.",
+                    location,
+                )
+            except LexerError as error:
+                if not recover:
+                    raise
+                errors.append(error)
+                self._skip_to_next_line()
 
         tokens.append(
             Token(
                 type=TokenType.END_OF_FILE,
                 value="",
-                location=SourceLocation( line=self._line, column=self._column)
+                location=SourceLocation(line=self._line, column=self._column),
             )
         )
+        return tokens, errors
 
-        return tokens
+
+    def _skip_to_next_line(self) -> None:
+        """Skip malformed source through, but not including, its newline."""
+        while not self._at_end() and self._current() != "\n":
+            self._advance()
 
 
     def _identifier(self) -> Token:
@@ -253,9 +289,23 @@ class Lexer:
         self._advance()
         if self._at_end():
             raise LexerError( f"Invalid escape sequence at " f"{location.line}:{location.column}.", location)
-        escapes = { "n": "\n", "r": "\r", "t": "\t", "\\": "\\", "'": "'", '"': '"' }
         character = self._current()
         self._advance()
+        if character == "x":
+            digits = self._source[self._position:self._position + 2]
+            if len(digits) != 2 or any(
+                digit not in "0123456789abcdefABCDEF" for digit in digits
+            ):
+                raise LexerError(
+                    f"Invalid hexadecimal escape sequence at "
+                    f"{location.line}:{location.column}.",
+                    location
+                )
+            self._advance()
+            self._advance()
+            return chr(int(digits, 16))
+
+        escapes = { "n": "\n", "r": "\r", "t": "\t", "\\": "\\", "\'": "\'", '"': '"' }
         if character not in escapes:
             raise LexerError( f"Invalid escape sequence '\\{character}' at " f"{location.line}:{location.column}.", location)
         return escapes[character]

@@ -96,6 +96,21 @@ class TestAssembler(unittest.TestCase):
         self.assertEqual(result.binary_image, b"\x00\xE0")
 
 
+    def test_assemble_reports_multiple_lexer_errors_and_skips_parsing(self) -> None:
+        parser = Mock(spec=Parser)
+        assembler = Assembler(self._diagnostics.reporter(), self._isa, parser)
+
+        result = assembler.assemble("CLS @\nLD V0, 0x\nRET\n")
+
+        self.assertFalse(result.success)
+        self.assertEqual(len(result.diagnostics), 2)
+        self.assertEqual(
+            [diagnostic.location.line for diagnostic in result.diagnostics],
+            [1, 2],
+        )
+        parser.set_tokens.assert_not_called()
+        parser.parse_recovering.assert_not_called()
+
     def test_parser_errors_block_output_and_are_all_reported(self) -> None:
         """Verify parse errors are collected and block semantic/code generation."""
         result = self._assembler.assemble(

@@ -24,7 +24,7 @@ The current implementation has one supported assembler target: `COSMAC`. Target 
 
 The lexer and parser are hand-written. `Parser` contains common grammar machinery, and `ClassicParser` specializes instruction-mnemonic recognition for the Classic target. The Controller selects the target and supplies the matching ISA/parser pair to `Assembler`.
 
-The ISA abstraction is the authoritative source of assembler mnemonic knowledge through `assembler_mnemonics()`. The parser rejects unsupported mnemonics and recovers at statement boundaries to collect additional parser diagnostics. If parsing reports errors, semantic analysis and code generation are not run. Semantic analysis validates operand signatures, types, symbol references, expressions, and ranges. Lexical recovery remains future work; the first `LexerError` stops tokenization. No `ArchitectureDefinition` object is part of the accepted design.
+The ISA abstraction is the authoritative source of assembler mnemonic knowledge through `assembler_mnemonics()`. The lexer collects multiple lexical diagnostics by skipping the remainder of each malformed source line and resuming at the next line. If lexical errors occur, parsing is skipped. The parser separately recovers at statement boundaries to collect additional parser diagnostics; if parsing reports errors, semantic analysis and code generation are not run. Semantic analysis validates operand signatures, types, symbol references, expressions, and ranges. No `ArchitectureDefinition` object is part of the accepted design.
 
 ---
 

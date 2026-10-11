@@ -182,7 +182,6 @@ class MemoryTableModel(QAbstractTableModel):
         The previous highlighted range is repainted before the new
         highlight becomes active.
         """
-        old_start = self._highlight_start                                               # remember previous high light
         if ( self._highlight_start is not None and self._highlight_end is not None):    # Repaint the old highlight.
             self._emit_background_changed( self._highlight_start, self._highlight_end)
 
@@ -192,7 +191,9 @@ class MemoryTableModel(QAbstractTableModel):
         # Paint the new highlight.
         if ( self._highlight_start is not None and self._highlight_end is not None):
             self._emit_background_changed( self._highlight_start, self._highlight_end)
-        if first is not None and first != old_start:                                    # only scroll if we actually have to move
+        if first is not None:
+            # Repeated writes to the same address must still bring it into view
+            # if the user has scrolled elsewhere since the previous write.
             self.scroll_to_address.emit(first)
 
 

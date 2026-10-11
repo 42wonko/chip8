@@ -22,10 +22,21 @@
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
     <widget class="QSplitter" name="splitter_2">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="orientation">
       <enum>Qt::Orientation::Vertical</enum>
      </property>
      <widget class="QSplitter" name="splitter">
+      <property name="font">
+       <font>
+        <family>Courier</family>
+       </font>
+      </property>
       <property name="orientation">
        <enum>Qt::Orientation::Horizontal</enum>
       </property>
@@ -46,6 +57,11 @@
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="font">
+        <font>
+         <family>Noto Sans</family>
+        </font>
        </property>
        <property name="title">
         <string>Control</string>
@@ -128,6 +144,12 @@
         </item>
         <item>
          <widget class="QGroupBox" name="asmViGroupBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="title">
            <string>Vi(ish)</string>
           </property>
@@ -139,6 +161,12 @@
             <layout class="QHBoxLayout" name="horizontalLayout_2">
              <item>
               <widget class="QLabel" name="asmViTabSizeLabel">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="maximumSize">
                 <size>
                  <width>100</width>
@@ -152,6 +180,12 @@
              </item>
              <item>
               <widget class="QComboBox" name="asmViTabSizeComboBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <item>
                 <property name="text">
                  <string>2</string>
@@ -180,6 +214,12 @@
             <layout class="QHBoxLayout" name="horizontalLayout_3">
              <item>
               <widget class="QLabel" name="asmViFontLabel">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="minimumSize">
                 <size>
                  <width>100</width>
@@ -199,11 +239,22 @@
              </item>
              <item>
               <widget class="QFontComboBox" name="asmViFontComboBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="maximumSize">
                 <size>
                  <width>200</width>
                  <height>16777215</height>
                 </size>
+               </property>
+               <property name="font">
+                <font>
+                 <family>Noto Sans</family>
+                </font>
                </property>
               </widget>
              </item>

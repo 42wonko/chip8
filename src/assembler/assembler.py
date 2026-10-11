@@ -72,8 +72,8 @@ class Assembler:
             self._diagnostics.info("Started assembly.")
 #            TargetSelector().select(source, target)
             self._diagnostics.info("Parsing source.")
-            assembly, parser_errors = self._parse_recovering(source)
-            if parser_errors:
+            assembly, syntax_errors = self._parse_recovering(source)
+            if syntax_errors:
                 diagnostics = tuple(
                     AssemblerDiagnostic(
                         severity=DiagnosticSeverity.ERROR,
@@ -81,7 +81,7 @@ class Assembler:
                         message=str(error),
                         location=error.location,
                     )
-                    for error in parser_errors
+                    for error in syntax_errors
                 )
                 for diagnostic in diagnostics:
                     self._diagnostics.error(diagnostic.message, diagnostic.location)
@@ -144,10 +144,16 @@ class Assembler:
 
     def _parse_recovering(
         self, source: str
-    ) -> tuple[AssemblyNode, tuple[ParserError, ...]]:
+    ) -> tuple[AssemblyNode, tuple[LexerError | ParserError, ...]]:
         """
         @brief Lex and parse source, recovering at source-line boundaries.
+
+        Parsing is skipped when lexical errors are present because the token
+        stream may be incomplete.
         """
-        tokens = Lexer(source).tokenize()
+        tokens, lexer_errors = Lexer(source).tokenize_recovering()
+        if lexer_errors:
+            return AssemblyNode(lines=()), lexer_errors
         self._parser.set_tokens(tokens)
-        return self._parser.parse_recovering()
+        assembly, parser_errors = self._parser.parse_recovering()
+        return assembly, parser_errors

@@ -230,10 +230,10 @@ Implemented in the current assembler:
 
 Known language/architecture work still documented elsewhere:
 
-- [ ] `\xNN` character/string escape support
+- [x] `\xNN` character/string escape support
 - [x] Shared parser base and architecture-specific ClassicParser mnemonic validation
 - [x] Parser recovery at statement boundaries, including multiple syntax diagnostics per source file
-- [ ] Lexer error recovery: collect multiple lexical diagnostics and resume at later source lines (future enhancement; currently the first `LexerError` stops tokenization)
+- [x] Lexer error recovery: collect multiple lexical diagnostics and resume at later source lines
 - [ ] Additional CHIP-8 architecture targets / plug-ins
 
 ---

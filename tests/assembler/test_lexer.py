@@ -59,6 +59,26 @@ class LexerTest(unittest.TestCase):
         self.assertEqual(tokens[0].type, TokenType.CHARACTER)
         self.assertEqual(tokens[0].value, "\n")
 
+    def test_hexadecimal_escaped_character(self) -> None:
+        tokens = Lexer(r"'\x41'").tokenize()
+        self.assertEqual(tokens[0].type, TokenType.CHARACTER)
+        self.assertEqual(tokens[0].value, "A")
+
+    def test_hexadecimal_escaped_character_can_be_zero(self) -> None:
+        tokens = Lexer(r"'\x00'").tokenize()
+        self.assertEqual(tokens[0].value, "\x00")
+
+    def test_hexadecimal_escaped_string(self) -> None:
+        tokens = Lexer(r'"A\x00\x7f\xFF"').tokenize()
+        self.assertEqual(tokens[0].type, TokenType.STRING)
+        self.assertEqual(tokens[0].value, "A\x00\x7f\xff")
+
+    def test_hexadecimal_escape_requires_two_hex_digits(self) -> None:
+        for source in (r"'\x'", r"'\x0'", r"'\xG0'", r"'\x0G'"):
+            with self.subTest(source=source):
+                with self.assertRaises(LexerError):
+                    Lexer(source).tokenize()
+
     def test_string(self) -> None:
         tokens = Lexer('"HELLO"').tokenize()
         self.assertEqual(tokens[0].type, TokenType.STRING)
@@ -109,6 +129,25 @@ class LexerTest(unittest.TestCase):
         self.assertEqual(tokens[1].location.column, 4)
         self.assertEqual(tokens[5].location.line, 2)
         self.assertEqual(tokens[5].location.column, 1)
+
+    def test_tokenize_recovering_reports_errors_on_multiple_lines(self) -> None:
+        lexer = Lexer("CLS @ ignored\nLD V0, 0x\nRET\n")
+
+        tokens, errors = lexer.tokenize_recovering()
+
+        self.assertEqual([error.location.line for error in errors], [1, 2])
+        self.assertEqual(len(errors), 2)
+        self.assertEqual(tokens[-1].type, TokenType.END_OF_FILE)
+        self.assertTrue(any(token.value == "RET" for token in tokens))
+
+    def test_tokenize_recovering_skips_malformed_literal_line(self) -> None:
+        lexer = Lexer('CLS\nDB "unterminated\nRET\n')
+
+        tokens, errors = lexer.tokenize_recovering()
+
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0].location.line, 2)
+        self.assertTrue(any(token.value == "RET" for token in tokens))
 
     def test_unexpected_character(self) -> None:
         with self.assertRaises(LexerError):
