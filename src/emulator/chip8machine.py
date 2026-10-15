@@ -51,6 +51,8 @@ class Chip8Machine:
         self._logger                = logger                # only needed to create the reporters for the subsystems
         self._trace_reporter        = tracer
         self._cycles                = 0
+        self._terminated            = False
+        self._user_flags            = bytearray(8)
         self._memory                = Chip8Memory(self._diagnostics, self._logger)
         self._registers             = Chip8Registers(self._diagnostics, self._logger)
         self._stack                 = Chip8Stack(self._diagnostics, self._logger, self._registers)
@@ -104,6 +106,12 @@ class Chip8Machine:
 
 
     @property
+    def user_flags(self) -> bytearray:
+        """Return the eight Super-CHIP user-flag registers."""
+        return self._user_flags
+
+
+    @property
     def framebuffer(self) -> Chip8Framebuffer:
         """
         @brief Return the framebuffer.
@@ -126,6 +134,7 @@ class Chip8Machine:
             Instruction set architecture used to decode and execute instructions.
         """
         self._isa = isa
+        self._isa.initialize_machine(self)
 
 
     @property
@@ -151,8 +160,12 @@ class Chip8Machine:
         self._timers.reset()
         self._keyboard.reset()
         self._framebuffer.reset()
+        self._user_flags[:] = b"\x00" * len(self._user_flags)
+        self._terminated = False
         for offset, byte in enumerate(FONTSET):                 # init the builtin font
             self._memory.write_byte(FONT_START + offset, byte)
+        if self._isa is not None:
+            self._isa.initialize_machine(self)
         self._cycles = 0
 
 
@@ -197,8 +210,11 @@ class Chip8Machine:
 
     def execute_cycle(self) -> StepResult:
         """
-        @brief Execute one instruction.
+        @brief Execute one instruction unless the program has terminated.
         """
+        if self._terminated:
+            return StepResult(terminated=True)
+
         result = StepResult()
         registers_before = self._registers.copy()
         delay_timer_before = self._timers.delay_timer
@@ -212,6 +228,8 @@ class Chip8Machine:
             raise NotImplementedError( f"Opcode {instruction.opcode:04X} is not implemented.") from error
         if instruction.id == InstructionId.JP_V0:
             result.bnnn_target = (instruction.address, self.registers.pc)
+        if result.terminated:
+            self._terminated = True
 
         registers_after = self._registers.copy()
         delay_timer_after = self._timers.delay_timer

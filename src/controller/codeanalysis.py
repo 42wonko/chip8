@@ -133,6 +133,11 @@ class CodeAnalysis:
         self._address_to_row: dict[int, int] = {}
 
 
+    def set_isa(self, isa: InstructionSetArchitecture) -> None:
+        """Set the ISA used to decode and analyze program instructions."""
+        self._isa = isa
+
+
     def set_rom_range(self, start: int, end: int) -> None:
         """
         @brief Set the address range occupied by the loaded ROM.

@@ -15,9 +15,11 @@ from assembler.classicparser import ClassicParser
 from assembler.options import AssemblyOptions
 from assembler.result import AssemblyResult
 from assembler.target import Target
+from chip8.isa.classicisa import ClassicInstructionSetArchitecture
+from chip8.isa.superchip10isa import SuperChip10InstructionSetArchitecture
 from controller.controller import Chip8Controller
 from controller.diagnostics import AssemblerDiagnostics
-from controller.emulatorconfiguration import EmulatorConfiguration
+from controller.emulatorconfiguration import EmulationMode, EmulatorConfiguration
 from emulator.stepresult import StepResult
 from tests.helpers import create_controller
 
@@ -47,6 +49,26 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertIn( "Unsupported instruction 'PLANE'.", [diagnostic.message for diagnostic in result.diagnostics])
 
+
+    def test_create_emulator_isa_supports_classic_and_superchip_10(self) -> None:
+        self.assertIsInstance(
+            Chip8Controller._create_emulator_isa(EmulationMode.CLASSIC),
+            ClassicInstructionSetArchitecture,
+        )
+        self.assertIsInstance(
+            Chip8Controller._create_emulator_isa(EmulationMode.SUPERCHIP_10),
+            SuperChip10InstructionSetArchitecture,
+        )
+
+    def test_create_emulator_isa_rejects_unimplemented_profiles(self) -> None:
+        for mode in (
+            EmulationMode.SUPERCHIP_11,
+            EmulationMode.SUPERCHIP_MODERN,
+            EmulationMode.SCHIPC,
+        ):
+            with self.subTest(mode=mode):
+                with self.assertRaises(ValueError):
+                    Chip8Controller._create_emulator_isa(mode)
 
     def test_execute_cycle_preserves_display_changed_result(self) -> None:
         """
@@ -78,6 +100,57 @@ class Chip8ControllerTest(unittest.TestCase):
 
         controller._machine.execute_cycle.assert_called_once_with()
         controller.update_gui.assert_called_once_with(result)
+
+    def _create_exit_test_controller(self, running: bool) -> Chip8Controller:
+        """Create a controller with mocked collaborators for EXIT tests."""
+        with patch.object(Chip8Controller, "__init__", return_value=None):
+            controller = Chip8Controller()
+
+        controller._machine = MagicMock()
+        controller._debugger = MagicMock()
+        controller._stopped_on_breakpoint = False
+        controller._configuration = MagicMock()
+        controller._configuration.disable_display_updates = False
+        controller._code_analysis = MagicMock()
+        controller._code_model = MagicMock()
+        controller._main_window = MagicMock()
+        controller._diagnostics_reporter = MagicMock()
+        controller._logger = MagicMock()
+        controller._cpu_timer = MagicMock()
+        controller._hardware_timer = MagicMock()
+        controller._running = running
+        controller._update_display = MagicMock()
+        controller.update_gui = MagicMock()
+
+        controller._machine.registers.pc = 0x200
+        controller._debugger.temporary_breakpoint = None
+        controller._debugger.has_any_breakpoint.return_value = False
+        controller._machine.execute_cycle.return_value = StepResult(terminated=True)
+        return controller
+
+    def test_exit_stops_continuous_execution(self) -> None:
+        """EXIT during a CPU tick stops timers and reports program exit."""
+        controller = self._create_exit_test_controller(running=True)
+
+        controller._cpu_tick()
+
+        controller._machine.execute_cycle.assert_called_once_with()
+        controller._cpu_timer.stop.assert_called_once_with()
+        controller._hardware_timer.stop.assert_called_once_with()
+        controller._main_window.show_status_message.assert_any_call("Program exited")
+        self.assertFalse(controller._running)
+
+    def test_exit_during_single_step_reports_program_exit(self) -> None:
+        """Single-stepping EXIT reports termination without starting timers."""
+        controller = self._create_exit_test_controller(running=False)
+
+        controller.step()
+
+        controller._machine.execute_cycle.assert_called_once_with()
+        controller._main_window.show_status_message.assert_called_once_with("Program exited")
+        controller._cpu_timer.stop.assert_not_called()
+        controller._hardware_timer.stop.assert_not_called()
+        self.assertFalse(controller._running)
 
     def test_execute_cycle_preserves_bnnn_target_result(self) -> None:
         """

@@ -4,8 +4,12 @@
 @brief CHIP-8 framebuffer.
 
 @details
-Implements the 64×32 monochrome display memory of the CHIP-8 virtual
-machine.
+Implements the monochrome display memory of the CHIP-8 virtual machine.
+
+The framebuffer supports both the Classic CHIP-8 resolution (64×32) and
+Super-CHIP high resolution (128×64). The backing buffer retains pixel data
+when the active resolution changes, which is required by the original
+Super-CHIP 1.x display-mode behavior.
 
 Pixels are stored as a NumPy array of boolean values. Drawing follows
 the original CHIP-8 behaviour using XOR rendering and reports whether
@@ -27,6 +31,9 @@ from controller.applicationlogreporter import ApplicationLogReporter
 from controller.diagnostics import DiagnosticReporter
 from emulator.constants import DISPLAY_HEIGHT, DISPLAY_WIDTH
 
+SUPERCHIP_DISPLAY_WIDTH = 128
+SUPERCHIP_DISPLAY_HEIGHT = 64
+
 
 class Chip8Framebuffer:
     """
@@ -39,25 +46,53 @@ class Chip8Framebuffer:
         @brief Construct an empty framebuffer.
         """
 
-        self._pixels: npt.NDArray[np.bool_] = np.zeros( (DISPLAY_HEIGHT, DISPLAY_WIDTH), dtype=np.bool_)
+        self._display_width = DISPLAY_WIDTH
+        self._display_height = DISPLAY_HEIGHT
+        self._pixels: npt.NDArray[np.bool_] = np.zeros(
+            (SUPERCHIP_DISPLAY_HEIGHT, SUPERCHIP_DISPLAY_WIDTH),
+            dtype=np.bool_,
+        )
 
 
     ###########################################################################
     # Public interface
     ###########################################################################
     def reset(self) -> None:
-        """
-        @brief Clear the framebuffer.
-        """
+        """Clear the framebuffer and restore the Classic resolution."""
         self._pixels.fill(False)
+        self._display_width = DISPLAY_WIDTH
+        self._display_height = DISPLAY_HEIGHT
 
 
     def clear(self) -> None:
-        """
-        @brief Clear the framebuffer.
-        """
-        self.reset()
+        """Clear all pixels without changing the active resolution."""
+        self._pixels.fill(False)
 
+
+    @property
+    def width(self) -> int:
+        """Return the active display width in pixels."""
+        return self._display_width
+
+    @property
+    def height(self) -> int:
+        """Return the active display height in pixels."""
+        return self._display_height
+
+    def set_resolution(self, width: int, height: int) -> None:
+        """Select the active display resolution without clearing pixels.
+
+        Only the two resolutions supported by Classic CHIP-8 and
+        Super-CHIP are accepted.
+        """
+        if (width, height) not in {
+            (DISPLAY_WIDTH, DISPLAY_HEIGHT),
+            (SUPERCHIP_DISPLAY_WIDTH, SUPERCHIP_DISPLAY_HEIGHT),
+        }:
+            raise ValueError(f"Unsupported display resolution: {width}x{height}.")
+
+        self._display_width = width
+        self._display_height = height
 
     def get_pixel(self, x: int, y: int) -> bool:
         """
@@ -72,8 +107,8 @@ class Chip8Framebuffer:
         @return
             Pixel state.
         """
-        x %= DISPLAY_WIDTH
-        y %= DISPLAY_HEIGHT
+        x %= self._display_width
+        y %= self._display_height
         return bool(self._pixels[y, x])
 
 
@@ -90,8 +125,8 @@ class Chip8Framebuffer:
         @param value
             New pixel value.
         """
-        x %= DISPLAY_WIDTH
-        y %= DISPLAY_HEIGHT
+        x %= self._display_width
+        y %= self._display_height
         self._pixels[y, x] = value
 
 
@@ -111,8 +146,8 @@ class Chip8Framebuffer:
         @return
             True if the pixel changed from set to cleared -> collision.
         """
-        x %= DISPLAY_WIDTH
-        y %= DISPLAY_HEIGHT
+        x %= self._display_width
+        y %= self._display_height
 
         collision: bool = bool(self._pixels[y, x])
         self._pixels[y, x] = not self._pixels[y, x]
@@ -126,7 +161,7 @@ class Chip8Framebuffer:
         @return
             Read-only view of the framebuffer.
         """
-        view = self._pixels.view()
+        view = self._pixels[:self._display_height, :self._display_width].view()
         view.flags.writeable = False
         return view
 

@@ -51,12 +51,14 @@ from audio.beeper import Beeper
 from chip8.debugger import Debugger
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.instructionid import InstructionId
+from chip8.isa.isa import InstructionSetArchitecture
+from chip8.isa.superchip10isa import SuperChip10InstructionSetArchitecture
 from chip8.settingsmanager import SettingsManager
 from controller.applicationlogreporter import ApplicationLogReporter
 from controller.codeanalysis import CodeAnalysis
 from controller.diagnostic import DiagnosticSource, format_severity, format_source
 from controller.diagnostics import AssemblerDiagnostics, Diagnostics
-from controller.emulatorconfiguration import EmulatorConfiguration
+from controller.emulatorconfiguration import EmulationMode, EmulatorConfiguration
 from controller.keyboardmap import KeyboardMap
 from controller.logging import LogManager
 from controller.romsearch import find_byte_sequences
@@ -101,7 +103,7 @@ class Chip8Controller:
         self._main_window                           = MainWindow(self)
         self._main_window.breakpoint_toggled.connect( self._toggle_breakpoint)
         self._machine                               = Chip8Machine(self._diagnostics.reporter(DiagnosticSource.EMULATOR), self._log_manager.application_logger(DiagnosticSource.EMULATOR), self._log_manager.execution_trace_reporter())
-        self._isa                                   = ClassicInstructionSetArchitecture()
+        self._isa                                   = self._create_emulator_isa(self._configuration.emulation_mode)
         self._machine.set_isa(self._isa)
         assembler_isa                               = ClassicInstructionSetArchitecture()           # Chip8Machine and the assembler use different instances of the ISA
         assembler_parser                            = ClassicParser(assembler_isa)
@@ -734,9 +736,22 @@ class Chip8Controller:
         if not self._main_window.configure():
             self._logger.leave("configure")
             return
-        self._configuration = dialog.configuration
+        new_configuration = dialog.configuration
+        architecture_changed = new_configuration.emulation_mode != self._configuration.emulation_mode
+        self._configuration = new_configuration
         self._log_manager.configure(self._configuration)        # Reconfigure all subsystems.
         self._beeper.configuration = self._configuration
+        if architecture_changed:
+            self._isa = self._create_emulator_isa(self._configuration.emulation_mode)
+            self._machine.set_isa(self._isa)
+            self._code_analysis.set_isa(self._isa)
+            self._log_manager.set_isa(self._isa)
+            self.reset()
+            if self._current_rom_data is None:
+                self._code_analysis.clear_runtime_observations()
+                self._code_analysis.rebuild()
+                self._code_model.refresh()
+                self._update_diagnostics_view()
         self._diagnostics_reporter.info("Emulator configuration updated.")
         self._logger.info("Emulator configuration updated")
         self._logger.leave("configure")
@@ -779,7 +794,7 @@ class Chip8Controller:
         """
         @brief Refresh the display widget.
         """
-        self._main_window.display.refresh()
+        self._main_window.display.set_framebuffer(self._machine.framebuffer.pixels())
 
     def _update_register_view(self) -> None:
         """
@@ -831,6 +846,9 @@ class Chip8Controller:
                 if refresh_code:
                     self._code_model.refresh()
                     self._update_code_view()
+                if result.terminated:
+                    self.stop()
+                    self._main_window.show_status_message("Program exited")
             except NotImplementedError:
                 self.stop()
                 self._diagnostics_reporter.error(f"Instruction @0x{self.machine.registers.pc-2:04X} Not implemented!")
@@ -1010,6 +1028,21 @@ class Chip8Controller:
         self._update_register_view()
         self._update_code_view()
         self._diagnostics_reporter.info(f"Program counter set to address 0x{address:03X}.")
+
+
+    @staticmethod
+    def _create_emulator_isa(mode: EmulationMode) -> InstructionSetArchitecture:
+        """Create the ISA selected for emulator execution.
+
+        The emulator profile is deliberately independent of the assembler
+        target. Super-CHIP 1.1, Modern, and SCHIPC remain disabled until their
+        behavior profiles have been implemented.
+        """
+        if mode is EmulationMode.CLASSIC:
+            return ClassicInstructionSetArchitecture()
+        if mode is EmulationMode.SUPERCHIP_10:
+            return SuperChip10InstructionSetArchitecture()
+        raise ValueError(f"Emulation mode '{mode.value}' is not implemented yet.")
 
 
     def _create_assembler(self, target: Target) -> Assembler:

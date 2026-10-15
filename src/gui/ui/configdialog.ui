@@ -35,12 +35,42 @@
            </widget>
           </item>
           <item>
-           <widget class="QRadioButton" name="superRadioButton">
+           <widget class="QRadioButton" name="super10RadioButton">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="text">
-             <string>Super Chip8</string>
+             <string>Super Chip8 1.0</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="super11RadioButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>Super Chip8 1.1</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="superModernRadioButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>Super Chip8 Modern</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="superCRadioButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>Super Chip8 C</string>
             </property>
            </widget>
           </item>

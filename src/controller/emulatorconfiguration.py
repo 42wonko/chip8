@@ -6,13 +6,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import IntEnum, auto  # we need the IntEnum for comparisons
+from enum import IntEnum, StrEnum, auto  # we need the IntEnum for comparisons
 
 from PyQt6.QtCore import (
     QSettings,  # TBD: think about this. Do I want Qt depedencies here?
 )
 
 from emulator.constants import DEFAULT_BEEPER_FREQUENCY
+
+
+class EmulationMode(StrEnum):
+    """Emulator architecture profile selected in the configuration dialog."""
+
+    CLASSIC = "classic"
+    SUPERCHIP_10 = "superchip-1.0"
+    SUPERCHIP_11 = "superchip-1.1"
+    SUPERCHIP_MODERN = "superchip-modern"
+    SCHIPC = "schipc"
 
 
 class TraceLevel(IntEnum):
@@ -37,6 +47,11 @@ class EmulatorConfiguration:
     beeper_frequency: int               = DEFAULT_BEEPER_FREQUENCY
     audio_output_device: str            = "default"
     available_audio_devices: list[str]  = field(default_factory=list)
+
+    ###########################################################################
+    # Emulation
+    ###########################################################################
+    emulation_mode: EmulationMode       = EmulationMode.CLASSIC
 
     ###########################################################################
     # Display
@@ -82,6 +97,16 @@ class EmulatorConfiguration:
         self.logging_enabled_info = settings.value( "logging/info", self.logging_enabled_info, bool)
         self.logging_enabled_warning = settings.value( "logging/warning", self.logging_enabled_warning, bool)
         self.disable_display_updates = settings.value( "display/disable_updates", self.disable_display_updates, bool)
+        stored_mode = settings.value("emulation/mode", self.emulation_mode.value, str)
+        try:
+            selected_mode = EmulationMode(stored_mode)
+        except ValueError:
+            selected_mode = EmulationMode.CLASSIC
+        self.emulation_mode = (
+            selected_mode
+            if selected_mode in {EmulationMode.CLASSIC, EmulationMode.SUPERCHIP_10}
+            else EmulationMode.CLASSIC
+        )
         self.assembler_source_file = settings.value( "assembler/source_file", self.assembler_source_file, str)
         self.assembler_rom_file = settings.value( "assembler/rom_file", self.assembler_rom_file, str)
         self.assembler_listing_file = settings.value( "assembler/listing_file", self.assembler_listing_file, str)
@@ -102,6 +127,7 @@ class EmulatorConfiguration:
         settings.setValue( "logging/info", self.logging_enabled_info)
         settings.setValue( "logging/warning", self.logging_enabled_warning)
         settings.setValue( "display/disable_updates", self.disable_display_updates)
+        settings.setValue("emulation/mode", self.emulation_mode.value)
         settings.setValue("assembler/source_file", self.assembler_source_file)
         settings.setValue("assembler/rom_file", self.assembler_rom_file)
         settings.setValue("assembler/listing_file", self.assembler_listing_file)

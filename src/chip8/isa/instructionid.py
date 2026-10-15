@@ -76,5 +76,14 @@ class InstructionId(IntEnum):
     LD_I_VX      = 34
     LD_VX_I      = 35
 
+    # Super-CHIP 1.0 extensions.
+    LOW_RES      = 36    # 0x00FE
+    HIGH_RES     = 37    # 0x00FF
+    DRW_16       = 38    # 0xDXY0
+    LD_HF_VX     = 39    # 0xFX30
+    LD_R_VX      = 40    # 0xFX75
+    LD_VX_R      = 41    # 0xFX85
+    EXIT         = 42    # 0x00FD
+
     UNKNOWN      = 255    # Decoder could not identify the instruction.
 

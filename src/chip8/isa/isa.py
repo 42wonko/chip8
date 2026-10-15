@@ -52,6 +52,9 @@ class InstructionExecutionContext(Protocol):
     @property
     def framebuffer(self) -> Chip8Framebuffer: ...
 
+    @property
+    def user_flags(self) -> bytearray: ...
+
 
 class ControlFlow(StrEnum):
     NEXT = "next"
@@ -80,6 +83,13 @@ class InstructionSetArchitecture(ABC):
     derive from this class and implement the behaviour of their
     respective instruction sets.
     """
+
+    def initialize_machine(self, machine: InstructionExecutionContext) -> None:
+        """Initialize ISA-specific memory or state after a machine reset.
+
+        The default implementation is intentionally empty so Classic CHIP-8
+        does not acquire Super-CHIP-only memory contents.
+        """
 
     @abstractmethod
     def decode(self, address: int, opcode: int) -> Instruction:

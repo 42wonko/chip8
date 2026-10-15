@@ -103,6 +103,16 @@
               <string>COSMAC VIP</string>
              </property>
             </item>
+            <item>
+             <property name="text">
+              <string>SuperChip 1.0</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>SuperChip 1.1</string>
+             </property>
+            </item>
            </widget>
           </item>
          </layout>

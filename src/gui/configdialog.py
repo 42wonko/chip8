@@ -13,7 +13,11 @@ from PyQt6 import uic
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
-from controller.emulatorconfiguration import EmulatorConfiguration, TraceLevel
+from controller.emulatorconfiguration import (
+    EmulationMode,
+    EmulatorConfiguration,
+    TraceLevel,
+)
 
 
 def trace_level_to_index(level: TraceLevel) -> int:
@@ -57,6 +61,11 @@ class ConfigDialog(QDialog):
         self.browseLogFilePushButton.clicked.connect(self._browse_log_file)
         self.browseTraceFilePushButton.clicked.connect(self._browse_trace_file)
         self.playTestSoundPushButton.clicked.connect(self._test_sound)
+        # These profiles are present in the UI for the planned compatibility
+        # sequence, but are not selectable until their ISA implementations exist.
+        self.super11RadioButton.setEnabled(False)
+        self.superModernRadioButton.setEnabled(False)
+        self.superCRadioButton.setEnabled(False)
 
 
     @property
@@ -109,6 +118,7 @@ class ConfigDialog(QDialog):
             beeper_frequency=self.soundFrequencySlider.value(),
             audio_output_device=self.audioDeviceComboBox.currentText(),
             available_audio_devices=[ self.audioDeviceComboBox.itemText(i) for i in range(self.audioDeviceComboBox.count()) ],
+            emulation_mode=self._selected_emulation_mode(),
             disable_display_updates=self.disableDisplayUpdatesCheckBox.isChecked(),
 
             logging_enabled=self.applicationLoggingGroupBox.isChecked(),
@@ -137,6 +147,13 @@ class ConfigDialog(QDialog):
         if index >= 0:
             self.audioDeviceComboBox.setCurrentIndex(index)
 
+        {
+            EmulationMode.CLASSIC: self.classicRadioButton,
+            EmulationMode.SUPERCHIP_10: self.super10RadioButton,
+            EmulationMode.SUPERCHIP_11: self.super11RadioButton,
+            EmulationMode.SUPERCHIP_MODERN: self.superModernRadioButton,
+            EmulationMode.SCHIPC: self.superCRadioButton,
+        }[configuration.emulation_mode].setChecked(True)
         self.disableDisplayUpdatesCheckBox.setChecked( configuration.disable_display_updates)
         self.applicationLoggingGroupBox.setChecked(configuration.logging_enabled)
         self.logInformationCheckBox.setChecked(configuration.logging_enabled_info)
@@ -147,6 +164,19 @@ class ConfigDialog(QDialog):
         self.executionTraceGroupBox.setChecked(configuration.execution_trace_enabled)
         self.traceFilenameLineEdit.setText(configuration.trace_filename)
         self.traceLevelComboBox.setCurrentIndex( trace_level_to_index(configuration.trace_level))
+
+
+    def _selected_emulation_mode(self) -> EmulationMode:
+        """Return the emulation profile selected by the radio buttons."""
+        if self.super10RadioButton.isChecked():
+            return EmulationMode.SUPERCHIP_10
+        if self.super11RadioButton.isChecked():
+            return EmulationMode.SUPERCHIP_11
+        if self.superModernRadioButton.isChecked():
+            return EmulationMode.SUPERCHIP_MODERN
+        if self.superCRadioButton.isChecked():
+            return EmulationMode.SCHIPC
+        return EmulationMode.CLASSIC
 
 
     def _test_sound(self) -> None:

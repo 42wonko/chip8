@@ -191,5 +191,5 @@ class Chip8Registers:
         """
         if index < 0 or index >= REGISTER_COUNT:
             self._diagnostics.warning("Invalid register", index)
-            self._logger.warning("Invalid register <{index}>")
+            self._logger.warning(f"Invalid register <{index}>")
             raise IndexError( f"Register V{index:X} is out of range.")

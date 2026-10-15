@@ -20,6 +20,8 @@ class AssemblerOperandType(Enum):
     KEY             = "KEY"
     BCD_REGISTER    = "BCD_REGISTER"
     FONT_REGISTER   = "FONT_REGISTER"
+    HIGH_FONT_REGISTER = "HIGH_FONT_REGISTER"
+    USER_FLAGS_REGISTER = "USER_FLAGS_REGISTER"
     VALUE           = "VALUE"
     ADDRESS         = "ADDRESS"
 

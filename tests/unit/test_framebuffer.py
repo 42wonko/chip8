@@ -26,6 +26,66 @@ class TestcreateFramebuffer(unittest.TestCase):
             for x in range(DISPLAY_WIDTH):
                 self.assertFalse(framebuffer.get_pixel(x, y))
 
+    def test_initial_resolution_is_classic(self) -> None:
+        framebuffer = create_framebuffer()
+
+        self.assertEqual(framebuffer.width, DISPLAY_WIDTH)
+        self.assertEqual(framebuffer.height, DISPLAY_HEIGHT)
+        self.assertEqual(framebuffer.pixels().shape, (DISPLAY_HEIGHT, DISPLAY_WIDTH))
+
+    def test_switch_to_superchip_high_resolution(self) -> None:
+        framebuffer = create_framebuffer()
+
+        framebuffer.set_resolution(128, 64)
+
+        self.assertEqual(framebuffer.width, 128)
+        self.assertEqual(framebuffer.height, 64)
+        self.assertEqual(framebuffer.pixels().shape, (64, 128))
+
+    def test_resolution_change_preserves_pixels(self) -> None:
+        framebuffer = create_framebuffer()
+        framebuffer.set_pixel(10, 5, True)
+
+        framebuffer.set_resolution(128, 64)
+
+        self.assertTrue(framebuffer.get_pixel(10, 5))
+
+    def test_resolution_change_does_not_clear_pixels(self) -> None:
+        framebuffer = create_framebuffer()
+        framebuffer.set_pixel(10, 5, True)
+
+        framebuffer.set_resolution(128, 64)
+        framebuffer.set_resolution(DISPLAY_WIDTH, DISPLAY_HEIGHT)
+
+        self.assertTrue(framebuffer.get_pixel(10, 5))
+
+    def test_clear_preserves_active_resolution(self) -> None:
+        framebuffer = create_framebuffer()
+        framebuffer.set_resolution(128, 64)
+        framebuffer.set_pixel(100, 50, True)
+
+        framebuffer.clear()
+
+        self.assertEqual(framebuffer.pixels().shape, (64, 128))
+        self.assertFalse(framebuffer.get_pixel(100, 50))
+
+    def test_reset_restores_classic_resolution(self) -> None:
+        framebuffer = create_framebuffer()
+        framebuffer.set_resolution(128, 64)
+        framebuffer.set_pixel(100, 50, True)
+        framebuffer.set_pixel(10, 5, True)
+
+        framebuffer.reset()
+
+        self.assertEqual(framebuffer.pixels().shape, (DISPLAY_HEIGHT, DISPLAY_WIDTH))
+        self.assertFalse(framebuffer.get_pixel(10, 5))
+
+    def test_unsupported_resolution_is_rejected(self) -> None:
+        framebuffer = create_framebuffer()
+
+        with self.assertRaises(ValueError):
+            framebuffer.set_resolution(80, 40)
+
     ###########################################################################
     # Pixel access
     ###########################################################################

@@ -40,7 +40,7 @@ class DisplayWidget(QWidget):
         """
         super().__init__(parent)
 
-        self._display_width     = DISPLAY_WIDTH                 # TODO: we should support dynamic resolutions in the future
+        self._display_width     = DISPLAY_WIDTH
         self._display_height    = DISPLAY_HEIGHT
 
         self._foreground_color  = QColor(Qt.GlobalColor.black)  # TODO: these colors should be configurable in the future
@@ -61,6 +61,13 @@ class DisplayWidget(QWidget):
         filled with the background color.
         """
         self._framebuffer = None
+        self._display_width = DISPLAY_WIDTH
+        self._display_height = DISPLAY_HEIGHT
+        self._image = QImage(
+            self._display_width,
+            self._display_height,
+            QImage.Format.Format_ARGB32,
+        )
         self._image.fill(self._background_color)
 
 
@@ -161,6 +168,16 @@ class DisplayWidget(QWidget):
         if self._framebuffer is None:
             self._image.fill(self._background_color)
             return
+
+        height, width = self._framebuffer.shape
+        if (width, height) != (self._display_width, self._display_height):
+            self._display_width = width
+            self._display_height = height
+            self._image = QImage(
+                self._display_width,
+                self._display_height,
+                QImage.Format.Format_ARGB32,
+            )
 
         for y in range(self._display_height):
             for x in range(self._display_width):
