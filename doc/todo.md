@@ -122,8 +122,6 @@ The diagnostics framework is complete.
 
 ### Application Logging
 
-Remaining work:
-
 - [x] Instrument remaining subsystems
 - [x] Improve logging coverage
 - [x] Add additional developer-relevant log messages where appropriate
@@ -182,29 +180,20 @@ Remaining work:
 - [x] Document expected behaviour of each regression ROM
 
 ---
-## Remaining Features
-
-### Remaining integration
-
----
 
 ## Known Issues
 
 ---
 
-## Future Enhancements
-
 ### Debugger
 
-- [ ] Go to address / Set PC
-- [ ] Follow memory writes
-- [ ] Search for byte sequence in ROM
+- [x] Go to address / Set PC
+- [x] Follow memory writes
+- [x] Search for byte sequence in ROM
 
 ### Audio
 
 - [ ] Alternative waveforms (optional)
-
-### Development Tools
 
 #### CHIP-8 Assembler
 
@@ -237,8 +226,6 @@ Known language/architecture work still documented elsewhere:
 - [ ] Additional CHIP-8 architecture targets / plug-ins
 
 ---
-
-
 
 ## Project Status
 
