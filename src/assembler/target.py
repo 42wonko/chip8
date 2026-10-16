@@ -14,3 +14,5 @@ class Target(StrEnum):
     @brief Identifies a target architecture supported by the assembler.
     """
     COSMAC = "COSMAC"
+    SUPERCHIP_10 = "SUPERCHIP10"
+    SUPERCHIP_11 = "SUPERCHIP11"

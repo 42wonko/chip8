@@ -513,7 +513,11 @@ class Chip8Controller:
         except TargetSelectionError as error:
             diagnostics.error(str(error))
             return False
-        self._assembler = self._create_assembler(selection.target)
+        try:
+            self._assembler = self._create_assembler(selection.target)
+        except TargetSelectionError as error:
+            diagnostics.error(str(error))
+            return False
         self._main_window.assembler_dialog.set_assembler(self._assembler)
         result = self._assembler.assemble(source, options)
         if not result.success:
@@ -1060,8 +1064,11 @@ class Chip8Controller:
         """
         if target is Target.COSMAC:
             isa = ClassicInstructionSetArchitecture()
-            parser = ClassicParser(isa)
-            return Assembler( self._assembler_diagnostics.reporter(), isa, parser)
-        raise TargetSelectionError(f"Unsupported target architecture '{target}'.")
+        elif target is Target.SUPERCHIP_10:
+            isa = SuperChip10InstructionSetArchitecture()
+        else:
+            raise TargetSelectionError(f"Unsupported target architecture '{target.value}'.")
+        parser = ClassicParser(isa)
+        return Assembler(self._assembler_diagnostics.reporter(), isa, parser)
 
 

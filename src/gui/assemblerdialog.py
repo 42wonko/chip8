@@ -112,6 +112,10 @@ class AssemblerDialog(QDialog):
             return None
         if index == 1:
             return Target.COSMAC
+        if index == 2:
+            return Target.SUPERCHIP_10
+        if index == 3:
+            return Target.SUPERCHIP_11
         return None
 
     def _options(self) -> AssemblyOptions:

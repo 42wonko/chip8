@@ -135,11 +135,20 @@ class TargetSelector:
         @exception TargetSelectionError
             If the target is not supported.
         """
-        normalized = value.upper()
+        normalized = value.upper().replace("_", "").replace("-", "")
+        aliases = {
+            "COSMAC": Target.COSMAC,
+            "COSMACVIP": Target.COSMAC,
+            "SUPERCHIP10": Target.SUPERCHIP_10,
+            "SCHIP10": Target.SUPERCHIP_10,
+            "SUPERCHIP1.0": Target.SUPERCHIP_10,
+            "SUPERCHIP11": Target.SUPERCHIP_11,
+            "SCHIP11": Target.SUPERCHIP_11,
+            "SUPERCHIP1.1": Target.SUPERCHIP_11,
+        }
+        target = aliases.get(normalized)
+        if target is not None:
+            return target
 
-        for target in Target:
-            if target.value.upper() == normalized:
-                return target
-
-        raise TargetSelectionError( f"Unknown target '{value}' on line {line_number}.")
+        raise TargetSelectionError(f"Unknown target '{value}' on line {line_number}.")
 

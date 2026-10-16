@@ -50,6 +50,23 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertIn( "Unsupported instruction 'PLANE'.", [diagnostic.message for diagnostic in result.diagnostics])
 
 
+    def test_create_assembler_supports_superchip_10(self) -> None:
+        controller = create_controller()
+        assembler = controller._create_assembler(Target.SUPERCHIP_10)
+        self.assertIsInstance(assembler._isa, SuperChip10InstructionSetArchitecture)
+        self.assertIsInstance(assembler._parser, ClassicParser)
+        self.assertIs(assembler._parser._isa, assembler._isa)
+        result = assembler.assemble("LOW\n", AssemblyOptions())
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, bytes.fromhex("00 FE"))
+
+
+    def test_create_assembler_rejects_unimplemented_superchip_11(self) -> None:
+        controller = create_controller()
+        with self.assertRaisesRegex(ValueError, "Unsupported target architecture 'SUPERCHIP11'"):
+            controller._create_assembler(Target.SUPERCHIP_11)
+
+
     def test_create_emulator_isa_supports_classic_and_superchip_10(self) -> None:
         self.assertIsInstance(
             Chip8Controller._create_emulator_isa(EmulationMode.CLASSIC),
