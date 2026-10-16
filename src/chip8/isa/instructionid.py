@@ -85,5 +85,10 @@ class InstructionId(IntEnum):
     LD_VX_R      = 41    # 0xFX85
     EXIT         = 42    # 0x00FD
 
+    # Super-CHIP 1.1 display scrolling instructions.
+    SCROLL_DOWN  = 43    # 0x00Cn
+    SCROLL_RIGHT = 44    # 0x00FB
+    SCROLL_LEFT  = 45    # 0x00FC
+
     UNKNOWN      = 255    # Decoder could not identify the instruction.
 

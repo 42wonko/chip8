@@ -17,6 +17,7 @@ from assembler.result import AssemblyResult
 from assembler.target import Target
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.superchip10isa import SuperChip10InstructionSetArchitecture
+from chip8.isa.superchip11isa import SuperChip11InstructionSetArchitecture
 from controller.controller import Chip8Controller
 from controller.diagnostics import AssemblerDiagnostics
 from controller.emulatorconfiguration import EmulationMode, EmulatorConfiguration
@@ -61,10 +62,15 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertEqual(result.binary_image, bytes.fromhex("00 FE"))
 
 
-    def test_create_assembler_rejects_unimplemented_superchip_11(self) -> None:
+    def test_create_assembler_supports_superchip_11(self) -> None:
         controller = create_controller()
-        with self.assertRaisesRegex(ValueError, "Unsupported target architecture 'SUPERCHIP11'"):
-            controller._create_assembler(Target.SUPERCHIP_11)
+        assembler = controller._create_assembler(Target.SUPERCHIP_11)
+        self.assertIsInstance(assembler._isa, SuperChip11InstructionSetArchitecture)
+        self.assertIsInstance(assembler._parser, ClassicParser)
+        self.assertIs(assembler._parser._isa, assembler._isa)
+        result = assembler.assemble("SCD 3\nSCR\nSCL", AssemblyOptions())
+        self.assertTrue(result.success)
+        self.assertEqual(result.binary_image, bytes.fromhex("00 C3 00 FB 00 FC"))
 
 
     def test_create_emulator_isa_supports_classic_and_superchip_10(self) -> None:
@@ -77,9 +83,12 @@ class Chip8ControllerTest(unittest.TestCase):
             SuperChip10InstructionSetArchitecture,
         )
 
+    def test_create_emulator_isa_supports_superchip_11(self) -> None:
+        isa = Chip8Controller._create_emulator_isa(EmulationMode.SUPERCHIP_11)
+        self.assertIsInstance(isa, SuperChip11InstructionSetArchitecture)
+
     def test_create_emulator_isa_rejects_unimplemented_profiles(self) -> None:
         for mode in (
-            EmulationMode.SUPERCHIP_11,
             EmulationMode.SUPERCHIP_MODERN,
             EmulationMode.SCHIPC,
         ):

@@ -94,6 +94,57 @@ class Chip8Framebuffer:
         self._display_width = width
         self._display_height = height
 
+    def scroll_down(self, rows: int) -> None:
+        """Scroll the active display down by ``rows`` pixels.
+
+        Pixels shifted beyond the bottom edge are discarded, and newly
+        exposed rows are cleared. Pixels outside the active resolution are
+        left untouched.
+        """
+        if rows < 0:
+            raise ValueError("Scroll distance must not be negative.")
+        if rows == 0:
+            return
+
+        active = self._pixels[:self._display_height, :self._display_width]
+        if rows >= self._display_height:
+            active.fill(False)
+            return
+
+        active[rows:, :] = active[:-rows, :].copy()
+        active[:rows, :].fill(False)
+
+    def scroll_right(self, columns: int = 4) -> None:
+        """Scroll the active display right, clearing newly exposed columns."""
+        if columns < 0:
+            raise ValueError("Scroll distance must not be negative.")
+        self._scroll_horizontal(columns)
+
+    def scroll_left(self, columns: int = 4) -> None:
+        """Scroll the active display left, clearing newly exposed columns."""
+        if columns < 0:
+            raise ValueError("Scroll distance must not be negative.")
+        self._scroll_horizontal(-columns)
+
+    def _scroll_horizontal(self, distance: int) -> None:
+        """Scroll within the active display without wrapping pixels."""
+        if distance < -self._display_width or distance > self._display_width:
+            raise ValueError("Scroll distance exceeds the active display width.")
+
+        active = self._pixels[:self._display_height, :self._display_width]
+        if distance == 0:
+            return
+        if abs(distance) >= self._display_width:
+            active.fill(False)
+            return
+        if distance > 0:
+            active[:, distance:] = active[:, :-distance].copy()
+            active[:, :distance].fill(False)
+        else:
+            columns = -distance
+            active[:, :-columns] = active[:, columns:].copy()
+            active[:, -columns:].fill(False)
+
     def get_pixel(self, x: int, y: int) -> bool:
         """
         @brief Return one pixel.

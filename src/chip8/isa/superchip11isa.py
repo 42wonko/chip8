@@ -1,0 +1,134 @@
+"""Super-CHIP 1.1 instruction set architecture."""
+
+from __future__ import annotations
+
+from assembler.instruction import AssemblerInstruction
+from assembler.operand import AssemblerOperand, AssemblerOperandType
+from chip8.isa.instruction import Instruction
+from chip8.isa.instructionid import InstructionId
+from chip8.isa.isa import InstructionExecutionContext
+from chip8.isa.superchip10isa import SuperChip10InstructionSetArchitecture
+from emulator.stepresult import StepResult
+
+
+class SuperChip11InstructionSetArchitecture(SuperChip10InstructionSetArchitecture):
+    """Super-CHIP 1.0 extended with Super-CHIP 1.1 scrolling opcodes."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._reference_handlers.update({
+            InstructionId.SCROLL_DOWN: self._references_none,
+            InstructionId.SCROLL_RIGHT: self._references_none,
+            InstructionId.SCROLL_LEFT: self._references_none,
+        })
+        self._execute_handlers.update({
+            InstructionId.SCROLL_DOWN: self._execute_scroll_down,
+            InstructionId.SCROLL_RIGHT: self._execute_scroll_right,
+            InstructionId.SCROLL_LEFT: self._execute_scroll_left,
+        })
+        self._format_handlers.update({
+            InstructionId.SCROLL_DOWN: self._format_scroll_down,
+            InstructionId.SCROLL_RIGHT: self._format_scroll_right,
+            InstructionId.SCROLL_LEFT: self._format_scroll_left,
+        })
+
+    def assembler_mnemonics(self) -> frozenset[str]:
+        """Return Super-CHIP 1.0 mnemonics plus Super-CHIP 1.1 scrolling."""
+        return super().assembler_mnemonics() | frozenset({"SCD", "SCR", "SCL"})
+
+    def create_assembler_instruction(
+        self,
+        mnemonic: str,
+        operands: tuple[AssemblerOperand, ...],
+    ) -> AssemblerInstruction:
+        """Create Super-CHIP 1.1 scrolling instructions or delegate to 1.0."""
+        name = mnemonic.upper()
+        if name in {"SCR", "SCL"}:
+            if operands:
+                raise ValueError(f"{name} does not accept operands.")
+            instruction_id = (
+                InstructionId.SCROLL_RIGHT if name == "SCR" else InstructionId.SCROLL_LEFT
+            )
+            return AssemblerInstruction(id=instruction_id)
+        if name == "SCD":
+            if len(operands) != 1 or operands[0].type is not AssemblerOperandType.VALUE:
+                raise ValueError("SCD requires one numeric row count from 0 to 15.")
+            rows = operands[0].value
+            if not 0 <= rows <= 0xF:
+                raise ValueError("SCD row count must be in the range 0 to 15.")
+            return AssemblerInstruction(id=InstructionId.SCROLL_DOWN, n=rows)
+        return super().create_assembler_instruction(name, operands)
+
+    def assembler_operand_signatures(
+        self,
+        mnemonic: str,
+        operand_count: int,
+    ) -> tuple[tuple[AssemblerOperandType, ...], ...]:
+        """Describe valid operand types for Super-CHIP 1.1 scrolling."""
+        name = mnemonic.upper()
+        if name in {"SCR", "SCL"}:
+            return ((),) if operand_count == 0 else ()
+        if name == "SCD":
+            return ((AssemblerOperandType.VALUE,),) if operand_count == 1 else ()
+        return super().assembler_operand_signatures(name, operand_count)
+
+    def assembler_instruction_size(self, mnemonic: str, operand_count: int) -> int:
+        """Return the encoded size of valid scrolling instructions."""
+        name = mnemonic.upper()
+        if name in {"SCR", "SCL"}:
+            return 2 if operand_count == 0 else 0
+        if name == "SCD":
+            return 2 if operand_count == 1 else 0
+        return super().assembler_instruction_size(mnemonic, operand_count)
+
+    def encode(self, instruction: AssemblerInstruction) -> int:
+        """Encode scrolling opcodes introduced by Super-CHIP 1.1."""
+        if instruction.id is InstructionId.SCROLL_DOWN and instruction.n is not None:
+            if not 0 <= instruction.n <= 0xF:
+                raise ValueError("SCD row count must be in the range 0 to 15.")
+            return 0x00C0 | instruction.n
+        if instruction.id is InstructionId.SCROLL_RIGHT:
+            return 0x00FB
+        if instruction.id is InstructionId.SCROLL_LEFT:
+            return 0x00FC
+        return super().encode(instruction)
+
+    def _decode_id(self, opcode: int) -> InstructionId:
+        """Decode scrolling opcodes introduced in Super-CHIP 1.1."""
+        if opcode & 0xFFF0 == 0x00C0:
+            return InstructionId.SCROLL_DOWN
+        if opcode == 0x00FB:
+            return InstructionId.SCROLL_RIGHT
+        if opcode == 0x00FC:
+            return InstructionId.SCROLL_LEFT
+        return super()._decode_id(opcode)
+
+    def _execute_scroll_down(
+        self, machine: InstructionExecutionContext, instruction: Instruction
+    ) -> StepResult:
+        machine.framebuffer.scroll_down(instruction.n)
+        return StepResult(display_changed=True)
+
+    def _execute_scroll_right(
+        self, machine: InstructionExecutionContext, instruction: Instruction
+    ) -> StepResult:
+        machine.framebuffer.scroll_right()
+        return StepResult(display_changed=True)
+
+    def _execute_scroll_left(
+        self, machine: InstructionExecutionContext, instruction: Instruction
+    ) -> StepResult:
+        machine.framebuffer.scroll_left()
+        return StepResult(display_changed=True)
+
+    @staticmethod
+    def _format_scroll_down(instruction: Instruction) -> str:
+        return f"SCD {instruction.n:X}"
+
+    @staticmethod
+    def _format_scroll_right(instruction: Instruction) -> str:
+        return "SCR"
+
+    @staticmethod
+    def _format_scroll_left(instruction: Instruction) -> str:
+        return "SCL"

@@ -61,9 +61,9 @@ class ConfigDialog(QDialog):
         self.browseLogFilePushButton.clicked.connect(self._browse_log_file)
         self.browseTraceFilePushButton.clicked.connect(self._browse_trace_file)
         self.playTestSoundPushButton.clicked.connect(self._test_sound)
-        # These profiles are present in the UI for the planned compatibility
-        # sequence, but are not selectable until their ISA implementations exist.
-        self.super11RadioButton.setEnabled(False)
+        # Super-CHIP 1.1 is available now; later profiles remain disabled until
+        # their emulator ISA implementations exist.
+        self.super11RadioButton.setEnabled(True)
         self.superModernRadioButton.setEnabled(False)
         self.superCRadioButton.setEnabled(False)
 
