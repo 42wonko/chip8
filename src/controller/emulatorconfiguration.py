@@ -104,7 +104,11 @@ class EmulatorConfiguration:
             selected_mode = EmulationMode.CLASSIC
         self.emulation_mode = (
             selected_mode
-            if selected_mode in {EmulationMode.CLASSIC, EmulationMode.SUPERCHIP_10}
+            if selected_mode in {
+                EmulationMode.CLASSIC,
+                EmulationMode.SUPERCHIP_10,
+                EmulationMode.SUPERCHIP_11,
+            }
             else EmulationMode.CLASSIC
         )
         self.assembler_source_file = settings.value( "assembler/source_file", self.assembler_source_file, str)

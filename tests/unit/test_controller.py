@@ -221,6 +221,21 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertEqual(configuration.assembler_rom_file, "")
         self.assertEqual(configuration.assembler_listing_file, "")
 
+    def test_superchip_11_emulation_mode_settings_round_trip(self) -> None:
+        settings = QSettings( QSettings.Format.IniFormat, QSettings.Scope.UserScope, "CHIP8-test", "configuration-test")
+        settings.clear()
+        configuration = EmulatorConfiguration()
+        configuration.emulation_mode = EmulationMode.SUPERCHIP_11
+
+        configuration.write_settings(settings)
+
+        restored = EmulatorConfiguration()
+        restored.read_settings(settings)
+
+        self.assertIs(restored.emulation_mode, EmulationMode.SUPERCHIP_11)
+        settings.clear()
+
+
     def test_assembler_file_settings_round_trip(self) -> None:
         settings = QSettings( QSettings.Format.IniFormat, QSettings.Scope.UserScope, "CHIP8-test", "configuration-test")
         settings.clear()

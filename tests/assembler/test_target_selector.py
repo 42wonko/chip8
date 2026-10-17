@@ -82,3 +82,23 @@ CLS
         result = self.selector.select( "CLS", Target.COSMAC)
         self.assertEqual(result.target, Target.COSMAC)
         self.assertFalse(result.from_source)
+
+    def test_source_superchip10_target_overrides_external_target(self) -> None:
+        result = self.selector.select("TARGET SUPERCHIP10\nLOW", Target.COSMAC)
+        self.assertEqual(result.target, Target.SUPERCHIP_10)
+        self.assertTrue(result.from_source)
+
+    def test_source_target_accepts_superchip10_alias(self) -> None:
+        result = self.selector.select("TARGET SCHIP10\nLOW", None)
+        self.assertEqual(result.target, Target.SUPERCHIP_10)
+        self.assertTrue(result.from_source)
+
+    def test_source_superchip11_target_is_discovered(self) -> None:
+        result = self.selector.select("TARGET SCHIP11", None)
+        self.assertEqual(result.target, Target.SUPERCHIP_11)
+        self.assertTrue(result.from_source)
+
+    def test_source_target_accepts_superchip11_long_alias(self) -> None:
+        result = self.selector.select("TARGET SUPERCHIP11", None)
+        self.assertEqual(result.target, Target.SUPERCHIP_11)
+        self.assertTrue(result.from_source)
