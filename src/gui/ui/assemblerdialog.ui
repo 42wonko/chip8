@@ -113,6 +113,21 @@
               <string>SuperChip 1.1</string>
              </property>
             </item>
+            <item>
+             <property name="text">
+              <string>SuperChip Modern</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>SchipC</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>XO-Chip</string>
+             </property>
+            </item>
            </widget>
           </item>
          </layout>

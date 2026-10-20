@@ -52,7 +52,7 @@ class Chip8Machine:
         self._trace_reporter        = tracer
         self._cycles                = 0
         self._terminated            = False
-        self._user_flags            = bytearray(8)
+        self._user_flags            = bytearray(16)
         self._memory                = Chip8Memory(self._diagnostics, self._logger)
         self._registers             = Chip8Registers(self._diagnostics, self._logger)
         self._stack                 = Chip8Stack(self._diagnostics, self._logger, self._registers)
@@ -107,7 +107,7 @@ class Chip8Machine:
 
     @property
     def user_flags(self) -> bytearray:
-        """Return the eight Super-CHIP user-flag registers."""
+        """Return the Super-CHIP user-flag storage."""
         return self._user_flags
 
 

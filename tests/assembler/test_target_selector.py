@@ -33,6 +33,21 @@ class TargetSelectorTest(unittest.TestCase):
         self.assertEqual(result.target, Target.COSMAC)
         self.assertTrue(result.from_source)
 
+    def test_source_superchip_modern_target_is_discovered(self) -> None:
+        result = self.selector.select("TARGET SCHIPMODERN\n", None)
+        self.assertEqual(result.target, Target.SUPERCHIP_MODERN)
+        self.assertTrue(result.from_source)
+
+    def test_source_superchip_modern_long_alias_is_discovered(self) -> None:
+        result = self.selector.select("TARGET SUPERCHIPMODERN\n", None)
+        self.assertEqual(result.target, Target.SUPERCHIP_MODERN)
+        self.assertTrue(result.from_source)
+
+    def test_source_superchip_modern_target_overrides_external_target(self) -> None:
+        result = self.selector.select("TARGET SCHIPMODERN\n", Target.COSMAC)
+        self.assertEqual(result.target, Target.SUPERCHIP_MODERN)
+        self.assertTrue(result.from_source)
+
     def test_missing_target_is_rejected(self) -> None:
         with self.assertRaises(TargetSelectionError):
             self.selector.select( "CLS", None)

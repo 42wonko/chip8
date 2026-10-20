@@ -145,6 +145,8 @@ class TargetSelector:
             "SUPERCHIP11": Target.SUPERCHIP_11,
             "SCHIP11": Target.SUPERCHIP_11,
             "SUPERCHIP1.1": Target.SUPERCHIP_11,
+            "SUPERCHIPMODERN": Target.SUPERCHIP_MODERN,
+            "SCHIPMODERN": Target.SUPERCHIP_MODERN,
         }
         target = aliases.get(normalized)
         if target is not None:

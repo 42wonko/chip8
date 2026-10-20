@@ -26,6 +26,9 @@ class AssemblerDialogTargetTest(unittest.TestCase):
     def test_superchip_11_selection_is_explicit_but_not_implemented(self) -> None:
         self.assertEqual(self._selected_target(3), Target.SUPERCHIP_11)
 
+    def test_superchip_modern_selection_returns_modern_target(self) -> None:
+        self.assertEqual(self._selected_target(4), Target.SUPERCHIP_MODERN)
+
 
 if __name__ == "__main__":
     unittest.main()

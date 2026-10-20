@@ -18,6 +18,7 @@ from assembler.target import Target
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.superchip10isa import SuperChip10InstructionSetArchitecture
 from chip8.isa.superchip11isa import SuperChip11InstructionSetArchitecture
+from chip8.isa.superchipmodernisa import SuperChipModernInstructionSetArchitecture
 from controller.controller import Chip8Controller
 from controller.diagnostics import AssemblerDiagnostics
 from controller.emulatorconfiguration import EmulationMode, EmulatorConfiguration
@@ -73,6 +74,29 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertEqual(result.binary_image, bytes.fromhex("00 C3 00 FB 00 FC"))
 
 
+    def test_create_assembler_supports_superchip_modern(self) -> None:
+        controller = create_controller()
+        assembler = controller._create_assembler(Target.SUPERCHIP_MODERN)
+        self.assertIsInstance(assembler._isa, SuperChipModernInstructionSetArchitecture)
+        self.assertIsInstance(assembler._parser, ClassicParser)
+        self.assertIs(assembler._parser._isa, assembler._isa)
+        result = assembler.assemble("SCD 3\nSCR\nSCL", AssemblyOptions())
+        self.assertTrue(result.success, [diagnostic.message for diagnostic in result.diagnostics])
+        self.assertEqual(result.binary_image, bytes.fromhex("00 C3 00 FB 00 FC"))
+
+    def test_source_modern_target_overrides_external_cosmac_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "modern.asm"
+            source_file.write_text("", encoding="utf-8")
+            rom_file = source_file.with_suffix(".ch8")
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            result = controller.assemble_source( "TARGET SCHIPMODERN\nSCD 1\n", Target.COSMAC, AssemblyOptions(),)
+            self.assertTrue(result)
+            self.assertIsInstance( controller._assembler._isa, SuperChipModernInstructionSetArchitecture,)
+            self.assertEqual( rom_file.read_bytes(), bytes.fromhex("00 C1"),)
+
     def test_create_emulator_isa_supports_classic_and_superchip_10(self) -> None:
         self.assertIsInstance(
             Chip8Controller._create_emulator_isa(EmulationMode.CLASSIC),
@@ -87,11 +111,12 @@ class Chip8ControllerTest(unittest.TestCase):
         isa = Chip8Controller._create_emulator_isa(EmulationMode.SUPERCHIP_11)
         self.assertIsInstance(isa, SuperChip11InstructionSetArchitecture)
 
+    def test_create_emulator_isa_supports_superchip_modern(self) -> None:
+        isa = Chip8Controller._create_emulator_isa(EmulationMode.SUPERCHIP_MODERN)
+        self.assertIsInstance(isa, SuperChipModernInstructionSetArchitecture)
+
     def test_create_emulator_isa_rejects_unimplemented_profiles(self) -> None:
-        for mode in (
-            EmulationMode.SUPERCHIP_MODERN,
-            EmulationMode.SCHIPC,
-        ):
+        for mode in (EmulationMode.SCHIPC,):
             with self.subTest(mode=mode):
                 with self.assertRaises(ValueError):
                     Chip8Controller._create_emulator_isa(mode)
@@ -1016,6 +1041,25 @@ class Chip8ControllerTest(unittest.TestCase):
             controller._assembler.assemble.assert_not_called()
             messages = [diagnostic.message for diagnostic in controller._assembler_diagnostics]
             self.assertIn("No target architecture was specified.", messages)
+
+    def test_assemble_source_rejects_multiple_target_directives(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "test.asm"
+            rom_file = Path(directory) / "test.ch8"
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            controller._create_assembler = MagicMock()
+            result = controller.assemble_source(
+                "TARGET COSMAC\nTARGET SCHIPMODERN\nSCD 1\n",
+                Target.COSMAC,
+                AssemblyOptions(),
+            )
+            self.assertFalse(result)
+            controller._create_assembler.assert_not_called()
+            self.assertFalse(rom_file.exists())
+            messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
+            self.assertIn("Multiple TARGET directives found.", messages)
 
     def test_assemble_source_uses_selected_target_for_assembler(self) -> None:
         """
