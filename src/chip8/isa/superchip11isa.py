@@ -8,6 +8,7 @@ from chip8.isa.instruction import Instruction
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.isa import InstructionExecutionContext
 from chip8.isa.superchip10isa import SuperChip10InstructionSetArchitecture
+from emulator.constants import DISPLAY_WIDTH
 from emulator.stepresult import StepResult
 
 
@@ -102,6 +103,38 @@ class SuperChip11InstructionSetArchitecture(SuperChip10InstructionSetArchitectur
         if opcode == 0x00FC:
             return InstructionId.SCROLL_LEFT
         return super()._decode_id(opcode)
+
+    def _execute_drw_16(
+        self, machine: InstructionExecutionContext, instruction: Instruction
+    ) -> StepResult:
+        """Draw a Super-CHIP 1.1 sprite, preserving its high-res VF quirk."""
+        if machine.framebuffer.width == DISPLAY_WIDTH:
+            return super()._execute_drw_16(machine, instruction)
+
+        x = machine.registers[instruction.x]
+        y = machine.registers[instruction.y]
+        collision_rows = 0
+        clipped_rows = 0
+
+        for row in range(16):
+            row_y = y + row
+            if row_y >= machine.framebuffer.height:
+                clipped_rows += 1
+                continue
+
+            sprite = (
+                (machine.memory.read_byte(machine.registers.i + row * 2) << 8)
+                | machine.memory.read_byte(machine.registers.i + row * 2 + 1)
+            )
+            row_collision = False
+            for bit in range(16):
+                if sprite & (0x8000 >> bit):
+                    row_collision |= machine.framebuffer.xor_pixel(x + bit, row_y)
+            if row_collision:
+                collision_rows += 1
+
+        machine.registers[0xF] = collision_rows + clipped_rows
+        return StepResult(display_changed=True)
 
     def _execute_scroll_down(
         self, machine: InstructionExecutionContext, instruction: Instruction

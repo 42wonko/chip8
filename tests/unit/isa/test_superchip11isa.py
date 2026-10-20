@@ -108,6 +108,58 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
                 self.assertEqual(analysis.targets, (0x202,))
                 self.assertTrue(analysis.is_code)
 
+    def test_high_resolution_drw_16_counts_rows_with_collisions(self) -> None:
+        framebuffer = self.machine.framebuffer
+        framebuffer.set_resolution(SUPERCHIP_DISPLAY_WIDTH, SUPERCHIP_DISPLAY_HEIGHT)
+        framebuffer.set_pixel(4, 5, True)
+        framebuffer.set_pixel(4, 6, True)
+        self.machine.registers.i = 0x300
+        self.machine.registers.__getitem__.side_effect = lambda index: {1: 4, 2: 5}[index]
+        self.machine.memory.read_byte.side_effect = lambda address: (
+            0x80 if address in (0x300, 0x302) else 0
+        )
+
+        self.isa.execute(self.machine, self.isa.decode(0x200, 0xD120))
+
+        self.assertEqual(
+            self.machine.registers.__setitem__.call_args_list[-1],
+            unittest.mock.call(15, 2),
+        )
+        self.assertFalse(framebuffer.get_pixel(4, 5))
+        self.assertFalse(framebuffer.get_pixel(4, 6))
+
+    def test_high_resolution_drw_16_counts_rows_clipped_at_bottom(self) -> None:
+        framebuffer = self.machine.framebuffer
+        framebuffer.set_resolution(SUPERCHIP_DISPLAY_WIDTH, SUPERCHIP_DISPLAY_HEIGHT)
+        self.machine.registers.i = 0x300
+        self.machine.registers.__getitem__.side_effect = lambda index: {1: 4, 2: 60}[index]
+        self.machine.memory.read_byte.side_effect = lambda address: 0xFF
+
+        result = self.isa.execute(self.machine, self.isa.decode(0x200, 0xD120))
+
+        self.assertEqual(
+            self.machine.registers.__setitem__.call_args_list[-1],
+            unittest.mock.call(15, 12),
+        )
+        self.assertTrue(result.display_changed)
+        self.assertTrue(framebuffer.get_pixel(4, 63))
+        self.assertFalse(framebuffer.get_pixel(4, 0))
+
+    def test_low_resolution_drw_16_keeps_boolean_collision_flag(self) -> None:
+        framebuffer = self.machine.framebuffer
+        framebuffer.set_resolution(DISPLAY_WIDTH, DISPLAY_HEIGHT)
+        framebuffer.set_pixel(4, 5, True)
+        self.machine.registers.i = 0x300
+        self.machine.registers.__getitem__.side_effect = lambda index: {1: 4, 2: 5}[index]
+        self.machine.memory.read_byte.side_effect = lambda address: 0x80 if address == 0x300 else 0
+
+        self.isa.execute(self.machine, self.isa.decode(0x200, 0xD120))
+
+        self.assertEqual(
+            self.machine.registers.__setitem__.call_args_list[-1],
+            unittest.mock.call(15, 1),
+        )
+
     def test_scrolling_uses_active_resolution(self) -> None:
         framebuffer = self.machine.framebuffer
         framebuffer.set_resolution(SUPERCHIP_DISPLAY_WIDTH, SUPERCHIP_DISPLAY_HEIGHT)
