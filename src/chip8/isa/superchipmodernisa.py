@@ -26,6 +26,9 @@ class SuperChipModernInstructionSetArchitecture(SuperChip11InstructionSetArchite
             InstructionId.DRW_16: self._execute_drw_16_modern,
             InstructionId.LOW_RES: self._execute_low_res_modern,
             InstructionId.HIGH_RES: self._execute_high_res_modern,
+            InstructionId.SCROLL_DOWN: self._execute_scroll_down_modern,
+            InstructionId.SCROLL_RIGHT: self._execute_scroll_right_modern,
+            InstructionId.SCROLL_LEFT: self._execute_scroll_left_modern,
         })
 
     def _decode_id(self, opcode: int) -> InstructionId:
@@ -72,6 +75,33 @@ class SuperChipModernInstructionSetArchitecture(SuperChip11InstructionSetArchite
     def _validate_register(value: int) -> None:
         if not 0 <= value <= 0xF:
             raise ValueError("Register must be in the range V0 to VF.")
+
+
+    @staticmethod
+    def _execute_scroll_down_modern(
+        machine: InstructionExecutionContext, instruction: Instruction
+    ) -> StepResult:
+        """Scroll by the encoded number of active pixels in Modern mode."""
+        # Unlike the legacy Super-CHIP 1.x profile, Modern treats the encoded
+        # distance as active-display pixels, including in low-resolution mode.
+        machine.framebuffer.scroll_down(instruction.n)
+        return StepResult(display_changed=True)
+
+    @staticmethod
+    def _execute_scroll_right_modern(
+        machine: InstructionExecutionContext, instruction: Instruction
+    ) -> StepResult:
+        """Scroll right by four active-display pixels in Modern mode."""
+        machine.framebuffer.scroll_right()
+        return StepResult(display_changed=True)
+
+    @staticmethod
+    def _execute_scroll_left_modern(
+        machine: InstructionExecutionContext, instruction: Instruction
+    ) -> StepResult:
+        """Scroll left by four active-display pixels in Modern mode."""
+        machine.framebuffer.scroll_left()
+        return StepResult(display_changed=True)
 
     @staticmethod
     def _execute_shr_modern(

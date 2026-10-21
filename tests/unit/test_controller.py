@@ -261,6 +261,21 @@ class Chip8ControllerTest(unittest.TestCase):
         settings.clear()
 
 
+    def test_superchip_modern_emulation_mode_settings_round_trip(self) -> None:
+        settings = QSettings( QSettings.Format.IniFormat, QSettings.Scope.UserScope, "CHIP8-test", "configuration-test")
+        settings.clear()
+        configuration = EmulatorConfiguration()
+        configuration.emulation_mode = EmulationMode.SUPERCHIP_MODERN
+
+        configuration.write_settings(settings)
+
+        restored = EmulatorConfiguration()
+        restored.read_settings(settings)
+
+        self.assertIs(restored.emulation_mode, EmulationMode.SUPERCHIP_MODERN)
+        settings.clear()
+
+
     def test_assembler_file_settings_round_trip(self) -> None:
         settings = QSettings( QSettings.Format.IniFormat, QSettings.Scope.UserScope, "CHIP8-test", "configuration-test")
         settings.clear()

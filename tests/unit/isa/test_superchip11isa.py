@@ -68,6 +68,7 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
                 self.assertIs(isa.decode(0x200, opcode).id, InstructionId.UNKNOWN)
 
     def test_scroll_down_moves_pixels_and_reports_display_change(self) -> None:
+        self.machine.framebuffer.set_resolution(SUPERCHIP_DISPLAY_WIDTH, SUPERCHIP_DISPLAY_HEIGHT)
         self.machine.framebuffer.set_pixel(3, 1, True)
         instruction = self.isa.decode(0x200, 0x00C2)
 
@@ -78,6 +79,7 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
         self.assertFalse(self.machine.framebuffer.get_pixel(3, 1))
 
     def test_scroll_right_moves_pixels_four_columns(self) -> None:
+        self.machine.framebuffer.set_resolution(SUPERCHIP_DISPLAY_WIDTH, SUPERCHIP_DISPLAY_HEIGHT)
         self.machine.framebuffer.set_pixel(5, 7, True)
         instruction = self.isa.decode(0x200, 0x00FB)
 
@@ -88,6 +90,7 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
         self.assertFalse(self.machine.framebuffer.get_pixel(5, 7))
 
     def test_scroll_left_moves_pixels_four_columns(self) -> None:
+        self.machine.framebuffer.set_resolution(SUPERCHIP_DISPLAY_WIDTH, SUPERCHIP_DISPLAY_HEIGHT)
         self.machine.framebuffer.set_pixel(9, 7, True)
         instruction = self.isa.decode(0x200, 0x00FC)
 
@@ -96,6 +99,29 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
         self.assertTrue(result.display_changed)
         self.assertTrue(self.machine.framebuffer.get_pixel(5, 7))
         self.assertFalse(self.machine.framebuffer.get_pixel(9, 7))
+
+    def test_low_resolution_scroll_down_halves_legacy_distance(self) -> None:
+        framebuffer = self.machine.framebuffer
+        framebuffer.set_pixel(3, 1, True)
+        self.isa.execute(self.machine, self.isa.decode(0x200, 0x00C2))
+        self.assertTrue(framebuffer.get_pixel(3, 2))
+        self.assertFalse(framebuffer.get_pixel(3, 1))
+
+    def test_low_resolution_scroll_down_one_is_truncated_to_zero(self) -> None:
+        framebuffer = self.machine.framebuffer
+        framebuffer.set_pixel(3, 1, True)
+        self.isa.execute(self.machine, self.isa.decode(0x200, 0x00C1))
+        self.assertTrue(framebuffer.get_pixel(3, 1))
+
+    def test_low_resolution_horizontal_scroll_halves_legacy_distance(self) -> None:
+        framebuffer = self.machine.framebuffer
+        framebuffer.set_pixel(5, 7, True)
+        self.isa.execute(self.machine, self.isa.decode(0x200, 0x00FB))
+        self.assertTrue(framebuffer.get_pixel(7, 7))
+        self.assertFalse(framebuffer.get_pixel(5, 7))
+        self.isa.execute(self.machine, self.isa.decode(0x202, 0x00FC))
+        self.assertTrue(framebuffer.get_pixel(5, 7))
+        self.assertFalse(framebuffer.get_pixel(7, 7))
 
     def test_scroll_instructions_format_and_analyze_as_fallthrough(self) -> None:
         cases = ((0x00C4, "SCD 4"), (0x00FB, "SCR"), (0x00FC, "SCL"))
@@ -171,4 +197,4 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
         framebuffer.set_pixel(20, 10, True)
         self.isa.execute(self.machine, self.isa.decode(0x200, 0x00FB))
         self.assertFalse(framebuffer.get_pixel(20, 10))
-        self.assertTrue(framebuffer.get_pixel(24, 10))
+        self.assertTrue(framebuffer.get_pixel(22, 10))

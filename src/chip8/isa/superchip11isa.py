@@ -139,19 +139,31 @@ class SuperChip11InstructionSetArchitecture(SuperChip10InstructionSetArchitectur
     def _execute_scroll_down(
         self, machine: InstructionExecutionContext, instruction: Instruction
     ) -> StepResult:
-        machine.framebuffer.scroll_down(instruction.n)
+        # Recreate the original Super-CHIP 1.x lo-res behavior: scroll
+        # distances are specified in backing-buffer pixels, while the active
+        # lo-res display uses half that resolution. Integer division is
+        # intentional; SCD 1 therefore produces no visible lo-res movement.
+        rows = instruction.n
+        if machine.framebuffer.width == DISPLAY_WIDTH:
+            rows //= 2
+        machine.framebuffer.scroll_down(rows)
         return StepResult(display_changed=True)
 
     def _execute_scroll_right(
         self, machine: InstructionExecutionContext, instruction: Instruction
     ) -> StepResult:
-        machine.framebuffer.scroll_right()
+        # SCR shifts four backing-buffer pixels, i.e. two logical lo-res
+        # pixels. Keep the full four-pixel distance in high-resolution mode.
+        columns = 2 if machine.framebuffer.width == DISPLAY_WIDTH else 4
+        machine.framebuffer.scroll_right(columns)
         return StepResult(display_changed=True)
 
     def _execute_scroll_left(
         self, machine: InstructionExecutionContext, instruction: Instruction
     ) -> StepResult:
-        machine.framebuffer.scroll_left()
+        # SCL uses the same resolution-dependent distance as SCR.
+        columns = 2 if machine.framebuffer.width == DISPLAY_WIDTH else 4
+        machine.framebuffer.scroll_left(columns)
         return StepResult(display_changed=True)
 
     @staticmethod

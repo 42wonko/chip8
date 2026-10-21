@@ -303,6 +303,28 @@ class TestSuperChipModernInstructionSetArchitecture(unittest.TestCase):
         self.machine.registers.__setitem__.assert_any_call(15, 1)
         self.assertTrue(result.display_changed)
 
+    def test_drw_16_reports_boolean_collision_for_multiple_colliding_rows(self) -> None:
+        self.machine.registers.i = 0x300
+        self.machine.registers.__getitem__.side_effect = lambda index: {1: 4, 2: 5, 15: 0}[index]
+        self.machine.registers.__setitem__ = MagicMock()
+        self.machine.memory.read_byte.side_effect = lambda address: {
+            0x300: 0x80,
+            0x301: 0x00,
+            0x302: 0x80,
+            0x303: 0x00,
+        }.get(address, 0)
+        framebuffer = self.machine.framebuffer
+        framebuffer.set_resolution(SUPERCHIP_DISPLAY_WIDTH, SUPERCHIP_DISPLAY_HEIGHT)
+        framebuffer.set_pixel(4, 5, True)
+        framebuffer.set_pixel(4, 6, True)
+
+        result = self.isa.execute(self.machine, self.isa.decode(0x200, 0xD120))
+
+        self.assertFalse(framebuffer.get_pixel(4, 5))
+        self.assertFalse(framebuffer.get_pixel(4, 6))
+        self.machine.registers.__setitem__.assert_any_call(15, 1)
+        self.assertTrue(result.display_changed)
+
     def test_high_resolution_horizontal_scroll_moves_four_pixels_without_wrapping(self) -> None:
         framebuffer = self.machine.framebuffer
         framebuffer.set_resolution( SUPERCHIP_DISPLAY_WIDTH, SUPERCHIP_DISPLAY_HEIGHT)
