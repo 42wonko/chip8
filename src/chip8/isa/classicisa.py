@@ -1171,61 +1171,66 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
         return StepResult()
 
     def _execute_ld_byte(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
-        machine.registers[instruction.x] = instruction.nn
+        machine.registers.write_register(instruction.x, instruction.nn)
         return StepResult()
 
     def _execute_add_byte(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
-        machine.registers[instruction.x] += instruction.nn
+        value = machine.registers[instruction.x] + instruction.nn
+        machine.registers.write_register(instruction.x, value)
         return StepResult()
 
     def _execute_ld_register(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
-        machine.registers[instruction.x] = machine.registers[instruction.y]
+        value = machine.registers[instruction.y]
+        machine.registers.write_register(instruction.x, value)
         return StepResult()
 
     def _execute_or(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
-        machine.registers[instruction.x] |= machine.registers[instruction.y]
+        value = machine.registers[instruction.x] | machine.registers[instruction.y]
+        machine.registers.write_register(instruction.x, value)
         return StepResult()
 
     def _execute_and(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
-        machine.registers[instruction.x] &= machine.registers[instruction.y]
+        value = machine.registers[instruction.x] & machine.registers[instruction.y]
+        machine.registers.write_register(instruction.x, value)
         return StepResult()
 
     def _execute_xor(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
-        machine.registers[instruction.x] ^= machine.registers[instruction.y]
+        value = machine.registers[instruction.x] ^ machine.registers[instruction.y]
+        machine.registers.write_register(instruction.x, value)
         return StepResult()
 
     def _execute_add_register(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         vx = machine.registers[instruction.x]
         vy = machine.registers[instruction.y]
         total = vx + vy
-        machine.registers[0xF] = 1 if total > 0xFF else 0
-        machine.registers[instruction.x] = total
+        machine.registers.write_register(0xF, 1 if total > 0xFF else 0)
+        machine.registers.write_register(instruction.x, total)
         return StepResult()
 
     def _execute_sub(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         vx = machine.registers[instruction.x]
         vy = machine.registers[instruction.y]
-        machine.registers[0xF] = 1 if vx >= vy else 0
-        machine.registers[instruction.x] = vx - vy
+        machine.registers.write_register(0xF, 1 if vx >= vy else 0)
+        machine.registers.write_register(instruction.x, vx - vy)
         return StepResult()
 
     def _execute_shr(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         vx = machine.registers[instruction.x]
-        machine.registers[0xF] = vx & 0x01
-        machine.registers[instruction.x] = vx >> 1
+        machine.registers.write_register(0xF, vx & 0x01)
+        machine.registers.write_register(instruction.x, vx >> 1)
         return StepResult()
 
     def _execute_subn(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         vx = machine.registers[instruction.x]
         vy = machine.registers[instruction.y]
-        machine.registers[0xF] = 1 if vy >= vx else 0
-        machine.registers[instruction.x] = vy - vx
+        machine.registers.write_register(0xF, 1 if vy >= vx else 0)
+        machine.registers.write_register(instruction.x, vy - vx)
         return StepResult()
 
     def _execute_shl(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         vx = machine.registers[instruction.x]
-        machine.registers[0xF] = (vx >> 7) & 0x01
-        machine.registers[instruction.x] = vx << 1
+        machine.registers.write_register(0xF, (vx >> 7) & 0x01)
+        machine.registers.write_register(instruction.x, vx << 1)
         return StepResult()
 
     def _execute_sne_register(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
@@ -1242,7 +1247,8 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
         return StepResult()
 
     def _execute_rnd(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
-        machine.registers[instruction.x] = (random.randint(0, 0xFF) & instruction.nn)
+        value = random.randint(0, 0xFF) & instruction.nn
+        machine.registers.write_register(instruction.x, value)
         return StepResult()
 
     def _execute_drw(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
@@ -1256,7 +1262,7 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
                 if sprite & (0x80 >> bit):
                     if machine.framebuffer.xor_pixel(x + bit, y + row):
                         collision = True
-        machine.registers[0xF] = 1 if collision else 0
+        machine.registers.write_register(0xF, 1 if collision else 0)
         result.display_changed = True
         return result
 
@@ -1271,7 +1277,7 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
         return StepResult()
 
     def _execute_ld_vx_dt(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
-        machine.registers[instruction.x] = machine.timers.delay_timer
+        machine.registers.write_register(instruction.x, machine.timers.delay_timer)
         return StepResult()
 
     def _execute_ld_vx_k(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
@@ -1279,7 +1285,7 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
         if key is None:
             machine.registers.pc -= 2
         else:
-            machine.registers[instruction.x] = key
+            machine.registers.write_register(instruction.x, key)
         return StepResult()
 
     def _execute_ld_dt_vx(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
@@ -1317,7 +1323,8 @@ class ClassicInstructionSetArchitecture(InstructionSetArchitecture):
 
     def _execute_ld_vx_i(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         for register in range(instruction.x + 1):
-            machine.registers[register] = machine.memory.read_byte( machine.registers.i + register)
+            value = machine.memory.read_byte(machine.registers.i + register)
+            machine.registers.write_register(register, value)
         return StepResult()
 
 

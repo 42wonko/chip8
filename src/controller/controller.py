@@ -52,6 +52,7 @@ from chip8.debugger import Debugger
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.isa import InstructionSetArchitecture
+from chip8.isa.schipcisa import SCHIPCInstructionSetArchitecture
 from chip8.isa.superchip10isa import SuperChip10InstructionSetArchitecture
 from chip8.isa.superchip11isa import SuperChip11InstructionSetArchitecture
 from chip8.isa.superchipmodernisa import SuperChipModernInstructionSetArchitecture
@@ -1041,8 +1042,8 @@ class Chip8Controller:
         """Create the ISA selected for emulator execution.
 
         The emulator profile is deliberately independent of the assembler
-        target. Super-CHIP Modern extends the Super-CHIP 1.1 instruction set
-        with its own behavior profile; SCHIPC remains unimplemented.
+        target. Super-CHIP Modern and SCHIPC each have distinct behavior
+        profiles extending the Super-CHIP 1.1 instruction set.
         """
         if mode is EmulationMode.CLASSIC:
             return ClassicInstructionSetArchitecture()
@@ -1052,6 +1053,8 @@ class Chip8Controller:
             return SuperChip11InstructionSetArchitecture()
         if mode is EmulationMode.SUPERCHIP_MODERN:
             return SuperChipModernInstructionSetArchitecture()
+        if mode is EmulationMode.SCHIPC:
+            return SCHIPCInstructionSetArchitecture()
         raise ValueError(f"Emulation mode '{mode.value}' is not implemented yet.")
 
 
@@ -1076,6 +1079,8 @@ class Chip8Controller:
             isa = SuperChip11InstructionSetArchitecture()
         elif target is Target.SUPERCHIP_MODERN:
             isa = SuperChipModernInstructionSetArchitecture()
+        elif target is Target.SCHIPC:
+            isa = SCHIPCInstructionSetArchitecture()
         else:
             raise TargetSelectionError(f"Unsupported target architecture '{target.value}'.")
         parser = ClassicParser(isa)

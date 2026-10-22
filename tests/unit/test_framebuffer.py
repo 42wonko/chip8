@@ -21,23 +21,19 @@ class TestcreateFramebuffer(unittest.TestCase):
 
     def test_initial_state(self) -> None:
         framebuffer = create_framebuffer()
-
         for y in range(DISPLAY_HEIGHT):
             for x in range(DISPLAY_WIDTH):
                 self.assertFalse(framebuffer.get_pixel(x, y))
 
     def test_initial_resolution_is_classic(self) -> None:
         framebuffer = create_framebuffer()
-
         self.assertEqual(framebuffer.width, DISPLAY_WIDTH)
         self.assertEqual(framebuffer.height, DISPLAY_HEIGHT)
         self.assertEqual(framebuffer.pixels().shape, (DISPLAY_HEIGHT, DISPLAY_WIDTH))
 
     def test_switch_to_superchip_high_resolution(self) -> None:
         framebuffer = create_framebuffer()
-
         framebuffer.set_resolution(128, 64)
-
         self.assertEqual(framebuffer.width, 128)
         self.assertEqual(framebuffer.height, 64)
         self.assertEqual(framebuffer.pixels().shape, (64, 128))
@@ -45,27 +41,21 @@ class TestcreateFramebuffer(unittest.TestCase):
     def test_resolution_change_preserves_pixels(self) -> None:
         framebuffer = create_framebuffer()
         framebuffer.set_pixel(10, 5, True)
-
         framebuffer.set_resolution(128, 64)
-
         self.assertTrue(framebuffer.get_pixel(10, 5))
 
     def test_resolution_change_does_not_clear_pixels(self) -> None:
         framebuffer = create_framebuffer()
         framebuffer.set_pixel(10, 5, True)
-
         framebuffer.set_resolution(128, 64)
         framebuffer.set_resolution(DISPLAY_WIDTH, DISPLAY_HEIGHT)
-
         self.assertTrue(framebuffer.get_pixel(10, 5))
 
     def test_clear_preserves_active_resolution(self) -> None:
         framebuffer = create_framebuffer()
         framebuffer.set_resolution(128, 64)
         framebuffer.set_pixel(100, 50, True)
-
         framebuffer.clear()
-
         self.assertEqual(framebuffer.pixels().shape, (64, 128))
         self.assertFalse(framebuffer.get_pixel(100, 50))
 
@@ -74,15 +64,12 @@ class TestcreateFramebuffer(unittest.TestCase):
         framebuffer.set_resolution(128, 64)
         framebuffer.set_pixel(100, 50, True)
         framebuffer.set_pixel(10, 5, True)
-
         framebuffer.reset()
-
         self.assertEqual(framebuffer.pixels().shape, (DISPLAY_HEIGHT, DISPLAY_WIDTH))
         self.assertFalse(framebuffer.get_pixel(10, 5))
 
     def test_unsupported_resolution_is_rejected(self) -> None:
         framebuffer = create_framebuffer()
-
         with self.assertRaises(ValueError):
             framebuffer.set_resolution(80, 40)
 
@@ -92,17 +79,13 @@ class TestcreateFramebuffer(unittest.TestCase):
 
     def test_set_pixel(self) -> None:
         framebuffer = create_framebuffer()
-
         framebuffer.set_pixel(10, 5, True)
-
         self.assertTrue(framebuffer.get_pixel(10, 5))
 
     def test_clear_pixel(self) -> None:
         framebuffer = create_framebuffer()
-
         framebuffer.set_pixel(10, 5, True)
         framebuffer.set_pixel(10, 5, False)
-
         self.assertFalse(framebuffer.get_pixel(10, 5))
 
     ###########################################################################
@@ -111,19 +94,14 @@ class TestcreateFramebuffer(unittest.TestCase):
 
     def test_xor_sets_pixel(self) -> None:
         framebuffer = create_framebuffer()
-
         collision = framebuffer.xor_pixel(4, 7)
-
         self.assertFalse(collision)
         self.assertTrue(framebuffer.get_pixel(4, 7))
 
     def test_xor_clears_pixel(self) -> None:
         framebuffer = create_framebuffer()
-
         framebuffer.set_pixel(4, 7, True)
-
         collision = framebuffer.xor_pixel(4, 7)
-
         self.assertTrue(collision)
         self.assertFalse(framebuffer.get_pixel(4, 7))
 
@@ -133,29 +111,18 @@ class TestcreateFramebuffer(unittest.TestCase):
 
     def test_wrap_x_coordinate(self) -> None:
         framebuffer = create_framebuffer()
-
         framebuffer.set_pixel(DISPLAY_WIDTH, 0, True)
-
         self.assertTrue(framebuffer.get_pixel(0, 0))
 
     def test_wrap_y_coordinate(self) -> None:
         framebuffer = create_framebuffer()
-
         framebuffer.set_pixel(0, DISPLAY_HEIGHT, True)
-
         self.assertTrue(framebuffer.get_pixel(0, 0))
 
     def test_negative_coordinates_wrap(self) -> None:
         framebuffer = create_framebuffer()
-
         framebuffer.set_pixel(-1, -1, True)
-
-        self.assertTrue(
-            framebuffer.get_pixel(
-                DISPLAY_WIDTH - 1,
-                DISPLAY_HEIGHT - 1,
-            )
-        )
+        self.assertTrue( framebuffer.get_pixel( DISPLAY_WIDTH - 1, DISPLAY_HEIGHT - 1,))
 
     ###########################################################################
     # Reset
@@ -163,12 +130,9 @@ class TestcreateFramebuffer(unittest.TestCase):
 
     def test_reset(self) -> None:
         framebuffer = create_framebuffer()
-
         framebuffer.set_pixel(1, 2, True)
         framebuffer.set_pixel(10, 20, True)
-
         framebuffer.reset()
-
         for y in range(DISPLAY_HEIGHT):
             for x in range(DISPLAY_WIDTH):
                 self.assertFalse(framebuffer.get_pixel(x, y))
@@ -179,12 +143,17 @@ class TestcreateFramebuffer(unittest.TestCase):
 
     def test_pixels_returns_framebuffer(self) -> None:
         framebuffer = create_framebuffer()
-
         framebuffer.set_pixel(3, 4, True)
-
         pixels = framebuffer.pixels()
-
         self.assertTrue(pixels[4, 3])
+
+    def test_pixels_returns_read_only_view(self) -> None:
+        framebuffer = create_framebuffer()
+        pixels = framebuffer.pixels()
+        self.assertFalse(pixels.flags.writeable)
+        with self.assertRaises(ValueError):
+            pixels[4, 3] = True
+        self.assertFalse(framebuffer.get_pixel(3, 4))
 
 
 if __name__ == "__main__":

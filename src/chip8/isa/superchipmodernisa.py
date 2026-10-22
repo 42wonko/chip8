@@ -39,11 +39,7 @@ class SuperChipModernInstructionSetArchitecture(SuperChip11InstructionSetArchite
             return InstructionId.LD_VX_R
         return super()._decode_id(opcode)
 
-    def create_assembler_instruction(
-        self,
-        mnemonic: str,
-        operands: tuple[AssemblerOperand, ...],
-    ) -> AssemblerInstruction:
+    def create_assembler_instruction( self, mnemonic: str, operands: tuple[AssemblerOperand, ...],) -> AssemblerInstruction:
         """Allow Modern user-flag transfers through VF."""
         if mnemonic.upper() == "LD" and len(operands) == 2:
             destination, source = operands
@@ -78,9 +74,7 @@ class SuperChipModernInstructionSetArchitecture(SuperChip11InstructionSetArchite
 
 
     @staticmethod
-    def _execute_scroll_down_modern(
-        machine: InstructionExecutionContext, instruction: Instruction
-    ) -> StepResult:
+    def _execute_scroll_down_modern( machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         """Scroll by the encoded number of active pixels in Modern mode."""
         # Unlike the legacy Super-CHIP 1.x profile, Modern treats the encoded
         # distance as active-display pixels, including in low-resolution mode.
@@ -88,64 +82,51 @@ class SuperChipModernInstructionSetArchitecture(SuperChip11InstructionSetArchite
         return StepResult(display_changed=True)
 
     @staticmethod
-    def _execute_scroll_right_modern(
-        machine: InstructionExecutionContext, instruction: Instruction
-    ) -> StepResult:
+    def _execute_scroll_right_modern( machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         """Scroll right by four active-display pixels in Modern mode."""
         machine.framebuffer.scroll_right()
         return StepResult(display_changed=True)
 
     @staticmethod
-    def _execute_scroll_left_modern(
-        machine: InstructionExecutionContext, instruction: Instruction
-    ) -> StepResult:
+    def _execute_scroll_left_modern( machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         """Scroll left by four active-display pixels in Modern mode."""
         machine.framebuffer.scroll_left()
         return StepResult(display_changed=True)
 
     @staticmethod
-    def _execute_shr_modern(
-        machine: InstructionExecutionContext, instruction: Instruction
-    ) -> StepResult:
+    def _execute_shr_modern( machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         """Shift Vy right into Vx, storing the shifted-out bit in VF."""
         value = machine.registers[instruction.y]
         shifted_out = value & 0x01
-        machine.registers[instruction.x] = value >> 1
-        machine.registers[0xF] = shifted_out
+        machine.registers.write_register(instruction.x, value >> 1)
+        machine.registers.write_register(0xF, shifted_out)
         return StepResult()
 
     @staticmethod
-    def _execute_shl_modern(
-        machine: InstructionExecutionContext, instruction: Instruction
-    ) -> StepResult:
+    def _execute_shl_modern( machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         """Shift Vy left into Vx, storing the shifted-out bit in VF."""
         value = machine.registers[instruction.y]
         shifted_out = (value >> 7) & 0x01
-        machine.registers[instruction.x] = (value << 1) & 0xFF
-        machine.registers[0xF] = shifted_out
+        machine.registers.write_register(instruction.x, value << 1)
+        machine.registers.write_register(0xF, shifted_out)
         return StepResult()
 
     @staticmethod
-    def _execute_ld_i_vx_modern(
-        machine: InstructionExecutionContext, instruction: Instruction
-    ) -> StepResult:
+    def _execute_ld_i_vx_modern( machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         """Store V0 through Vx without changing I."""
         result = SuperChipModernInstructionSetArchitecture._store_registers(machine, instruction.x)
         return result
 
     @staticmethod
-    def _execute_ld_vx_i_modern(
-        machine: InstructionExecutionContext, instruction: Instruction
-    ) -> StepResult:
+    def _execute_ld_vx_i_modern( machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         """Load V0 through Vx without changing I."""
         for register in range(instruction.x + 1):
-            machine.registers[register] = machine.memory.read_byte(machine.registers.i + register)
+            value = machine.memory.read_byte(machine.registers.i + register)
+            machine.registers.write_register(register, value)
         return StepResult()
 
     @staticmethod
-    def _store_registers(
-        machine: InstructionExecutionContext, last_register: int
-    ) -> StepResult:
+    def _store_registers( machine: InstructionExecutionContext, last_register: int) -> StepResult:
         result = StepResult()
         for register in range(last_register + 1):
             machine.memory.write_byte(machine.registers.i + register, machine.registers[register])
@@ -153,9 +134,7 @@ class SuperChipModernInstructionSetArchitecture(SuperChip11InstructionSetArchite
         return result
 
     @staticmethod
-    def _execute_drw_16_modern(
-        machine: InstructionExecutionContext, instruction: Instruction
-    ) -> StepResult:
+    def _execute_drw_16_modern( machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         """Draw a 16x16 sprite in both low- and high-resolution modes."""
         x = machine.registers[instruction.x]
         y = machine.registers[instruction.y]
@@ -168,7 +147,7 @@ class SuperChipModernInstructionSetArchitecture(SuperChip11InstructionSetArchite
             for bit in range(16):
                 if sprite & (0x8000 >> bit):
                     collision |= machine.framebuffer.xor_pixel(x + bit, y + row)
-        machine.registers[0xF] = 1 if collision else 0
+        machine.registers.write_register(0xF, 1 if collision else 0)
         return StepResult(display_changed=True)
 
     @staticmethod

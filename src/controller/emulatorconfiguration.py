@@ -109,6 +109,7 @@ class EmulatorConfiguration:
                 EmulationMode.SUPERCHIP_10,
                 EmulationMode.SUPERCHIP_11,
                 EmulationMode.SUPERCHIP_MODERN,
+                EmulationMode.SCHIPC,
             }
             else EmulationMode.CLASSIC
         )

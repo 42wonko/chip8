@@ -301,7 +301,7 @@ class SuperChip10InstructionSetArchitecture(ClassicInstructionSetArchitecture):
                     if sprite & (0x8000 >> bit):
                         collision |= machine.framebuffer.xor_pixel(x + bit, y + row)
 
-        machine.registers[0xF] = 1 if collision else 0
+        machine.registers.write_register(0xF, 1 if collision else 0)
         return result
 
     def _execute_jp_vx(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
@@ -331,7 +331,7 @@ class SuperChip10InstructionSetArchitecture(ClassicInstructionSetArchitecture):
 
     def _execute_ld_vx_r(self, machine: InstructionExecutionContext, instruction: Instruction) -> StepResult:
         for register in range(instruction.x + 1):
-            machine.registers[register] = machine.user_flags[register]
+            machine.registers.write_register(register, machine.user_flags[register])
         return StepResult()
 
     @staticmethod

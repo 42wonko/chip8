@@ -141,15 +141,11 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
         framebuffer.set_pixel(4, 6, True)
         self.machine.registers.i = 0x300
         self.machine.registers.__getitem__.side_effect = lambda index: {1: 4, 2: 5}[index]
-        self.machine.memory.read_byte.side_effect = lambda address: (
-            0x80 if address in (0x300, 0x302) else 0
-        )
-
+        self.machine.memory.read_byte.side_effect = lambda address: ( 0x80 if address in (0x300, 0x302) else 0)
         self.isa.execute(self.machine, self.isa.decode(0x200, 0xD120))
-
         self.assertEqual(
-            self.machine.registers.__setitem__.call_args_list[-1],
-            unittest.mock.call(15, 2),
+            self.machine.registers.write_register.call_args_list[-1],
+            unittest.mock.call(15, 2)
         )
         self.assertFalse(framebuffer.get_pixel(4, 5))
         self.assertFalse(framebuffer.get_pixel(4, 6))
@@ -160,11 +156,9 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
         self.machine.registers.i = 0x300
         self.machine.registers.__getitem__.side_effect = lambda index: {1: 4, 2: 60}[index]
         self.machine.memory.read_byte.side_effect = lambda address: 0xFF
-
         result = self.isa.execute(self.machine, self.isa.decode(0x200, 0xD120))
-
         self.assertEqual(
-            self.machine.registers.__setitem__.call_args_list[-1],
+            self.machine.registers.write_register.call_args_list[-1],
             unittest.mock.call(15, 12),
         )
         self.assertTrue(result.display_changed)
@@ -178,11 +172,9 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
         self.machine.registers.i = 0x300
         self.machine.registers.__getitem__.side_effect = lambda index: {1: 4, 2: 5}[index]
         self.machine.memory.read_byte.side_effect = lambda address: 0x80 if address == 0x300 else 0
-
         self.isa.execute(self.machine, self.isa.decode(0x200, 0xD120))
-
         self.assertEqual(
-            self.machine.registers.__setitem__.call_args_list[-1],
+            self.machine.registers.write_register.call_args_list[-1],
             unittest.mock.call(15, 1),
         )
 

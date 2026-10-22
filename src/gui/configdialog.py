@@ -61,11 +61,10 @@ class ConfigDialog(QDialog):
         self.browseLogFilePushButton.clicked.connect(self._browse_log_file)
         self.browseTraceFilePushButton.clicked.connect(self._browse_trace_file)
         self.playTestSoundPushButton.clicked.connect(self._test_sound)
-        # Super-CHIP 1.1 and Modern have emulator ISA implementations.
-        # SCHIPC remains disabled until its emulator ISA is implemented.
+        # Each enabled profile has a dedicated emulator ISA implementation.
         self.super11RadioButton.setEnabled(True)
         self.superModernRadioButton.setEnabled(True)
-        self.superCRadioButton.setEnabled(False)
+        self.superCRadioButton.setEnabled(True)
 
 
     @property

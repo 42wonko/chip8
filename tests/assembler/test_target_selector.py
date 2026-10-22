@@ -48,6 +48,11 @@ class TargetSelectorTest(unittest.TestCase):
         self.assertEqual(result.target, Target.SUPERCHIP_MODERN)
         self.assertTrue(result.from_source)
 
+    def test_source_schipc_target_is_discovered(self) -> None:
+        result = self.selector.select("TARGET SCHIPC\n", None)
+        self.assertEqual(result.target, Target.SCHIPC)
+        self.assertTrue(result.from_source)
+
     def test_missing_target_is_rejected(self) -> None:
         with self.assertRaises(TargetSelectionError):
             self.selector.select( "CLS", None)

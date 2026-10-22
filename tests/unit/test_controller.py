@@ -16,6 +16,7 @@ from assembler.options import AssemblyOptions
 from assembler.result import AssemblyResult
 from assembler.target import Target
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
+from chip8.isa.schipcisa import SCHIPCInstructionSetArchitecture
 from chip8.isa.superchip10isa import SuperChip10InstructionSetArchitecture
 from chip8.isa.superchip11isa import SuperChip11InstructionSetArchitecture
 from chip8.isa.superchipmodernisa import SuperChipModernInstructionSetArchitecture
@@ -84,6 +85,57 @@ class Chip8ControllerTest(unittest.TestCase):
         self.assertTrue(result.success, [diagnostic.message for diagnostic in result.diagnostics])
         self.assertEqual(result.binary_image, bytes.fromhex("00 C3 00 FB 00 FC"))
 
+
+    def test_create_assembler_supports_schipc(self) -> None:
+        controller = create_controller()
+        assembler = controller._create_assembler(Target.SCHIPC)
+        self.assertIsInstance(assembler._isa, SCHIPCInstructionSetArchitecture)
+        result = assembler.assemble("JP V0, 0x234\nSCR\n", AssemblyOptions())
+        self.assertTrue(result.success, [diagnostic.message for diagnostic in result.diagnostics])
+        self.assertEqual(result.binary_image, bytes.fromhex("B234 00FB"))
+        result = assembler.assemble("SCD 0\n", AssemblyOptions())
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+        self.assertTrue(
+            any(
+                "SCHIPC SCD row count must be in the range 1 to 15."
+                in diagnostic.message
+                for diagnostic in result.diagnostics
+            ),
+            [diagnostic.message for diagnostic in result.diagnostics]
+        )
+
+
+    def test_schipc_jump_resolves_forward_label(self) -> None:
+        controller = create_controller()
+        assembler = controller._create_assembler(Target.SCHIPC)
+        result = assembler.assemble(
+            "JP V0, target\n"
+            "SCR\n"
+            "target:\n"
+            "CLS\n",
+            AssemblyOptions()
+        )
+        self.assertTrue( result.success, [diagnostic.message for diagnostic in result.diagnostics])
+        self.assertEqual(result.binary_image, bytes.fromhex("B204 00FB 00E0"))
+
+
+    def test_schipc_assembler_rejects_jump_using_v1(self) -> None:
+        controller = create_controller()
+        assembler = controller._create_assembler(Target.SCHIPC)
+        result = assembler.assemble("JP V1, 0x234\n", AssemblyOptions())
+        self.assertFalse(result.success)
+        self.assertTrue(result.diagnostics)
+
+
+    def test_schipc_assembler_rejects_zero_distance_scroll(self) -> None:
+        controller = create_controller()
+        assembler = controller._create_assembler(Target.SCHIPC)
+        result = assembler.assemble("SCD 0\n", AssemblyOptions())
+        self.assertFalse(result.success)
+        self.assertTrue(result.diagnostics)
+
+
     def test_source_modern_target_overrides_external_cosmac_target(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source_file = Path(directory) / "modern.asm"
@@ -96,6 +148,19 @@ class Chip8ControllerTest(unittest.TestCase):
             self.assertTrue(result)
             self.assertIsInstance( controller._assembler._isa, SuperChipModernInstructionSetArchitecture,)
             self.assertEqual( rom_file.read_bytes(), bytes.fromhex("00 C1"),)
+
+    def test_source_schipc_target_overrides_external_cosmac_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source_file = Path(directory) / "schipc.asm"
+            source_file.write_text("", encoding="utf-8")
+            rom_file = source_file.with_suffix(".ch8")
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._assembler_rom_file = rom_file
+            result = controller.assemble_source( "TARGET SCHIPC\nJP V0, 0x234\nSCR\n", Target.COSMAC, AssemblyOptions())
+            self.assertTrue(result)
+            self.assertIsInstance( controller._assembler._isa, SCHIPCInstructionSetArchitecture)
+            self.assertEqual(rom_file.read_bytes(), bytes.fromhex("B234 00FB"))
 
     def test_create_emulator_isa_supports_classic_and_superchip_10(self) -> None:
         self.assertIsInstance(
@@ -115,11 +180,11 @@ class Chip8ControllerTest(unittest.TestCase):
         isa = Chip8Controller._create_emulator_isa(EmulationMode.SUPERCHIP_MODERN)
         self.assertIsInstance(isa, SuperChipModernInstructionSetArchitecture)
 
-    def test_create_emulator_isa_rejects_unimplemented_profiles(self) -> None:
-        for mode in (EmulationMode.SCHIPC,):
-            with self.subTest(mode=mode):
-                with self.assertRaises(ValueError):
-                    Chip8Controller._create_emulator_isa(mode)
+    def test_create_emulator_isa_supports_schipc(self) -> None:
+        self.assertIsInstance(
+            Chip8Controller._create_emulator_isa(EmulationMode.SCHIPC),
+            SCHIPCInstructionSetArchitecture,
+        )
 
     def test_execute_cycle_preserves_display_changed_result(self) -> None:
         """
