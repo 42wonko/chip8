@@ -107,6 +107,24 @@ add_custom_target(
 ###############################################################################
 add_custom_target( all_checks DEPENDS lint typecheck test)
 
+###############################################################################
+# Generate coverage report
+###############################################################################
+add_custom_target(coverage
+    COMMAND "${Python3_EXECUTABLE}" -m coverage erase
+    COMMAND ${CMAKE_COMMAND} -E env
+        "PYTHONPATH=${PROJECT_SOURCE_DIR}/src"
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1"
+        "${Python3_EXECUTABLE}" -m coverage run
+            --branch
+            --source=${PROJECT_SOURCE_DIR}/src
+            -m pytest
+            ${PROJECT_SOURCE_DIR}/tests
+    COMMAND "${Python3_EXECUTABLE}" -m coverage report --show-missing
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    COMMENT "Running tests with branch coverage"
+    USES_TERMINAL
+)
 
 ###############################################################################
 # Help
@@ -123,6 +141,7 @@ add_custom_target(
     COMMAND "${CMAKE_COMMAND}" -E echo "lint         - Run Ruff linter"
     COMMAND "${CMAKE_COMMAND}" -E echo "typecheck    - Run mypy"
     COMMAND "${CMAKE_COMMAND}" -E echo "all_checks   - Run format, lint and mypy"
+    COMMAND "${CMAKE_COMMAND}" -E echo "coverage     - Run test with branch coverage"
     COMMAND "${CMAKE_COMMAND}" -E echo "docs         - Generate Doxygen documentation"
     COMMAND "${CMAKE_COMMAND}" -E echo "info         - Show this help"
     COMMAND "${CMAKE_COMMAND}" -E echo "clean_python - Remove Python cache files"
