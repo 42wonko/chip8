@@ -35,7 +35,6 @@ def write_opcode( machine: Chip8Machine, opcode: int, address: int = PROGRAM_STA
     @param address
         Memory address.
     """
-
     machine.memory.write_byte(address, (opcode >> 8) & 0xFF)
     machine.memory.write_byte(address + 1, opcode & 0xFF)
 
@@ -50,7 +49,6 @@ def execute_opcode( opcode: int) -> Chip8Machine:
     machine = create_machine()
     write_opcode(machine, opcode)
     machine.execute_cycle()
-
     return machine
 
 
