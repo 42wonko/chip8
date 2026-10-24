@@ -3,6 +3,7 @@
 import unittest
 from unittest.mock import MagicMock
 
+from assembler.operand import AssemblerOperand, AssemblerOperandType
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.superchipmodernisa import SuperChipModernInstructionSetArchitecture
 from emulator.chip8framebuffer import (
@@ -350,4 +351,11 @@ class TestSuperChipModernInstructionSetArchitecture(unittest.TestCase):
         self.assertFalse(framebuffer.get_pixel(20, 10))
         self.assertTrue(result.display_changed)
 
+    def test_user_flag_transfer_rejects_register_outside_vf(self) -> None:
+        operands = (
+            AssemblerOperand(AssemblerOperandType.USER_FLAGS_REGISTER, 0),
+            AssemblerOperand(AssemblerOperandType.REGISTER, 16)
+        )
+        with self.assertRaisesRegex(ValueError, "Register must be in the range V0 to VF\\."):
+            self.isa.create_assembler_instruction("LD", operands)
 

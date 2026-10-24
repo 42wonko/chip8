@@ -4,13 +4,18 @@
 @brief Unit tests for the Classic CHIP-8 Instruction Set Architecture.
 """
 
+from typing import cast
 import unittest
 
 from assembler.instruction import AssemblerInstruction
-from assembler.operand import AssemblerOperandType
+from assembler.operand import AssemblerOperand, AssemblerOperandType
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.reference import ReferenceAccess
+from chip8.isa.instruction import Instruction
+
+#from src.assembler import instruction instruction
+
 from emulator.constants import FONT_CHARACTER_SIZE, FONT_START, INSTRUCTION_SIZE
 from tests.helpers import create_machine
 
@@ -169,6 +174,38 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
         self.assertEqual(self.machine.registers.pc, 0x202)
         self.assertEqual(self.machine.registers.sp, 0)
 
+    def test_skip_and_se_instructions_reject_invalid_operands(self) -> None:
+        """Verify SKNP and SE reject invalid operand counts and register indices."""
+        test_cases = (
+            (
+                "SKNP operand count",
+                "SKNP",
+                (),
+                "SKNP requires exactly one operand"
+            ),
+            (
+                "SE operand count",
+                "SE",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 1),
+                ),
+                "SE requires exactly two operands"
+            ),
+            (
+                "SE first register out of range",
+                "SE",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x10),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 2)
+                ),
+                "Register must be in the range V0 to VF"
+            )
+        )
+        for description, name, operands, expected_message in test_cases:
+            with self.subTest(description=description):
+                with self.assertRaisesRegex(ValueError, expected_message):
+                    self.isa.create_assembler_instruction(name, operands)
+
     def test_se_byte(self) -> None:
         self.machine.registers.pc = 0x202  # small hack because the test harness behaves slightly different then the original machine
         self.machine.registers.write_register(1, 0x42)
@@ -238,6 +275,90 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
         self.assertEqual(self.machine.registers.pc, 0x202)
         self.assertEqual(self.machine.registers.read_register(3), 0xAA)
         self.assertEqual(self.machine.registers.read_register(7), 0xAA)
+
+    def test_add_rejects_incorrect_operand_count(self) -> None:
+        """Verify ADD requires exactly two operands."""
+        with self.assertRaisesRegex(ValueError, "ADD requires exactly two operands"):
+            self.isa.create_assembler_instruction("ADD", ())
+
+    def test_add_rejects_out_of_range_operands(self) -> None:
+        """Verify ADD rejects register indices and immediate values outside their ranges."""
+        test_cases = (
+            (
+                "immediate form register index",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x10),
+                    AssemblerOperand(AssemblerOperandType.VALUE, 0x23)
+                ),
+                "Register must be in the range V0 to VF"
+            ),
+            (
+                "immediate value",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x1),
+                    AssemblerOperand(AssemblerOperandType.VALUE, 0x100)
+                ),
+                "ADD immediate value must be in the range"
+            ),
+            (
+                "register form first index",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x10),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x2)
+                ),
+                "Register must be in the range V0 to VF"
+            ),
+            (
+                "register form second index",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x1),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x10)
+                ),
+                "Register must be in the range V0 to VF"
+            )
+        )
+        for description, operands, expected_message in test_cases:
+            with self.subTest(description=description):
+                with self.assertRaisesRegex(ValueError, expected_message):
+                    self.isa.create_assembler_instruction("ADD", operands)
+
+    def test_register_operations_reject_invalid_operands(self) -> None:
+        """Verify register operations reject invalid operand counts, types and indices."""
+        test_cases = (
+            (
+                "incorrect operand count",
+                (),
+                "OR requires exactly two operands"
+            ),
+            (
+                "invalid first operand type",
+                (
+                    AssemblerOperand(AssemblerOperandType.VALUE, 1),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 2)
+                ),
+                "OR requires register operands"
+            ),
+            (
+                "first register out of range",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x10),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 2)
+                ),
+                "Register must be in the range V0 to VF"
+            ),
+            (
+                "second register out of range",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 1),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x10)
+                ),
+                "Register must be in the range V0 to VF"
+            )
+        )
+        for description, operands, expected_message in test_cases:
+            with self.subTest(description=description):
+                with self.assertRaisesRegex(ValueError, expected_message):
+                    self.isa.create_assembler_instruction("OR", operands)
 
     def test_or(self) -> None:
         self.machine.registers.pc = 0x202
@@ -511,6 +632,79 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
         instruction = self.isa.decode(0x200, 0x9120)
         self.isa.execute(self.machine, instruction)
         self.assertEqual(self.machine.registers.pc, 0x202)
+
+    def test_sne_rejects_invalid_operand_count_and_register(self) -> None:
+        """Verify SNE rejects incorrect operand counts and invalid registers."""
+        test_cases = (
+            (
+                "incorrect operand count",
+                (),
+                "SNE requires exactly two operands"
+            ),
+            (
+                "first register out of range",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x10),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 2)
+                ),
+                "Register must be in the range V0 to VF"
+            )
+        )
+        for description, operands, expected_message in test_cases:
+            with self.subTest(description=description):
+                with self.assertRaisesRegex(ValueError, expected_message):
+                    self.isa.create_assembler_instruction("SNE", operands)
+
+
+    def test_drw_rejects_invalid_operands(self) -> None:
+        """Verify DRW rejects invalid operand counts, types and register indices."""
+        test_cases = (
+            (
+                "incorrect operand count",
+                (),
+                "DRW requires exactly three operands"
+            ),
+            (
+                "first operand type",
+                (
+                    AssemblerOperand(AssemblerOperandType.VALUE, 1),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 2),
+                    AssemblerOperand(AssemblerOperandType.VALUE, 3)
+                ),
+                "DRW requires a register as the first operand"
+            ),
+            (
+                "second operand type",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 1),
+                    AssemblerOperand(AssemblerOperandType.VALUE, 2),
+                    AssemblerOperand(AssemblerOperandType.VALUE, 3)
+                ),
+                "DRW requires a register as the second operand"
+            ),
+            (
+                "first register out of range",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x10),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 2),
+                    AssemblerOperand(AssemblerOperandType.VALUE, 3)
+                ),
+                "Register must be in the range V0 to VF"
+            ),
+            (
+                "second register out of range",
+                (
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 1),
+                    AssemblerOperand(AssemblerOperandType.REGISTER, 0x10),
+                    AssemblerOperand(AssemblerOperandType.VALUE, 3)
+                ),
+                "Register must be in the range V0 to VF"
+            )
+        )
+        for description, operands, expected_message in test_cases:
+            with self.subTest(description=description):
+                with self.assertRaisesRegex(ValueError, expected_message):
+                    self.isa.create_assembler_instruction("DRW", operands)
 
     def test_ld_i(self) -> None:
         self.machine.registers.pc = 0x202
@@ -1013,6 +1207,53 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.isa.encode(instruction)
 
+    def test_encode_rejects_unknown_instruction(self) -> None:
+        """Verify encoding an unknown instruction raises ValueError."""
+        instruction = AssemblerInstruction(id=InstructionId.UNKNOWN)
+        with self.assertRaisesRegex(ValueError, "Cannot encode an unknown instruction"):
+            self.isa.encode(instruction)
+
+    def test_encode_add_byte(self) -> None:
+        """Verify ADD Vx, byte encoding."""
+        instruction = AssemblerInstruction(id=InstructionId.ADD_BYTE, x=3, nn=0x42)
+        self.assertEqual(self.isa.encode(instruction), 0x7342)
+
+
+    def test_analyze_se_register_nonzero_nibble(self) -> None:
+        """Verify SE with a nonzero low nibble terminates control-flow analysis."""
+        instruction = Instruction(
+            address=0x200, opcode=0x5121, id=InstructionId.SE_REGISTER,
+            x=1, y=2, n=1, nn=0x21, nnn=0x121
+        )
+        analysis = self.isa.analyze(instruction)
+        self.assertEqual(analysis.control_flow.name, "TERMINATE")
+        self.assertEqual(analysis.targets, ())
+
+
+    def test_analyze_sys_terminates(self) -> None:
+        """Verify SYS instructions terminate control flow analysis."""
+        instruction = self.isa.decode(0x200, 0x0123)
+        analysis = self.isa.analyze(instruction)
+        self.assertEqual(analysis.control_flow.name, "TERMINATE")
+        self.assertEqual(analysis.targets, ())
+
+
+    def test_execute_sys_is_not_implemented(self) -> None:
+        """Verify executing SYS raises NotImplementedError."""
+        instruction = self.isa.decode(0x200, 0x0123)
+        with self.assertRaisesRegex(NotImplementedError, "Opcode 0123 is not implemented"):
+            self.isa.execute(self.machine, instruction)
+
+
+    def test_execute_se_register_nonzero_nibble_is_not_implemented(self) -> None:
+        """Verify SE with a nonzero low nibble raises NotImplementedError."""
+        instruction = Instruction(
+            address=0x200, opcode=0x5121, id=InstructionId.SE_REGISTER,
+            x=1, y=2, n=1, nn=0x21, nnn=0x121
+        )
+        with self.assertRaisesRegex( NotImplementedError, "Opcode 5121 is not implemented"):
+            self.isa.execute(self.machine, instruction)
+
 
     def test_assembler_operand_register(self) -> None:
         operand = self.isa.assembler_operand("V3")
@@ -1021,6 +1262,111 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
         self.assertEqual(operand.type, AssemblerOperandType.REGISTER)
         self.assertEqual(operand.value, 3)
 
+    def test_assembler_operand_rejects_invalid_register_names(self) -> None:
+        """Verify invalid register names are not resolved as assembler operands."""
+        for name in ("VX", "VG", "V10", "V"):
+            with self.subTest(name=name):
+                self.assertIsNone(self.isa.assembler_operand(name))
+
+    def test_jp_v0_rejects_nonzero_register(self) -> None:
+        """Verify JP V0, address rejects a register other than V0."""
+        operands = (
+            AssemblerOperand(AssemblerOperandType.REGISTER, 1),
+            AssemblerOperand(AssemblerOperandType.ADDRESS, 0x234)
+        )
+        with self.assertRaisesRegex(ValueError, "requires V0 as the first operand"):
+            self.isa.create_assembler_instruction("JP", operands)
+
+
+    def test_jp_v0_rejects_non_address_second_operand(self) -> None:
+        """Verify JP V0, nnn requires an address as its second operand."""
+        operands = (
+            AssemblerOperand(AssemblerOperandType.REGISTER, 0),
+            AssemblerOperand(AssemblerOperandType.VALUE, 0x23)
+        )
+        with self.assertRaisesRegex( ValueError, "requires an address as the second operand"):
+            self.isa.create_assembler_instruction("JP", operands)
+
+    def test_jp_v0_rejects_address_above_range(self) -> None:
+        """Verify JP V0, nnn rejects an address above the 12-bit range."""
+        operands = (
+            AssemblerOperand(AssemblerOperandType.REGISTER, 0),
+            AssemblerOperand(AssemblerOperandType.ADDRESS, 0x1000)
+        )
+        with self.assertRaisesRegex(ValueError, "JP address must be in the range"):
+            self.isa.create_assembler_instruction("JP", operands)
+
+    def test_encode_rejects_unsupported_instruction_id(self) -> None:
+        """Verify encoding rejects an instruction ID not in the enum."""
+        instruction = AssemblerInstruction(id=cast(InstructionId, 254))
+        with self.assertRaisesRegex(ValueError, "Unsupported instruction ID: 254"):
+            self.isa.encode(instruction)
+
+    def test_instruction_references_reject_unknown_instruction(self) -> None:
+        """Verify resource analysis rejects instructions without a handler."""
+        instruction = AssemblerInstruction(id=InstructionId.UNKNOWN)
+        with self.assertRaisesRegex(ValueError, "Unsupported instruction ID"):
+            self.isa.instruction_references(instruction)
+
+    def test_decode_id_rejects_negative_opcode(self) -> None:
+        """Verify the decoder's outer fallback for a negative opcode."""
+        self.assertIs(self.isa._decode_id(-0x1000), InstructionId.UNKNOWN)
+
+    def test_assembler_operand_rejects_non_hex_register(self) -> None:
+        """Verify a register name with a non-hexadecimal digit is rejected."""
+        self.assertIsNone(self.isa.assembler_operand("VG"))
+
+    def test_format_sys_as_data_directive(self) -> None:
+        """Verify SYS instructions are formatted as data directives."""
+        instruction = self.isa.decode(0x200, 0x0234)
+        self.assertEqual(self.isa.format(instruction), "DW #0234")
+
+    def test_format_se_register_with_nonzero_nibble(self) -> None:
+        """Format a nonstandard SE-register opcode as data."""
+        instruction = Instruction(
+            address=0x200,
+            opcode=0x5121,
+            id=InstructionId.SE_REGISTER,
+            x=1,
+            y=2,
+            n=1,
+            nn=0x21,
+            nnn=0x121
+        )
+        self.assertEqual(self.isa.format(instruction), "DATA 5121")
+
+    def test_format_register_and_special_instructions(self) -> None:
+        """Verify formatting of register operations and special instructions."""
+        test_cases = (
+            (0x8120, "LD V1, V2"),
+            (0x8121, "OR V1, V2"),
+            (0x8122, "AND V1, V2"),
+            (0x8123, "XOR V1, V2"),
+            (0x8124, "ADD V1, V2"),
+            (0x8125, "SUB V1, V2"),
+            (0x8126, "SHR V1"),
+            (0x8127, "SUBN V1, V2"),
+            (0x812E, "SHL V1"),
+            (0xA123, "LD I, 123"),
+            (0xB123, "JP V0, 123"),
+            (0xC123, "RND V1, 23"),
+            (0xD123, "DRW V1, V2, 3"),
+            (0xE09E, "SKP V0"),
+            (0xE0A1, "SKNP V0"),
+            (0xF007, "LD V0, DT"),
+            (0xF00A, "LD V0, K"),
+            (0xF015, "LD DT, V0"),
+            (0xF018, "LD ST, V0"),
+            (0xF01E, "ADD I, V0"),
+            (0xF029, "LD F, V0"),
+            (0xF033, "LD B, V0"),
+            (0xF055, "LD [I], V0"),
+            (0xF065, "LD V0, [I]")
+        )
+        for opcode, expected in test_cases:
+            with self.subTest(opcode=f"{opcode:04X}"):
+                instruction = self.isa.decode(0x200, opcode)
+                self.assertEqual(self.isa.format(instruction), expected)
 
     ###########################################################################
     # instruction references tests
@@ -1093,6 +1439,26 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
             (
                 AssemblerInstruction( id=InstructionId.LD_VX_I, x=3),
                 ( ("I", ReferenceAccess.READ), ("V0", ReferenceAccess.WRITE), ("V1", ReferenceAccess.WRITE), ("V2", ReferenceAccess.WRITE), ("V3", ReferenceAccess.WRITE))
+            ),
+            (
+                AssemblerInstruction(id=InstructionId.SE_BYTE, x=3),
+                (("V3", ReferenceAccess.READ),)
+            ),
+            (
+                AssemblerInstruction(id=InstructionId.SE_REGISTER, x=3, y=7),
+                (("V3", ReferenceAccess.READ), ("V7", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction(id=InstructionId.OR, x=3, y=7),
+                (("V3", ReferenceAccess.READ_WRITE), ("V7", ReferenceAccess.READ))
+            ),
+            (
+                AssemblerInstruction(id=InstructionId.LD_I_VX),
+                (("I", ReferenceAccess.READ),)
+            ),
+            (
+                AssemblerInstruction(id=InstructionId.LD_VX_I),
+                (("I", ReferenceAccess.READ),)
             )
         ]
 
@@ -1108,6 +1474,42 @@ class TestClassicInstructionSetArchitecture(unittest.TestCase):
 
     def test_assembler_instruction_size(self) -> None:
         self.assertEqual( self.isa.assembler_instruction_size("CLS", 0), INSTRUCTION_SIZE)
+
+    def test_assembler_operand_signatures(self) -> None:
+        """Verify operand signatures for address, skip and comparison instructions."""
+        test_cases = (
+            (
+                "SYS",
+                1,
+                ((AssemblerOperandType.ADDRESS,),)
+            ),
+            (
+                "JP",
+                2,
+                ((AssemblerOperandType.REGISTER, AssemblerOperandType.ADDRESS),)
+            ),
+            (
+                "SE",
+                2,
+                (
+                    (AssemblerOperandType.REGISTER, AssemblerOperandType.VALUE),
+                    (AssemblerOperandType.REGISTER, AssemblerOperandType.REGISTER)
+                )
+            ),
+            (
+                "SKP",
+                1,
+                ((AssemblerOperandType.REGISTER,),)
+            ),
+            (
+                "UNKNOWN",
+                0,
+                ()
+            )
+        )
+        for mnemonic, operand_count, expected in test_cases:
+            with self.subTest(mnemonic=mnemonic, operand_count=operand_count):
+                self.assertEqual( self.isa.assembler_operand_signatures(mnemonic, operand_count), expected)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

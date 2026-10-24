@@ -108,6 +108,16 @@ class TestSCHIPCInstructionSetArchitecture(unittest.TestCase):
                 )
             )
 
+    def test_schipc_jump_assembler_rejects_wrong_first_operand_type(self) -> None:
+        with self.assertRaisesRegex( ValueError, "Super-CHIP JP requires a register as the first operand"):
+            self.isa.create_assembler_instruction(
+                "JP",
+                (
+                    AssemblerOperand(AssemblerOperandType.VALUE, 0),
+                    AssemblerOperand(AssemblerOperandType.ADDRESS, 0x234)
+                )
+            )
+
     def test_schipc_jump_assembler_rejects_address_above_12_bits(self) -> None:
         with self.assertRaises(ValueError):
             self.isa.create_assembler_instruction(
@@ -219,10 +229,11 @@ class TestSCHIPCInstructionSetArchitecture(unittest.TestCase):
         self.machine.registers[1] = 4
         self.machine.registers[2] = 5
         self.machine.memory.read_byte.side_effect = lambda address: ( 0x80 if address in (0x300, 0x302) else 0)
-        self.isa.execute(self.machine, self.isa.decode(0x200, 0xD120))
+        result = self.isa.execute(self.machine, self.isa.decode(0x200, 0xD120))
         self.assertEqual(self._registers[0xF], 1)
         self.assertFalse(framebuffer.get_pixel(4, 5))
         self.assertFalse(framebuffer.get_pixel(4, 6))
+        self.assertTrue(result.display_changed)
 
     def test_high_resolution_draw_reports_multiple_collisions_as_one(self) -> None:
         framebuffer = self.machine.framebuffer

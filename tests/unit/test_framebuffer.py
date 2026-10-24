@@ -67,11 +67,16 @@ class TestcreateFramebuffer(unittest.TestCase):
         framebuffer.reset()
         self.assertEqual(framebuffer.pixels().shape, (DISPLAY_HEIGHT, DISPLAY_WIDTH))
         self.assertFalse(framebuffer.get_pixel(10, 5))
+        framebuffer.set_resolution(128, 64)
+        self.assertFalse(framebuffer.get_pixel(100, 50))
 
     def test_unsupported_resolution_is_rejected(self) -> None:
         framebuffer = create_framebuffer()
-        with self.assertRaises(ValueError):
-            framebuffer.set_resolution(80, 40)
+        for width, height in ((80, 40), (128, 32), (64, 64)):
+            with self.subTest(width=width, height=height):
+                with self.assertRaises(ValueError):
+                    framebuffer.set_resolution(width, height)
+
 
     ###########################################################################
     # Pixel access

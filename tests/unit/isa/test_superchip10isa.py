@@ -2,8 +2,10 @@
 
 import unittest
 
+from assembler.instruction import AssemblerInstruction
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.isa import ControlFlow
+from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 from chip8.isa.superchip10isa import SuperChip10InstructionSetArchitecture
 from emulator.constants import (
     SUPERCHIP_FONT_CHARACTER_SIZE,
@@ -48,6 +50,21 @@ class TestSuperChip10InstructionSetArchitecture(unittest.TestCase):
 
         self.assertIs(instruction.id, InstructionId.UNKNOWN)
         self.assertEqual(self.isa.format(instruction), "UNKNOWN 00FB")
+
+    def test_formats_superchip_specific_instructions(self) -> None:
+        """Format Super-CHIP-specific instructions using their assembly mnemonics."""
+        cases = (
+            (0x00FE, "LOW"),
+            (0x00FF, "HIGH"),
+            (0xD120, "DRW V1, V2, 0"),
+            (0xF130, "LD HF, V1"),
+            (0xF175, "LD R, V1"),
+            (0xF185, "LD V1, R")
+        )
+        for opcode, expected in cases:
+            with self.subTest(opcode=f"{opcode:04X}"):
+                instruction = self.isa.decode(0x200, opcode)
+                self.assertEqual(self.isa.format(instruction), expected)
 
     def test_exit_instruction_terminates_execution(self) -> None:
         instruction = self.isa.decode(0x200, 0x00FD)
@@ -186,6 +203,27 @@ class TestSuperChip10InstructionSetArchitecture(unittest.TestCase):
             self.machine.registers[index] = 0
         self.isa.execute(self.machine, self.isa.decode(0x200, 0xF785))
         self.assertEqual([self.machine.registers[i] for i in range(8)], [i * 17 for i in range(8)])
+
+    def test_ld_operand_signatures_with_wrong_operand_count(self) -> None:
+        signatures = self.isa.assembler_operand_signatures("LD", 1)
+        self.assertEqual(signatures, self.isa.assembler_operand_signatures("LD", 1))
+
+    def test_ld_operand_signatures_with_wrong_operand_count(self) -> None:
+        classic_isa = ClassicInstructionSetArchitecture()
+        self.assertEqual(
+            self.isa.assembler_operand_signatures("LD", 1),
+            classic_isa.assembler_operand_signatures("LD", 1)
+        )
+
+    def test_encode_rejects_invalid_high_font_register(self) -> None:
+        instruction = AssemblerInstruction(id=InstructionId.LD_HF_VX, x=16)
+        with self.assertRaisesRegex(ValueError, "Register must be in the range V0 to VF"):
+            self.isa.encode(instruction)
+
+    def test_encode_rejects_out_of_range_superchip_jump_register(self) -> None:
+        instruction = AssemblerInstruction(id=InstructionId.JP_V0, x=16, nn=0)
+        with self.assertRaisesRegex(ValueError, "Super-CHIP JP operands are outside their encoding ranges"):
+            self.isa.encode(instruction)
 
     def test_draw_16x16_sprite_in_high_resolution(self) -> None:
         self.machine.framebuffer.set_resolution(128, 64)

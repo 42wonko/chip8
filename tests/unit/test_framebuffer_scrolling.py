@@ -69,6 +69,8 @@ class TestFramebufferScrolling(unittest.TestCase):
             self.framebuffer.scroll_down(-1)
         with self.assertRaises(ValueError):
             self.framebuffer.scroll_left(-1)
+        with self.assertRaises(ValueError):
+            self.framebuffer.scroll_right(-1)
 
     def test_scroll_does_not_wrap(self) -> None:
         self.framebuffer.set_pixel(self.framebuffer.width - 1, 4, True)

@@ -3,6 +3,7 @@
 import unittest
 from unittest.mock import MagicMock
 
+from assembler.instruction import AssemblerInstruction
 from assembler.operand import AssemblerOperand, AssemblerOperandType
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.isa import ControlFlow
@@ -190,3 +191,26 @@ class TestSuperChip11InstructionSetArchitecture(unittest.TestCase):
         self.isa.execute(self.machine, self.isa.decode(0x200, 0x00FB))
         self.assertFalse(framebuffer.get_pixel(20, 10))
         self.assertTrue(framebuffer.get_pixel(22, 10))
+
+    def test_scr_and_scl_reject_operands(self) -> None:
+        operand = AssemblerOperand(AssemblerOperandType.VALUE, 1)
+        for mnemonic in ("SCR", "SCL"):
+            with self.subTest(mnemonic=mnemonic):
+                with self.assertRaisesRegex(ValueError, "does not accept operands"):
+                    self.isa.create_assembler_instruction(mnemonic, (operand,))
+
+
+    def test_scd_rejects_invalid_operand_count_and_type(self) -> None:
+        with self.assertRaisesRegex(ValueError, "SCD requires one numeric row count"):
+            self.isa.create_assembler_instruction("SCD", ())
+        register_operand = AssemblerOperand(AssemblerOperandType.REGISTER, 1)
+        with self.assertRaisesRegex(ValueError, "SCD requires one numeric row count"):
+            self.isa.create_assembler_instruction("SCD", (register_operand,))
+
+
+    def test_encode_rejects_invalid_scd_row_count(self) -> None:
+        instruction = AssemblerInstruction(id=InstructionId.SCROLL_DOWN, n=16)
+        with self.assertRaisesRegex(ValueError, "SCD row count must be in the range 0 to 15"):
+            self.isa.encode(instruction)
+
+
