@@ -39,6 +39,10 @@ class TestcreateMemory(unittest.TestCase):
         with self.assertRaises(IndexError):
             memory.read_byte(MEMORY_SIZE+1)
 
+    def test_len(self) -> None:
+        memory = create_memory()
+        self.assertEqual(len(memory), MEMORY_SIZE)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 

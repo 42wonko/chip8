@@ -78,6 +78,24 @@ class TestFramebufferScrolling(unittest.TestCase):
         self.assertFalse(self.framebuffer.get_pixel(3, 4))
         self.assertFalse(any(self.framebuffer.pixels()[4, :4]))
 
+    def test_zero_distance_scrolling_preserves_pixels(self) -> None:
+        self.framebuffer.set_pixel(5, 5, True)
+        self.framebuffer.scroll_down(0)
+        self.framebuffer.scroll_right(0)
+        self.framebuffer.scroll_left(0)
+        self.assertTrue(self.framebuffer.get_pixel(5, 5))
+
+    def test_scroll_down_beyond_display_height_clears_active_display(self) -> None:
+        self.framebuffer.set_pixel(5, 5, True)
+        self.framebuffer.scroll_down(self.framebuffer.height + 1)
+        self.assertFalse(self.framebuffer.get_pixel(5, 5))
+
+    def test_horizontal_scroll_beyond_display_width_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            self.framebuffer.scroll_right(self.framebuffer.width + 1)
+        with self.assertRaises(ValueError):
+            self.framebuffer.scroll_left(self.framebuffer.width + 1)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

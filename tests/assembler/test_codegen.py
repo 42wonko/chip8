@@ -5,9 +5,12 @@
 """
 
 import unittest
+from unittest.mock import Mock
 
-from assembler.ast import AssemblyNode, DirectiveNode, LiteralExpression, SourceLine
+
+from assembler.ast import AssemblyNode, DirectiveNode, InstructionNode, LiteralExpression, SourceLine
 from assembler.codegen import CodeGenerator
+from assembler.semantic import SemanticAnalysisError
 from assembler.symbol import SymbolTable
 from assembler.token import SourceLocation
 
@@ -38,6 +41,102 @@ class CodeGeneratorTest(unittest.TestCase):
         self.symbols = SymbolTable()
         self.generator = CodeGenerator( self.symbols, FakeInstructionResolver(), FakeInstructionEncoder(), 0xFFFF)
 
+    def test_generate_collects_instruction_references(self) -> None:
+        instruction = InstructionNode( mnemonic="CLS", operands=(), location=self.location)
+        assembly = AssemblyNode( lines=( SourceLine(label=None, statement=instruction),))
+        resolved_instruction = Mock()
+        references = (Mock(),)
+        resolver = Mock()
+        resolver.resolve.return_value = resolved_instruction
+        resolver.instruction_references.return_value = references
+        encoder = Mock()
+        encoder.instruction_size.return_value = 2
+        encoder.encode.return_value = 0x00E0
+        collector = Mock()
+        generator = CodeGenerator( self.symbols, resolver, encoder, 0xFFFF, collector)
+        result = generator.generate(assembly)
+        self.assertEqual(result, b"\x00\xE0")
+        resolver.instruction_references.assert_called_once_with( resolved_instruction)
+        collector.add_instruction_references.assert_called_once_with(
+            resolved_instruction,
+            self.location,
+            references
+        )
+
+    def test_instruction_generation_without_reference_collector(self) -> None:
+        instruction = InstructionNode( mnemonic="CLS", operands=(), location=self.location)
+        assembly = AssemblyNode( lines=( SourceLine(label=None, statement=instruction),))
+        resolver = Mock()
+        resolved_instruction = Mock()
+        resolver.resolve.return_value = resolved_instruction
+        encoder = Mock()
+        encoder.instruction_size.return_value = 2
+        encoder.encode.return_value = 0x00E0
+        generator = CodeGenerator( self.symbols, resolver, encoder, 0xFFFF)
+        result = generator.generate(assembly)
+        self.assertEqual(result, b"\x00\xE0")
+        resolver.resolve.assert_called_once_with(instruction)
+        resolver.instruction_references.assert_not_called()
+
+    def test_generate_rejects_unsupported_directive(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="UNKNOWN",
+                        operands=(),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+        with self.assertRaisesRegex( ValueError, "Unsupported directive 'UNKNOWN'."):
+            self.generator.generate(assembly)
+
+    def test_generate_rejects_unsupported_statement_type(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=object()
+                ),
+            )
+        )
+        with self.assertRaisesRegex( ValueError, "Unsupported statement type: object"):
+            self.generator.generate(assembly)
+
+    def test_db_string_exceeding_address_limit_raises_error(self) -> None:
+        generator = CodeGenerator( self.symbols, FakeInstructionResolver(), FakeInstructionEncoder(), 0x200)
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(
+                                value="AB",
+                                location=self.location
+                            ),
+                        ),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+        with self.assertRaisesRegex( Exception, "DB data exceeds the assembler address space."):
+            generator.generate(assembly)
+
+
+    def test_resolver_value_error_is_converted_to_semantic_error(self) -> None:
+        resolver = Mock()
+        resolver.resolve.side_effect = ValueError("Invalid instruction")
+        generator = CodeGenerator( self.symbols, resolver, FakeInstructionEncoder(), 0xFFFF)
+        instruction = InstructionNode( mnemonic="INVALID", operands=(), location=self.location)
+        assembly = AssemblyNode( lines=( SourceLine(label=None, statement=instruction),))
+        with self.assertRaisesRegex( SemanticAnalysisError, "Invalid instruction"):
+            generator.generate(assembly)
 
     def test_db_emits_byte(self) -> None:
         assembly = AssemblyNode(

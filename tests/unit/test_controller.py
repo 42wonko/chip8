@@ -1334,6 +1334,22 @@ class Chip8ControllerTest(unittest.TestCase):
         settings.clear()
 
 
+
+    def test_invalid_emulation_mode_setting_defaults_to_classic(self) -> None:
+        settings = QSettings(
+            QSettings.Format.IniFormat,
+            QSettings.Scope.UserScope,
+            "CHIP8-test",
+            "configuration-test"
+        )
+        settings.clear()
+        settings.setValue("emulation/mode", "invalid-mode")
+        configuration = EmulatorConfiguration()
+        configuration.read_settings(settings)
+        self.assertIs(configuration.emulation_mode, EmulationMode.CLASSIC)
+        settings.clear()
+
+
     def test_assembler_file_settings_round_trip(self) -> None:
         settings = QSettings( QSettings.Format.IniFormat, QSettings.Scope.UserScope, "CHIP8-test", "configuration-test")
         settings.clear()

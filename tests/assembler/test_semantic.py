@@ -4,6 +4,7 @@
 @brief Tests for assembler semantic expression evaluation.
 """
 
+from typing import cast
 import unittest
 
 from assembler.ast import (
@@ -11,6 +12,8 @@ from assembler.ast import (
     BinaryExpression,
     BinaryOperator,
     DirectiveNode,
+    Expression,
+    ExpressionType,
     IdentifierExpression,
     IndirectExpression,
     InstructionNode,
@@ -224,6 +227,10 @@ class ExpressionEvaluatorTest(unittest.TestCase):
         expression = LiteralExpression( value=42, location=self.location,)
         self.assertEqual( self.evaluator.evaluate(expression), 42,)
 
+    def test_evaluate_string_literal_is_rejected(self) -> None:
+        expression = LiteralExpression( value="hello", location=self.location)
+        with self.assertRaisesRegex( ExpressionEvaluationError, "String literals cannot be evaluated as integers"):
+            self.evaluator.evaluate(expression)
 
     def test_evaluate_negative_literal(self) -> None:
         expression = LiteralExpression( value=-5, location=self.location,)
@@ -243,6 +250,16 @@ class ExpressionEvaluatorTest(unittest.TestCase):
             self.evaluator.evaluate(expression)
         self.assertEqual(context.exception.location, location)
 
+    def test_evaluate_unsupported_expression_type_is_rejected(self) -> None:
+        expression = Expression(
+            type=ExpressionType.LITERAL,
+            location=self.location
+        )
+        with self.assertRaisesRegex(
+            ExpressionEvaluationError,
+            "Unsupported expression type: Expression"
+        ):
+            self.evaluator.evaluate(expression)
 
     def test_evaluate_addition(self) -> None:
         expression = BinaryExpression(
@@ -263,6 +280,15 @@ class ExpressionEvaluatorTest(unittest.TestCase):
         )
         self.assertEqual( self.evaluator.evaluate(expression), 5,)
 
+    def test_evaluate_unsupported_binary_operator_is_rejected(self) -> None:
+        expression = BinaryExpression(
+            operator=cast(BinaryOperator, "MULTIPLY"),
+            left=LiteralExpression(value=10, location=self.location),
+            right=LiteralExpression(value=5, location=self.location),
+            location=self.location
+        )
+        with self.assertRaisesRegex( ExpressionEvaluationError, "Unsupported binary operator: MULTIPLY"):
+            self.evaluator.evaluate(expression)
 
     def test_evaluate_expression_using_symbol(self) -> None:
         self.symbols.define( name="START", value=0x200, location=self.location,)
@@ -299,6 +325,18 @@ class SymbolCollectorTest(unittest.TestCase):
         self.location = SourceLocation(line=1, column=1)
         self.isa = ClassicInstructionSetArchitecture()
 
+    def test_unsupported_statement_type_is_rejected(self) -> None:
+        assembly = AssemblyNode( lines=( SourceLine( label=None, statement=object()),))
+        collector = SymbolCollector(SymbolTable(), self.isa)
+        with self.assertRaisesRegex( ValueError, "Unsupported statement type: object"):
+            collector.collect(assembly)
+
+    def test_define_equ_rejects_non_directive_statement(self) -> None:
+        source_line = SourceLine( label=None, statement=None)
+        collector = SymbolCollector(SymbolTable(), self.isa)
+        evaluator = ExpressionEvaluator(SymbolTable())
+        with self.assertRaisesRegex( ValueError, "EQU requires a directive statement."):
+            collector._define_equ(source_line, evaluator)
 
     def test_target_requires_exactly_one_architecture_name(self) -> None:
         assembly = AssemblyNode(
@@ -388,18 +426,6 @@ class SymbolCollectorTest(unittest.TestCase):
         self.assertEqual( symbols.lookup("START").value, 0x200)
         self.assertEqual( symbols.lookup("NEXT").value, 0x200)
 
-
-#    def test_duplicate_label_is_rejected(self) -> None:
-#        symbols = SymbolTable()
-#        collector = SymbolCollector(symbols, self.isa)
-#        assembly = AssemblyNode(
-#            lines=(
-#                SourceLine( label=LabelNode( name="START", location=self.location), statement=None),
-#                SourceLine( label=LabelNode( name="START", location=self.location), statement=None),
-#            )
-#        )
-#        with self.assertRaises(ValueError):
-#            collector.collect(assembly)
 
     def test_duplicate_label_reports_second_definition_location(self) -> None:
         symbols = SymbolTable()
@@ -1135,6 +1161,62 @@ class SymbolCollectorTest(unittest.TestCase):
         self.assertEqual( str(context.exception), "Label address 0x1000 exceeds the assembler address space.")
         self.assertEqual(context.exception.location, self.location)
 
+    def test_db_rejects_string_character_outside_byte_range(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="DB",
+                        operands=(
+                            LiteralExpression(value="\u0100", location=self.location),
+                        ),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+        collector = SymbolCollector(SymbolTable(), self.isa)
+        with self.assertRaisesRegex( SemanticAnalysisError, "DB string contains a character outside the byte range"):
+            collector.collect(assembly)
+
+    def test_unsupported_directive_is_rejected(self) -> None:
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=None,
+                    statement=DirectiveNode(
+                        name="UNKNOWN",
+                        operands=(),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+        collector = SymbolCollector(SymbolTable(), self.isa)
+        with self.assertRaisesRegex( SemanticAnalysisError, "Unsupported directive 'UNKNOWN'") as context:
+            collector.collect(assembly)
+        self.assertEqual(context.exception.location, self.location)
+
+    def test_dw_rejects_unsupported_expression_without_error_location(self) -> None:
+        operand = Expression( type=ExpressionType.LITERAL, location=self.location)
+        assembly = AssemblyNode(
+            lines=(
+                SourceLine(
+                    label=LabelNode(name="DATA", location=self.location),
+                    statement=DirectiveNode(
+                        name="DW",
+                        operands=(operand,),
+                        location=self.location
+                    )
+                ),
+            )
+        )
+        with self.assertRaises(SemanticAnalysisError) as context:
+            SymbolCollector(SymbolTable(), self.isa).collect(assembly)
+        self.assertEqual( str(context.exception), "Unsupported expression type: Expression")
+        self.assertEqual(context.exception.location, self.location)
+
 
 class OperandResolverTest(unittest.TestCase):
     """
@@ -1247,6 +1329,13 @@ class OperandResolverTest(unittest.TestCase):
         with self.assertRaises(ExpressionEvaluationError):
             self.resolver.resolve( expression, AssemblerOperandType.VALUE)
 
+    def test_resolve_unsupported_expression_type_is_rejected(self) -> None:
+        expression = Expression( type=ExpressionType.LITERAL, location=self.location)
+        with self.assertRaisesRegex(
+            ExpressionEvaluationError,
+            "Unsupported operand expression type: Expression"
+        ):
+            self.resolver.resolve(expression, AssemblerOperandType.VALUE)
 
     def test_resolve_indirect_index(self) -> None:
         expression = IndirectExpression(
@@ -1399,5 +1488,10 @@ class InstructionResolverTest(unittest.TestCase):
         result = self.resolver.resolve(instruction)
         self.assertEqual(result.id, InstructionId.JP)
         self.assertEqual(result.nnn, 0x300)
+
+    def test_resolve_operands_rejects_operand_count_mismatch(self) -> None:
+        expressions = ( LiteralExpression(value=0x42, location=self.location),)
+        with self.assertRaisesRegex( ExpressionEvaluationError, "Operand count does not match signature"):
+            self.resolver._resolve_operands(expressions, ())
 
 

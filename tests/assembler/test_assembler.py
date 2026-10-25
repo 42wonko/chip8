@@ -5,11 +5,12 @@
 """
 
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from assembler.assembler import Assembler
 from assembler.ast import AssemblyNode
 from assembler.classicparser import ClassicParser
+from assembler.codegen import CodeGenerator
 from assembler.options import AssemblyOptions
 from assembler.parser import Parser
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
@@ -260,6 +261,15 @@ class TestAssembler(unittest.TestCase):
                 "Assembly source is empty.",
             ]
         )
+
+    def test_assemble_handles_value_error_during_code_generation(self) -> None:
+        with patch.object( CodeGenerator, "generate", side_effect=ValueError("Code generation failed.")):
+            result = self._assembler.assemble("CLS")
+        self.assertFalse(result.success)
+        self.assertIsNone(result.binary_image)
+        self.assertEqual(len(result.diagnostics), 0)
+        messages = [diagnostic.message for diagnostic in self._diagnostics]
+        self.assertIn("Code generation failed.", messages)
 
 
     def test_semantic_error_contains_source_location(self) -> None:

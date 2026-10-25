@@ -102,6 +102,10 @@ class TestcreateStack(unittest.TestCase):
         stack.reset()
         self.assertEqual(stack.pop(), 0)
 
+    def test_peek_from_empty_stack(self) -> None:
+        stack = create_stack()
+        with self.assertRaisesRegex(IndexError, "peek from empty stack"):
+            stack.peek()
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -6,7 +6,7 @@ from controller.diagnostic import DiagnosticSource
 from controller.diagnostics import Diagnostics
 from controller.emulatorconfiguration import EmulatorConfiguration
 from controller.logging import LogManager
-from emulator.constants import PROGRAM_START
+from emulator.constants import CHIP8_STACK_SIZE, PROGRAM_START
 from tests.helpers import create_machine
 
 
@@ -36,14 +36,14 @@ class TestCodeAnalysis(unittest.TestCase):
         @brief Create a fresh analyzer.
         """
 #        self.memory = create_memory()
-        diagnostics = Diagnostics()
+        self.diagnostics = Diagnostics()
         log_manager = LogManager()
         configuration = EmulatorConfiguration()
         log_manager.configure(configuration)
         machine = create_machine()
         self.memory = machine.memory
         isa = ClassicInstructionSetArchitecture()
-        self.analysis = CodeAnalysis(self.memory, diagnostics.reporter(DiagnosticSource.ANALYZER), log_manager.application_logger(DiagnosticSource.ANALYZER), isa)
+        self.analysis = CodeAnalysis(self.memory, self.diagnostics.reporter(DiagnosticSource.ANALYZER), log_manager.application_logger(DiagnosticSource.ANALYZER), isa)
 
 
     def test_empty_memory_is_data(self) -> None:
@@ -101,6 +101,7 @@ class TestCodeAnalysis(unittest.TestCase):
         self.assertEqual(row.status, CodeStatus.UNKNOWN)
         row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 4))
         self.assertEqual(row.status, CodeStatus.CODE)
+
 
 
     def test_call_follows_subroutine(self) -> None:
@@ -368,14 +369,123 @@ class TestCodeAnalysis(unittest.TestCase):
             0x00, 0xE0,
         )
         self.analysis.rebuild()
-
         row = self.analysis.row(self.analysis.find_row(PROGRAM_START))
         self.assertEqual(row.status, CodeStatus.CODE)
-
         row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 2))
         self.assertEqual(row.status, CodeStatus.DATA)
-
         row = self.analysis.row(self.analysis.find_row(PROGRAM_START + 4))
         self.assertEqual(row.status, CodeStatus.UNKNOWN)
 
 
+    def test_set_rom_range_rejects_reversed_range(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Invalid ROM range"):
+            self.analysis.set_rom_range(PROGRAM_START + 2, PROGRAM_START)
+
+
+    def test_observed_bnnn_target_returns_false_when_already_seen(self) -> None:
+        self.assertTrue( self.analysis.observe_bnnn_target(PROGRAM_START, 0x300))
+        self.assertFalse( self.analysis.observe_bnnn_target(PROGRAM_START, 0x300))
+        self.assertEqual( self.analysis.observed_bnnn_targets(PROGRAM_START), {0x300})
+
+
+    def test_observed_bnnn_targets_returns_empty_set_for_unknown_address(self) -> None:
+        self.assertEqual( self.analysis.observed_bnnn_targets(PROGRAM_START), set())
+
+
+    def test_clear_runtime_observations_removes_all_targets(self) -> None:
+        self.analysis.observe_bnnn_target(PROGRAM_START, 0x300)
+        self.analysis.observe_bnnn_target(PROGRAM_START + 2, 0x400)
+        self.analysis.clear_runtime_observations()
+        self.assertEqual( self.analysis.observed_bnnn_targets(PROGRAM_START), set())
+        self.assertEqual( self.analysis.observed_bnnn_targets(PROGRAM_START + 2), set())
+
+
+    def test_get_word_rejects_negative_address(self) -> None:
+        self.assertIsNone(self.analysis._get_word(-1))
+
+
+    def test_get_word_rejects_word_past_end_of_memory(self) -> None:
+        self.assertIsNone(self.analysis._get_word(self.memory.size() - 1))
+
+
+    def test_decode_instruction_returns_none_when_word_is_out_of_bounds(self) -> None:
+        self.assertIsNone( self.analysis._decode_instruction(self.memory.size() - 1))
+
+
+    def test_analyze_observed_bnnn_target_skips_repeated_target(self) -> None:
+        self.assertTrue( self.analysis.analyze_observed_bnnn_target(PROGRAM_START, 0x300))
+        self.assertFalse( self.analysis.analyze_observed_bnnn_target(PROGRAM_START, 0x300))
+
+    def test_decode_instruction_returns_decoded_instruction(self) -> None:
+        self.load_rom(0x60, 0x01)
+
+        instruction = self.analysis._decode_instruction(PROGRAM_START)
+
+        self.assertIsNotNone(instruction)
+        self.assertEqual(instruction.address, PROGRAM_START)
+
+
+    def test_analysis_warns_when_call_stack_limit_is_exceeded(self) -> None:
+        rom: list[int] = []
+
+        for index in range(CHIP8_STACK_SIZE + 2):
+            target = PROGRAM_START + (index + 1) * 2
+            opcode = 0x2000 | target
+            rom.extend((opcode >> 8, opcode & 0xFF))
+
+        self.load_rom(*rom)
+        self.analysis.rebuild()
+
+        warnings = [
+            diagnostic
+            for diagnostic in self.diagnostics
+            if diagnostic.message
+            == "Maximum CHIP-8 call stack depth exceeded during static analysis."
+        ]
+        self.assertTrue(warnings)
+
+
+    def test_analysis_skips_word_at_end_of_memory(self) -> None:
+        self.analysis.set_rom_range(PROGRAM_START, self.memory.size())
+        self.analysis.observe_bnnn_target(PROGRAM_START, self.memory.size() - 1)
+
+        self.analysis.rebuild()
+
+        self.assertTrue(self.analysis.row_count() > 0)
+
+
+    def test_invalid_instruction_at_last_rom_byte_is_data(self) -> None:
+        self.load_rom(0xFF, 0xFF)
+        self.analysis.set_rom_range(PROGRAM_START, PROGRAM_START + 1)
+
+        self.analysis.rebuild()
+
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START))
+        self.assertEqual(row.status, CodeStatus.DATA)
+
+
+    def test_valid_instruction_at_last_rom_byte_is_code(self) -> None:
+        self.load_rom(0x60, 0x01)
+        self.analysis.set_rom_range(PROGRAM_START, PROGRAM_START + 1)
+
+        self.analysis.rebuild()
+
+        row = self.analysis.row(self.analysis.find_row(PROGRAM_START))
+        self.assertEqual(row.status, CodeStatus.CODE)
+
+
+    def test_recursive_call_path_reports_warning(self) -> None:
+        self.load_rom(
+            0x22, 0x00  # CALL 200: recursive call to itself
+        )
+
+        self.analysis.rebuild()
+
+        warnings = [
+            diagnostic
+            for diagnostic in self.diagnostics
+            if diagnostic.message
+            == "Potential recursive CALL path detected; analysis terminated this path."
+        ]
+        self.assertTrue(warnings)
+        self.assertEqual(warnings[0].address, PROGRAM_START)

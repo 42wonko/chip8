@@ -113,3 +113,6 @@ class SymbolTableTest(unittest.TestCase):
         self.symbols.add_reference("START", reference)
         self.assertEqual( self.symbols.references("start"), (reference,))
 
+    def test_add_reference_to_undefined_symbol_raises(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Undefined symbol 'MISSING'."):
+            self.symbols.add_reference("MISSING", self.location)

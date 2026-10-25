@@ -181,3 +181,16 @@ class LexerTest(unittest.TestCase):
         self.assertEqual( tokens[1].value, "I")
         self.assertEqual( tokens[2].type, TokenType.RBRACKET)
         self.assertEqual( tokens[2].value, "]")
+
+    def test_character_literal_ending_at_newline(self) -> None:
+        with self.assertRaises(LexerError):
+            Lexer("'\n").tokenize()
+
+    def test_escape_sequence_ending_at_end_of_input(self) -> None:
+        source = "'" + "\\"
+        with self.assertRaises(LexerError):
+            Lexer(source).tokenize()
+
+    def test_unsupported_escape_sequence(self) -> None:
+        with self.assertRaises(LexerError):
+            Lexer(r"'\q'").tokenize()

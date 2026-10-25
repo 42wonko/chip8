@@ -528,6 +528,17 @@ class TestChip8Machine(unittest.TestCase):
         self.assertEqual(machine.registers.pc, PROGRAM_START + 4)
         self.assertEqual(machine.cycle_counter(), 2)
 
+
+    def test_isa_raises_when_not_configured(self) -> None:
+        machine = create_machine()
+        with patch.object(machine, "_isa", None):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "Instruction set architecture has not been configured\\."
+            ):
+                _ = machine.isa
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 

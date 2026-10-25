@@ -16,10 +16,12 @@ from assembler.ast import (
     InstructionNode,
     LabelNode,
     LiteralExpression,
+    SourceLine
 )
 from assembler.classicparser import ClassicParser
 from assembler.lexer import Lexer
 from assembler.parser import Parser, ParserError
+from assembler.token import SourceLocation, Token, TokenType
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
 
 
@@ -52,6 +54,28 @@ class ParserTest(unittest.TestCase):
     def test_empty_source(self) -> None:
         assembly = self._parse("")
         self.assertEqual( len(assembly.lines), 0)
+
+    def test_base_instruction_mnemonic_check_is_not_implemented(self) -> None:
+        parser = PermissiveParser()
+        with self.assertRaises(NotImplementedError):
+            Parser._is_instruction_mnemonic(parser, "CLS")
+
+    def test_parse_line_without_identifier_starts_statement_parsing(self) -> None:
+        parser = PermissiveParser()
+        parser.set_tokens(Lexer("V0").tokenize())
+        with self.assertRaises(ParserError):
+            parser._parse_line()
+
+    def test_parse_recovering_advances_when_line_parser_makes_no_progress(self) -> None:
+        class NonAdvancingParser(PermissiveParser):
+            def _parse_line(self) -> SourceLine:
+                return SourceLine(label=None, statement=None)
+        parser = NonAdvancingParser()
+        parser.set_tokens(Lexer("CLS").tokenize())
+        assembly, errors = parser.parse_recovering()
+        self.assertEqual(len(assembly.lines), 1)
+        self.assertEqual(errors, ())
+        self.assertTrue(parser._check(TokenType.END_OF_FILE))
 
     def test_instruction_without_operands(self) -> None:
         assembly = self._parse("CLS")
@@ -273,14 +297,41 @@ class ParserTest(unittest.TestCase):
 
     def test_set_tokens_resets_parser_state(self) -> None:
         parser = PermissiveParser()
-
         parser.set_tokens(Lexer("CLS").tokenize())
         first = parser.parse()
         self.assertEqual(first.lines[0].statement.mnemonic, "CLS")
-
         parser.set_tokens(Lexer("RET").tokenize())
         second = parser.parse()
         self.assertEqual(second.lines[0].statement.mnemonic, "RET")
+
+    def test_check_next_returns_false_at_end_of_token_stream(self) -> None:
+        parser = PermissiveParser()
+        tokens = Lexer("CLS").tokenize()
+        parser.set_tokens(tokens)
+        parser._position = len(tokens) - 1
+        self.assertFalse(parser._check_next(TokenType.COLON))
+
+    def test_parse_primary_rejects_invalid_numeric_token(self) -> None:
+        parser = PermissiveParser()
+        location = SourceLocation(line=1, column=5)
+        parser.set_tokens([
+            Token(type=TokenType.NUMBER, value="0xG", location=location),
+            Token(type=TokenType.END_OF_FILE, value="", location=location)
+        ])
+        with self.assertRaisesRegex( ParserError, "Invalid numeric literal '0xG' at 1:5") as context:
+            parser._parse_primary()
+        self.assertEqual(context.exception.location, location)
+
+    def test_parse_primary_rejects_invalid_character_literal(self) -> None:
+        parser = PermissiveParser()
+        location = SourceLocation(line=1, column=5)
+        parser.set_tokens([
+            Token( type=TokenType.CHARACTER, value="AB", location=location),
+            Token( type=TokenType.END_OF_FILE, value="", location=location)
+        ])
+        with self.assertRaisesRegex( ParserError, "Invalid character literal at 1:5") as context:
+            parser._parse_primary()
+        self.assertEqual(context.exception.location, location)
 
 
 class TestClassicParser(unittest.TestCase):
@@ -431,4 +482,10 @@ class TestClassicParser(unittest.TestCase):
         self.assertEqual(statement.mnemonic, "RND")
         self.assertEqual(len(statement.operands), 2)
 
+    def test_parse_recovering_skips_blank_lines(self) -> None:
+        self._parser.set_tokens(Lexer("\n\nCLS\n\nRET\n").tokenize())
+        assembly, errors = self._parser.parse_recovering()
+        self.assertEqual(errors, ())
+        self.assertEqual(len(assembly.lines), 2)
+        self.assertEqual( [line.statement.mnemonic for line in assembly.lines], ["CLS", "RET"])
 
