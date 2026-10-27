@@ -7,7 +7,11 @@ import sys
 import unittest
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
+from typing import Any
 from unittest.mock import Mock, patch
+
+from assembler.token import SourceLocation
+from controller.diagnostics import AssemblerDiagnostics
 
 from assembler.options import AssemblyOptions
 from assembler.target import Target
@@ -364,3 +368,307 @@ class TestAssemblerDialogNonQt(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeListWidgetItem:
+    """Small QListWidgetItem substitute for non-GUI logic tests."""
+
+    def __init__(self, text: str) -> None:
+        self._text = text
+        self._data: dict[object, object] = {}
+
+    def text(self) -> str:
+        return self._text
+
+    def setData(self, role: object, value: object) -> None:
+        self._data[role] = value
+
+    def data(self, role: object) -> object:
+        return self._data.get(role)
+
+
+class TestAssemblerDialogDiagnosticsNonQt(unittest.TestCase):
+    """Test diagnostic list preparation and navigation guards without widgets."""
+
+    def setUp(self) -> None:
+        self.qt_globals = AssemblerDialog._display_diagnostics.__globals__
+        self.qt_patch = patch.dict(
+            self.qt_globals,
+            {
+                "QListWidgetItem": FakeListWidgetItem,
+                "Qt": SimpleNamespace(
+                    ItemDataRole=SimpleNamespace(UserRole=object())
+                )
+            }
+        )
+        self.qt_patch.start()
+        self.addCleanup(self.qt_patch.stop)
+
+    def test_display_diagnostics_clears_list_when_collection_is_missing(self) -> None:
+        diagnostics_list = Mock()
+        dialog = SimpleNamespace(
+            asmDiagnosticsListWidget=diagnostics_list,
+            _diagnostics=None
+        )
+
+        AssemblerDialog._display_diagnostics(dialog)
+
+        diagnostics_list.clear.assert_called_once_with()
+        diagnostics_list.addItem.assert_not_called()
+
+    def test_display_diagnostics_formats_messages_and_preserves_indices(self) -> None:
+        diagnostics = AssemblerDiagnostics()
+        reporter = diagnostics.reporter()
+        reporter.error("Unknown opcode", SourceLocation(3, 5))
+        reporter.warning("Unused label")
+        diagnostics_list = Mock()
+        dialog = SimpleNamespace(
+            asmDiagnosticsListWidget=diagnostics_list,
+            _diagnostics=diagnostics
+        )
+
+        AssemblerDialog._display_diagnostics(dialog)
+
+        diagnostics_list.clear.assert_called_once_with()
+        items = [call.args[0] for call in diagnostics_list.addItem.call_args_list]
+        self.assertEqual([item.text() for item in items], [
+            "ERR  line 3: Unknown opcode",
+            "Unused label"
+        ])
+        role = self.qt_globals["Qt"].ItemDataRole.UserRole
+        self.assertEqual([item.data(role) for item in items], [0, 1])
+
+    def test_diagnostic_activated_returns_when_diagnostics_are_missing(self) -> None:
+        dialog = SimpleNamespace(_diagnostics=None)
+        item = Mock()
+
+        AssemblerDialog._diagnostic_activated(dialog, item)
+
+        item.data.assert_not_called()
+
+    def test_diagnostic_activated_ignores_non_integer_index(self) -> None:
+        diagnostics = AssemblerDiagnostics()
+        diagnostics.reporter().error("Unknown opcode", SourceLocation(2, 1))
+        dialog = SimpleNamespace(_diagnostics=diagnostics)
+        item = Mock()
+        item.data.return_value = "0"
+
+        AssemblerDialog._diagnostic_activated(dialog, item)
+
+        item.data.assert_called_once()
+
+    def test_diagnostic_activated_ignores_out_of_range_index(self) -> None:
+        diagnostics = AssemblerDiagnostics()
+        diagnostics.reporter().error("Unknown opcode", SourceLocation(2, 1))
+        dialog = SimpleNamespace(_diagnostics=diagnostics)
+        item = Mock()
+        item.data.return_value = 1
+
+        AssemblerDialog._diagnostic_activated(dialog, item)
+
+        item.data.assert_called_once()
+
+    def test_diagnostic_activated_ignores_diagnostic_without_location(self) -> None:
+        diagnostics = AssemblerDiagnostics()
+        diagnostics.reporter().error("General assembly failure")
+        dialog = SimpleNamespace(_diagnostics=diagnostics)
+        item = Mock()
+        item.data.return_value = 0
+
+        AssemblerDialog._diagnostic_activated(dialog, item)
+
+        item.data.assert_called_once()
+
+    def test_diagnostic_activated_ignores_invalid_line_or_column(self) -> None:
+        for location in (
+            SourceLocation(0, 1),
+            SourceLocation(1, 0)
+        ):
+            with self.subTest(location=location):
+                diagnostics = AssemblerDiagnostics()
+                diagnostics.reporter().error("Invalid location", location)
+                dialog = SimpleNamespace(_diagnostics=diagnostics)
+                item = Mock()
+                item.data.return_value = 0
+
+                AssemblerDialog._diagnostic_activated(dialog, item)
+
+                item.data.assert_called_once()
+
+
+class TestAssemblerDialogNewSourceNonQt(unittest.TestCase):
+    """Test new-source confirmation flow without constructing a dialog."""
+
+    class StandardButton:
+        Save = 1
+        Discard = 2
+        Cancel = 4
+
+    def _make_dialog(self, modified: bool, save_result: bool = True) -> SimpleNamespace:
+        document = Mock()
+        document.isModified.return_value = modified
+        editor = Mock()
+        editor.document.return_value = document
+        controller = Mock()
+        dialog = SimpleNamespace(
+            asmSourceCodeTextEdit=editor,
+            _controller=controller,
+            _save=Mock(return_value=save_result),
+            _update_title=Mock()
+        )
+        return dialog
+
+    def _patch_message_box(self, result: int) -> tuple[Any, SimpleNamespace]:
+        message_box = SimpleNamespace(
+            StandardButton=self.StandardButton,
+            question=Mock(return_value=result)
+        )
+        return patch.dict(
+            AssemblerDialog._new.__globals__,
+            {"QMessageBox": message_box}
+        ), message_box
+
+    def test_new_source_without_unsaved_changes_clears_editor(self) -> None:
+        dialog = self._make_dialog(modified=False)
+
+        AssemblerDialog._new(dialog)
+
+        dialog._controller.assembler_new.assert_called_once_with()
+        dialog.asmSourceCodeTextEdit.clear.assert_called_once_with()
+        dialog.asmSourceCodeTextEdit.document().setModified.assert_called_once_with(False)
+        dialog._update_title.assert_called_once_with()
+        dialog._save.assert_not_called()
+
+    def test_new_source_cancelled_preserves_current_source(self) -> None:
+        dialog = self._make_dialog(modified=True)
+        patcher, message_box = self._patch_message_box(self.StandardButton.Cancel)
+        with patcher:
+            AssemblerDialog._new(dialog)
+
+        message_box.question.assert_called_once()
+        dialog._controller.assembler_new.assert_not_called()
+        dialog.asmSourceCodeTextEdit.clear.assert_not_called()
+
+    def test_new_source_save_failure_preserves_current_source(self) -> None:
+        dialog = self._make_dialog(modified=True, save_result=False)
+        patcher, _ = self._patch_message_box(self.StandardButton.Save)
+        with patcher:
+            AssemblerDialog._new(dialog)
+
+        dialog._save.assert_called_once_with()
+        dialog._controller.assembler_new.assert_not_called()
+        dialog.asmSourceCodeTextEdit.clear.assert_not_called()
+
+    def test_new_source_save_success_starts_new_source(self) -> None:
+        dialog = self._make_dialog(modified=True, save_result=True)
+        patcher, _ = self._patch_message_box(self.StandardButton.Save)
+        with patcher:
+            AssemblerDialog._new(dialog)
+
+        dialog._save.assert_called_once_with()
+        dialog._controller.assembler_new.assert_called_once_with()
+        dialog.asmSourceCodeTextEdit.clear.assert_called_once_with()
+
+    def test_new_source_discard_starts_new_source_without_saving(self) -> None:
+        dialog = self._make_dialog(modified=True)
+        patcher, _ = self._patch_message_box(self.StandardButton.Discard)
+        with patcher:
+            AssemblerDialog._new(dialog)
+
+        dialog._save.assert_not_called()
+        dialog._controller.assembler_new.assert_called_once_with()
+        dialog.asmSourceCodeTextEdit.clear.assert_called_once_with()
+
+
+class TestAssemblerDialogCopyDiagnosticsNonQt(unittest.TestCase):
+    """Test clipboard preparation without using a real desktop clipboard."""
+
+    def _patch_application(self, clipboard: object) -> tuple[Any, SimpleNamespace]:
+        application = SimpleNamespace(clipboard=Mock(return_value=clipboard))
+        return patch.dict(
+            AssemblerDialog._copy_selected_diagnostics.__globals__,
+            {"QApplication": application}
+        ), application
+
+    def test_copy_selected_diagnostics_returns_when_nothing_is_selected(self) -> None:
+        diagnostics_list = Mock()
+        diagnostics_list.selectedItems.return_value = []
+        dialog = SimpleNamespace(asmDiagnosticsListWidget=diagnostics_list)
+        patcher, application = self._patch_application(Mock())
+
+        with patcher:
+            AssemblerDialog._copy_selected_diagnostics(dialog)
+
+        application.clipboard.assert_not_called()
+
+    def test_copy_selected_diagnostics_returns_when_clipboard_is_unavailable(self) -> None:
+        first = Mock()
+        first.text.return_value = "ERR  line 2: Unknown opcode"
+        diagnostics_list = Mock()
+        diagnostics_list.selectedItems.return_value = [first]
+        dialog = SimpleNamespace(asmDiagnosticsListWidget=diagnostics_list)
+        patcher, application = self._patch_application(None)
+
+        with patcher:
+            AssemblerDialog._copy_selected_diagnostics(dialog)
+
+        application.clipboard.assert_called_once_with()
+
+    def test_copy_selected_diagnostics_joins_selected_item_text(self) -> None:
+        first = Mock()
+        first.text.return_value = "ERR  line 2: Unknown opcode"
+        second = Mock()
+        second.text.return_value = "Unused label"
+        diagnostics_list = Mock()
+        diagnostics_list.selectedItems.return_value = [first, second]
+        dialog = SimpleNamespace(asmDiagnosticsListWidget=diagnostics_list)
+        clipboard = Mock()
+        patcher, application = self._patch_application(clipboard)
+
+        with patcher:
+            AssemblerDialog._copy_selected_diagnostics(dialog)
+
+        application.clipboard.assert_called_once_with()
+        clipboard.setText.assert_called_once_with(
+            "ERR  line 2: Unknown opcode\nUnused label"
+        )
+
+
+class TestAssemblerDialogEventFilterNonQt(unittest.TestCase):
+    """Test the keyboard shortcut decision without a Qt event loop."""
+
+    def test_control_c_on_diagnostics_list_copies_selected_diagnostics(self) -> None:
+        class FakeKeyEvent:
+            def type(self) -> int:
+                return 1
+
+            def key(self) -> int:
+                return 67
+
+            def modifiers(self) -> int:
+                return 2
+
+        qt_globals = AssemblerDialog.eventFilter.__globals__
+        qt_patch = patch.dict(
+            qt_globals,
+            {
+                "QEvent": SimpleNamespace(Type=SimpleNamespace(KeyPress=1)),
+                "QKeyEvent": FakeKeyEvent,
+                "Qt": SimpleNamespace(
+                    Key=SimpleNamespace(Key_C=67),
+                    KeyboardModifier=SimpleNamespace(ControlModifier=2)
+                )
+            }
+        )
+        dialog = SimpleNamespace(
+            asmDiagnosticsListWidget=object(),
+            _copy_selected_diagnostics=Mock()
+        )
+
+        with qt_patch:
+            handled = AssemblerDialog.eventFilter(
+                dialog, dialog.asmDiagnosticsListWidget, FakeKeyEvent()
+            )
+
+        self.assertTrue(handled)
+        dialog._copy_selected_diagnostics.assert_called_once_with()
