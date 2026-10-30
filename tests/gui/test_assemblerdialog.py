@@ -502,3 +502,63 @@ class TestAssemblerDialog(unittest.TestCase):
         )
 
 
+    def test_activated_diagnostic_with_invalid_source_line_does_not_move_cursor( self) -> None:
+        """
+        @brief Verify that a diagnostic referring to a nonexistent line is ignored.
+        """
+        diagnostics = AssemblerDiagnostics()
+        diagnostics.reporter().error( "Invalid source location.", SourceLocation(line=10, column=1))
+        self.dialog.set_diagnostics(diagnostics)
+        self.dialog.asmSourceCodeTextEdit.setPlainText("CLS\nRET\n")
+        self.dialog.asmSourceCodeTextEdit.moveCursor( QTextCursor.MoveOperation.End)
+        position = self.dialog.asmSourceCodeTextEdit.textCursor().position()
+        self.dialog._display_diagnostics()
+        self.dialog._diagnostic_activated( self.dialog.asmDiagnosticsListWidget.item(0))
+        self.assertEqual( self.dialog.asmSourceCodeTextEdit.textCursor().position(), position)
+
+    def test_event_filter_delegates_unhandled_events(self) -> None:
+        """
+        @brief Verify that unrelated events are delegated to the base class.
+        """
+        events = [
+            (self.dialog.asmDiagnosticsListWidget, QEvent(QEvent.Type.KeyPress)),
+            (
+                self.dialog.asmDiagnosticsListWidget,
+                QKeyEvent(
+                    QEvent.Type.KeyPress,
+                    Qt.Key.Key_A,
+                    Qt.KeyboardModifier.ControlModifier
+                )
+            ),
+            (
+                self.dialog.asmDiagnosticsListWidget,
+                QKeyEvent(
+                    QEvent.Type.KeyPress,
+                    Qt.Key.Key_C,
+                    Qt.KeyboardModifier.NoModifier
+                )
+            )
+        ]
+
+        for watched, event in events:
+            with self.subTest(event_type=event.type()):
+                self.assertFalse(self.dialog.eventFilter(watched, event))
+
+    def test_event_filter_ignores_events_from_other_widgets(self) -> None:
+        """
+        @brief Verify that Ctrl+C on another widget is not handled here.
+        """
+        event = QKeyEvent(
+            QEvent.Type.KeyPress,
+            Qt.Key.Key_C,
+            Qt.KeyboardModifier.ControlModifier
+        )
+        self.assertFalse( self.dialog.eventFilter(self.dialog.asmSourceCodeTextEdit, event))
+
+    def test_event_filter_delegates_non_key_press_event(self) -> None:
+        """
+        @brief Verify that non-key-press events are delegated to the base class.
+        """
+        event = QEvent(QEvent.Type.FocusIn)
+        self.assertFalse( self.dialog.eventFilter( self.dialog.asmDiagnosticsListWidget, event))
+
