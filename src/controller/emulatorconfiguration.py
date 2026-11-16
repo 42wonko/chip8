@@ -71,9 +71,10 @@ class EmulatorConfiguration:
     ###########################################################################
     # Assembler settings
     ###########################################################################
-    assembler_source_file: str       = ""
-    assembler_rom_file: str          = ""
-    assembler_listing_file: str      = ""
+    assembler_source_file: str          = ""
+    assembler_rom_file: str             = ""
+    assembler_listing_file: str         = ""
+    assembler_include_path: str         = ""
 
     ###########################################################################
     # CHIP-8 Execution Trace
@@ -113,10 +114,10 @@ class EmulatorConfiguration:
             }
             else EmulationMode.CLASSIC
         )
-        self.assembler_source_file = settings.value( "assembler/source_file", self.assembler_source_file, str)
-        self.assembler_rom_file = settings.value( "assembler/rom_file", self.assembler_rom_file, str)
+        self.assembler_source_file  = settings.value( "assembler/source_file", self.assembler_source_file, str)
+        self.assembler_rom_file     = settings.value( "assembler/rom_file", self.assembler_rom_file, str)
         self.assembler_listing_file = settings.value( "assembler/listing_file", self.assembler_listing_file, str)
-
+        self.assembler_include_path = settings.value( "assembler/include_path", self.assembler_include_path, str)
 
     def write_settings(self, settings: QSettings) -> None:
         """
@@ -137,4 +138,5 @@ class EmulatorConfiguration:
         settings.setValue("assembler/source_file", self.assembler_source_file)
         settings.setValue("assembler/rom_file", self.assembler_rom_file)
         settings.setValue("assembler/listing_file", self.assembler_listing_file)
+        settings.setValue("assembler/include_path", self.assembler_include_path)
         settings.sync()

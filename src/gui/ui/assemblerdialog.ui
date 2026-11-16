@@ -133,6 +133,25 @@
          </layout>
         </item>
         <item>
+         <widget class="QGroupBox" name="asmIncludeGroupBox">
+          <property name="title">
+           <string>Includes</string>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_5">
+           <item>
+            <widget class="QPushButton" name="asmIncludesPushButton">
+             <property name="text">
+              <string>Browse</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="asmIncludesLineEdit"/>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
          <widget class="QGroupBox" name="asmOutputControlGroupBox">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Minimum" vsizetype="Preferred">

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 
 class TokenType(Enum):
@@ -40,7 +41,8 @@ class SourceLocation:
     """
     line: int
     column: int
-
+    source_file: Path | None = None
+    source_line: int | None = None
 
 @dataclass(frozen=True, slots=True)
 class Token:

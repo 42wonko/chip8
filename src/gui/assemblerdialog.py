@@ -12,7 +12,14 @@ from typing import TYPE_CHECKING
 from PyQt6 import uic
 from PyQt6.QtCore import QEvent, QObject, Qt
 from PyQt6.QtGui import QKeyEvent, QTextCursor
-from PyQt6.QtWidgets import QApplication, QDialog, QListWidgetItem, QMessageBox, QWidget
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QFileDialog,
+    QListWidgetItem,
+    QMessageBox,
+    QWidget,
+)
 
 from assembler.assembler import Assembler
 from assembler.options import AssemblyOptions
@@ -79,6 +86,9 @@ class AssemblerDialog(QDialog):
         self.asmDiagnosticsListWidget.itemActivated.connect( self._diagnostic_activated)
         self.asmDiagnosticsListWidget.itemDoubleClicked.connect( self._diagnostic_activated)
         self.asmSourceCodeTextEdit.document().modificationChanged.connect( self._source_modified_changed)
+        self.asmIncludesLineEdit.setText(self._controller.assembler_include_path)
+        self.asmIncludesLineEdit.textChanged.connect(self._include_path_changed)
+        self.asmIncludesPushButton.clicked.connect(self._browse_include_path)
         self._update_title()
 
     def _vi_tab_size_changed(self, text: str) -> None:
@@ -216,6 +226,25 @@ class AssemblerDialog(QDialog):
         self._display_diagnostics()
 
 
+    def _include_path_changed(self, path: str) -> None:
+        """
+        @brief Update the configured assembler include directory.
+
+        @param path
+            Include directory entered by the user.
+        """
+        self._controller.assembler_include_path = path
+
+
+    def _browse_include_path(self) -> None:
+        """
+        @brief Let the user select the assembler include directory.
+        """
+        directory = QFileDialog.getExistingDirectory( self, "Select Assembler Include Directory", self.asmIncludesLineEdit.text())
+        if directory:
+            self.asmIncludesLineEdit.setText(directory)
+
+
     def _run(self) -> None:
         """
         @brief Save, assemble and run the current source.
@@ -245,11 +274,19 @@ class AssemblerDialog(QDialog):
             return
         for index, diagnostic in enumerate(self._diagnostics):
             text = diagnostic.message
-            if diagnostic.location is not None:
-                text = f"ERR  line {diagnostic.location.line}: {text}"
+            location = diagnostic.location
+            if location is not None:
+                if location.source_file is not None and location.source_line is not None:
+                    text = (
+                        f"ERR  {location.source_file}:{location.source_line}:"
+                        f"{location.column}: {text}"
+                    )
+                else:
+                    text = f"ERR  line {location.line}: {text}"
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, index)
             self.asmDiagnosticsListWidget.addItem(item)
+
 
     def _diagnostic_activated(self, item: QListWidgetItem) -> None:
         """
@@ -263,6 +300,10 @@ class AssemblerDialog(QDialog):
         if not 0 <= diagnostic_index < len(self._diagnostics):
             return
         diagnostic = self._diagnostics[diagnostic_index]
+        if diagnostic.location is None:
+            return
+        if diagnostic.location.source_file is not None:
+            return
         if diagnostic.location is None:
             return
         line = diagnostic.location.line

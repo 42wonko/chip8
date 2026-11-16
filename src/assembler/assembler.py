@@ -6,10 +6,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import cast
 
 from assembler.ast import AssemblyNode
 from assembler.codegen import CodeGenerator, InstructionEncoder
+from assembler.includeprocessor import SourceOrigin
 from assembler.lexer import Lexer, LexerError
 from assembler.listing import ListingGenerator
 from assembler.options import AssemblyOptions
@@ -53,16 +55,15 @@ class Assembler:
         self._parser        = parser
 
 
-    def assemble( self, source: str, options: AssemblyOptions | None = None) -> AssemblyResult:
+    def assemble( self, source: str, options: AssemblyOptions | None = None, line_origins: Sequence[SourceOrigin] | None = None, include_path: str = "") -> AssemblyResult:
         """
         @brief Assemble source code.
-
         @param source
-            Assembly source text.
-
-        @param options
             Assembly output options.
-
+        @param line_origins
+            Original source locations for expanded source lines.
+        @param include_path
+            Configured INCLUDE path used for listing generation.
         @return
             Assembly result.
         """
@@ -72,7 +73,7 @@ class Assembler:
             self._diagnostics.info("Started assembly.")
 #            TargetSelector().select(source, target)
             self._diagnostics.info("Parsing source.")
-            assembly, syntax_errors = self._parse_recovering(source)
+            assembly, syntax_errors = self._parse_recovering(source, line_origins)
             if syntax_errors:
                 diagnostics = tuple(
                     AssemblerDiagnostic(
@@ -107,7 +108,9 @@ class Assembler:
                     generator.records,
                     symbols,
                     reference_collector.references(),
-                    options.generate_cross_reference
+                    options.generate_cross_reference,
+                    line_origins,
+                    include_path
                 )
             self._diagnostics.info("Assembly complete.")
             return AssemblyResult( success=True, binary_image=binary_image, listing=listing)
@@ -133,27 +136,40 @@ class Assembler:
             return AssemblyResult(success=False)
 
 
-    def _parse(self, source: str) -> AssemblyNode:
+    def _parse( self, source: str, line_origins: Sequence[SourceOrigin] | None = None) -> AssemblyNode:
         """
         @brief Lex and parse assembler source, stopping at the first error.
+
+        @param source
+            Assembly source text.
+
+        @param line_origins
+            Original source locations for expanded source lines.
+
+        @return
+            Parsed assembly syntax tree.
         """
-        tokens = Lexer(source).tokenize()
+        tokens = Lexer(source, line_origins).tokenize()
         self._parser.set_tokens(tokens)
         return self._parser.parse()
 
 
-    def _parse_recovering(
-        self, source: str
-    ) -> tuple[AssemblyNode, tuple[LexerError | ParserError, ...]]:
+    def _parse_recovering( self, source: str, line_origins: Sequence[SourceOrigin] | None = None) -> tuple[AssemblyNode, tuple[LexerError | ParserError, ...]]:
         """
         @brief Lex and parse source, recovering at source-line boundaries.
-
         Parsing is skipped when lexical errors are present because the token
         stream may be incomplete.
+        @param source
+            Assembly source text.
+        @param line_origins
+            Original source locations for expanded source lines.
+        @return
+            Parsed assembly and any syntax errors.
         """
-        tokens, lexer_errors = Lexer(source).tokenize_recovering()
+        tokens, lexer_errors = Lexer(source, line_origins).tokenize_recovering()
         if lexer_errors:
             return AssemblyNode(lines=()), lexer_errors
         self._parser.set_tokens(tokens)
         assembly, parser_errors = self._parser.parse_recovering()
         return assembly, parser_errors
+

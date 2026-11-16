@@ -44,6 +44,7 @@ from PyQt6.QtWidgets import (
 
 from assembler.assembler import Assembler
 from assembler.classicparser import ClassicParser
+from assembler.includeprocessor import IncludeError, IncludeProcessor
 from assembler.options import AssemblyOptions
 from assembler.target import Target
 from assembler.target_selector import TargetSelectionError, TargetSelector
@@ -194,6 +195,28 @@ class Chip8Controller:
         @brief Current assembler listing output file.
         """
         return self._assembler_listing_file
+
+
+    @property
+    def assembler_include_path(self) -> str:
+        """
+        @brief Configured assembler include directory.
+
+        @return
+            Configured include directory.
+        """
+        return self._configuration.assembler_include_path
+
+
+    @assembler_include_path.setter
+    def assembler_include_path(self, path: str) -> None:
+        """
+        @brief Set the assembler include directory.
+
+        @param path
+            Include directory.
+        """
+        self._configuration.assembler_include_path = path
 
 
     @property
@@ -494,16 +517,12 @@ class Chip8Controller:
     def assemble_source( self, source: str, target: Target | None, options: AssemblyOptions) -> bool:
         """
         @brief Assemble source code and write the requested output files.
-
         @param source
             Assembly source text.
-
         @param target
             Target architecture.
-
         @param options
             Assembler output options.
-
         @return
             True if assembly succeeded.
         """
@@ -511,8 +530,21 @@ class Chip8Controller:
         diagnostics = self._assembler_diagnostics.reporter()
         if not self.ensure_assembler_source_file(source):
             return False
+        expanded_source = source
+        line_origins = None
+        if IncludeProcessor.has_include_directives(source):
+            if self._assembler_source_file is None:
+                diagnostics.error( "Unable to resolve INCLUDE directive without a source file.")
+                return False
+            try:
+                expanded = IncludeProcessor( self._configuration.assembler_include_path).expand(source, self._assembler_source_file)
+            except IncludeError as error:
+                diagnostics.error(str(error))
+                return False
+            expanded_source = expanded.source
+            line_origins = expanded.line_origins
         try:
-            selection = self._target_selector.select(source, target)
+            selection = self._target_selector.select( expanded_source, target, line_origins)
         except TargetSelectionError as error:
             diagnostics.error(str(error))
             return False
@@ -522,7 +554,7 @@ class Chip8Controller:
             diagnostics.error(str(error))
             return False
         self._main_window.assembler_dialog.set_assembler(self._assembler)
-        result = self._assembler.assemble(source, options)
+        result = self._assembler.assemble( expanded_source, options, line_origins, self._configuration.assembler_include_path)
         if not result.success:
             return False
         if result.binary_image:
@@ -532,7 +564,7 @@ class Chip8Controller:
             try:
                 self._assembler_rom_file.write_bytes(result.binary_image)
             except OSError as error:
-                diagnostics.error( f"Unable to save assembler ROM '{self._assembler_rom_file.name}': {error}")
+                diagnostics.error( f"Unable to save assembler ROM " f"'{self._assembler_rom_file.name}': {error}")
                 return False
             diagnostics.info( f"ROM file '{self._assembler_rom_file.name}' saved.")
         if result.listing is not None:
@@ -542,9 +574,10 @@ class Chip8Controller:
             try:
                 self._assembler_listing_file.write_text( result.listing, encoding="utf-8")
             except OSError as error:
-                diagnostics.error( f"Unable to save assembler listing '{self._assembler_listing_file.name}': {error}")
+                diagnostics.error( f"Unable to save assembler listing " f"'{self._assembler_listing_file.name}': {error}")
                 return False
             diagnostics.info( f"Listing file '{self._assembler_listing_file.name}' saved.")
+
         return True
 
 

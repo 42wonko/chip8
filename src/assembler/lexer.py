@@ -6,6 +6,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from assembler.includeprocessor import SourceOrigin
 from assembler.token import SourceLocation, Token, TokenType
 
 
@@ -23,14 +26,17 @@ class Lexer:
     @brief Converts assembler source text into lexical tokens.
     """
 
-    def __init__(self, source: str) -> None:
+    def __init__( self, source: str, line_origins: Sequence[SourceOrigin] | None = None) -> None:
         """
         @brief Initialize the lexer.
 
         @param source
             Assembly source code.
+        @param line_origins
+            Original source locations for expanded source lines.
         """
         self._source = source
+        self._line_origins = line_origins
         self._position = 0
         self._line = 1
         self._column = 1
@@ -123,13 +129,10 @@ class Lexer:
                 self._skip_to_next_line()
 
         tokens.append(
-            Token(
-                type=TokenType.END_OF_FILE,
-                value="",
-                location=SourceLocation(line=self._line, column=self._column),
-            )
+            Token( type=TokenType.END_OF_FILE, value="", location=self._location())
         )
         return tokens, errors
+
 
 
     def _skip_to_next_line(self) -> None:
@@ -342,7 +345,22 @@ class Lexer:
         @return
             Current source location.
         """
-        return SourceLocation( line=self._line, column=self._column)
+        source_origin = self._source_origin(self._line)
+        return SourceLocation(
+            line=self._line,
+            column=self._column,
+            source_file=source_origin.filename if source_origin is not None else None,
+            source_line=source_origin.line if source_origin is not None else None
+        )
+
+
+    def _source_origin(self, line: int) -> SourceOrigin | None:
+        """Return the original source location for an expanded-source line."""
+        if not self._line_origins:
+            return None
+        if line <= len(self._line_origins):
+            return self._line_origins[line - 1]
+        return self._line_origins[-1]
 
 
     def _current(self) -> str:
