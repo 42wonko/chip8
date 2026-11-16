@@ -20,7 +20,7 @@ The assembler is intended to support multiple CHIP-8 architectures while present
 
 ## Current Implementation Status
 
-The current implementation has one supported assembler target: `COSMAC`. Target selection is performed by `TargetSelector` in the Controller before the `Assembler` is created.
+The current implementation has one supported assembler target: `COSMAC`. Target selection is performed by `TargetSelector` in the Controller before the `Assembler` is created. The Controller performs architecture-independent INCLUDE preprocessing before target selection and assembler construction. Recursive includes are expanded in source order, and the expanded lines retain their original file and line provenance. The assembler and architecture-specific parsers do not perform file I/O or INCLUDE processing.
 
 The lexer and parser are hand-written. `Parser` contains common grammar machinery, and `ClassicParser` specializes instruction-mnemonic recognition for the Classic target. The Controller selects the target and supplies the matching ISA/parser pair to `Assembler`.
 
@@ -42,8 +42,9 @@ This directory contains the complete design documentation for the assembler subs
 | **ast.md** | Abstract Syntax Tree design |
 | **semantic_analysis.md** | Symbol table construction, expression evaluation, and semantic analysis |
 | **assembler_public_api.md** | Public interface between the assembler subsystem and the rest of the application |
+| **ADR-015** | Proposed decision for architecture-independent INCLUDE preprocessing and source provenance |
 
-The documents describe both the current implementation and proposed extensions. ADR-014 records the accepted parser direction. `architecture_definitions.md` is retained only as a historical, superseded proposal; it is not an implementation plan.
+The documents describe the current implementation and identify future work where applicable. ADR-014 records the accepted parser direction. ADR-015 records the architectural decision for INCLUDE preprocessing; its status remains Proposed pending formal acceptance. `architecture_definitions.md` is retained only as a historical, superseded proposal; it is not an implementation plan.
 
 ---
 
@@ -51,10 +52,13 @@ The documents describe both the current implementation and proposed extensions. 
 
 The assembler is intentionally designed as a sequence of well-defined phases.
 
-The effective assembler target must be known before the matching ISA and parser are constructed. `TargetSelector` performs target selection in the Controller before the `Assembler` is created.
+The Controller first expands source-level INCLUDE directives and retains source provenance. `TargetSelector` then validates the complete expanded source and determines the effective target before the matching ISA and parser are constructed. At most one TARGET declaration is permitted across the expanded source.
 
 ```text
-Source + External Target
+Main Source + IncludePath
+          │
+          ▼
+Controller / INCLUDE preprocessing
           │
           ▼
 Controller / TargetSelector

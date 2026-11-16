@@ -10,6 +10,8 @@
 
 ## 1. Purpose
 
+The INCLUDE path controls described in Section 4.1 are part of the implemented assembler workflow. The widget names refer to the controls in `assemblerdialog.ui`.
+
 This document describes the current integration of the CHIP-8 assembler into the
 existing emulator application.
 
@@ -51,9 +53,9 @@ is selected independently by the application's global configuration.
 
 ---
 
-## 3. Current Assembly Flow
+## 3. Assembly Flow (Extended for INCLUDE)
 
-The current Controller workflow is:
+The Controller workflow, including the implemented INCLUDE preprocessing stage, is as follows:
 
 ```text
 Assembler GUI
@@ -64,7 +66,9 @@ Chip8Controller.assemble_source()
       │
       ├── clear assembler diagnostics
       ├── ensure/save source file
-      ├── TargetSelector.select(source, external_target)
+      ├── expand INCLUDE directives using EmulatorConfiguration.assembler_include_path
+      ├── preserve original source locations
+      ├── TargetSelector validates/selects from expanded source
       │
       │       ┌───────────────────────────────┐
       │       │ source TARGET takes precedence│
@@ -104,7 +108,7 @@ The rules are:
 | Contains one valid `TARGET` directive | Any | Source target is selected |
 | No `TARGET` directive | Valid external target | External target is selected |
 | No `TARGET` directive | `None` | Assembly is rejected with a target-selection diagnostic |
-| Multiple `TARGET` directives | Any | Assembly is rejected |
+| Multiple `TARGET` directives in the main or included files | Any | Assembly is rejected, even if the target names are identical |
 | Unknown target name | Any | Assembly is rejected |
 
 A selected assembler target determines which ISA and architecture-specific parser are constructed and supplied to the `Assembler`. The parser and assembler share the same ISA instance.
@@ -113,6 +117,22 @@ This target selection **does not change the ISA of `Chip8Machine`**. Emulator ma
 architecture is selected independently by the application's machine configuration.
 
 ---
+
+## 4.1 INCLUDE Path Configuration
+
+The assembler dialog provides an INCLUDE configuration group containing:
+
+- `asmIncludeGroupBox` — the group for include-path settings;
+- `asmIncludesLineEdit` — the configured include directory;
+- `asmIncludesPushButton` — opens a directory-selection dialog.
+
+The browse action uses `QFileDialog.getExistingDirectory()`. Cancelling the dialog leaves the current line-edit value unchanged.
+
+The value is stored in `EmulatorConfiguration.assembler_include_path` and persisted under `assembler/include_path`. The setting is application configuration, not transient dialog state.
+
+An absolute filename in an INCLUDE directive is used directly. For relative filenames, an absolute configured path is used directly as the include root, while a relative configured path is resolved relative to the main assembly source file's directory. An empty setting resolves each relative filename against the directory of the file containing that directive. A non-empty configured path is authoritative for nested includes; no fallback to the including file's directory occurs.
+
+
 
 ## 5. Source and File Ownership
 
@@ -158,7 +178,7 @@ implementation.
 Assembler diagnostics use a dedicated `AssemblerDiagnosticsReporter` and remain separate
 from ordinary application diagnostics.
 
-Assembler diagnostics include source locations where applicable. The Controller passes
+Assembler diagnostics retain expanded-source line/column information and, when source preprocessing supplied it, the original filename and physical line. The Controller passes
 the resulting `AssemblyResult.diagnostics` to the assembler dialog.
 
 The assembler dialog displays diagnostic messages and supports navigation to the source

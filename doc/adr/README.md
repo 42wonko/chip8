@@ -48,6 +48,10 @@ The title may evolve for clarity.
 - Superseded
 - Deprecated
 
-## Current decisions
+## Accepted decisions
 
 - **ADR-014** — Use Inherited Architecture-Specific Parsers (supersedes ADR-010 and the parser-framework/language-definition portions of ADR-013).
+
+## Proposed decisions
+
+- **ADR-015** — Expand Included Assembly Sources Before Target Selection (proposed; records architecture-independent INCLUDE expansion, path resolution, source provenance, and the single-TARGET rule across expanded source).

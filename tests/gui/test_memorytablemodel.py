@@ -7,10 +7,11 @@
 from __future__ import annotations
 
 import unittest
-
-from PyQt6.QtWidgets import QApplication
 from unittest.mock import Mock
+
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
+
 from emulator.chip8memory import Chip8Memory
 from gui.memorytablemodel import MemoryTableModel
 

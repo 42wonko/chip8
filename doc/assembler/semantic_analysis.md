@@ -14,8 +14,9 @@ This document describes the intended semantic-analysis responsibilities. The cur
 - Forward label references are supported because labels are collected before instruction resolution.
 - Forward `EQU` references are not currently supported: an `EQU` expression must resolve using symbols already defined when that `EQU` is processed.
 - `ORG`, `DB`, `DW`, and `EQU` are implemented. `DW` operands are validated after symbol collection so they can refer to forward labels; each value must be in the range `0x0000` through `0xFFFF`.
-- `TARGET` syntax is validated by semantic analysis, but target selection itself is performed by `TargetSelector` in the Controller before the assembler is invoked.
-- `SourceLocation` currently contains line and column only; filename information described elsewhere in the documentation is not currently represented by the assembler diagnostic location.
+- Target discovery and validation are performed by `TargetSelector` in the Controller before the assembler is invoked. The complete expanded source may contain at most one `TARGET` declaration; a second declaration is an error even if it names the same target.
+- INCLUDE expansion is performed by Controller-side preprocessing before target discovery and is independent of the selected architecture.
+- `SourceLocation` contains the expanded-source line and column and optional original filename and physical line. The Controller's include processor also supplies a per-expanded-line `SourceOrigin` mapping used during target discovery and listing generation.
 - The current implementation performs address accounting and semantic validation before code generation; code generation remains responsible for emitting bytes.
 
 These notes identify implementation status and do not redefine the intended language or future architecture.
@@ -252,7 +253,7 @@ DW
 requires a label and at least one numeric expression. Each expression must resolve to an unsigned 16-bit value (`0x0000` through `0xFFFF`). Each value occupies two bytes in big-endian order, so address assignment advances by two bytes per operand. DW values are checked after symbol collection to permit forward label references.
 ```
 
-The `TARGET` declaration is not semantically validated here. Target discovery has already determined the effective architecture before parsing begins. Unknown or conflicting target declarations are reported by the target-discovery phase.
+The `TARGET` declaration is not semantically validated here. Target discovery has already determined the effective architecture before parsing begins. Unknown target names and multiple TARGET declarations are reported by the target-discovery phase. The single-declaration rule applies to the complete expanded source, including all included files.
 
 ---
 
@@ -370,7 +371,7 @@ Typical diagnostics include
 - invalid directive argument,
 - invalid operand value.
 
-Every assembler diagnostic currently contains a source location with line and column, plus its severity, source/category information, and descriptive message. `SourceLocation` does not currently contain a filename.
+Every assembler diagnostic contains a source location with expanded-source line and column, plus its severity, source/category information, and descriptive message. When INCLUDE preprocessing supplied provenance, the location also carries the original filename and physical line. This allows diagnostics from nested included files to identify their actual source while preserving expanded-source coordinates for downstream processing.
 
 ---
 
@@ -395,7 +396,6 @@ The semantic analysis framework should be designed to accommodate future languag
 - local labels,
 - namespaces,
 - conditional assembly,
-- include files,
 - expression functions.
 
 These features should integrate into the existing semantic analysis pipeline without changing the parser.

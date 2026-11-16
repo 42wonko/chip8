@@ -227,6 +227,26 @@ Known language/architecture work still documented elsewhere:
 
 ---
 
+### CHIP-8 Assembler — INCLUDE Directive
+
+- [x] Review and formally accept ADR-015 — architecture-independent INCLUDE preprocessing
+- [x] Update SRDS Chapter 7 for INCLUDE processing and source provenance
+- [x] Implement recursive INCLUDE expansion before target selection
+- [x] Implement absolute, relative, and empty IncludePath resolution rules
+- [x] Detect malformed INCLUDE directives, missing/unreadable files, and circular inclusion
+- [x] Preserve expanded-source line numbers and original filenames/physical line numbers
+- [x] Enforce exactly one TARGET declaration across the complete expanded source
+- [x] Persist `EmulatorConfiguration.assembler_include_path` as `assembler/include_path`
+- [x] Integrate assembler dialog include-path widgets and directory browsing
+- [x] Add controller integration and regression tests for the supported assembler target
+- [x] Update assembler grammar, design, GUI, semantic-analysis, public API, and development documentation
+- [x] Update listing INCLUDE-path header and source filename presentation
+- [x] Make cross-reference Name and Definition columns expand to fit their contents
+- [x] Group cross-reference locations by source file and list each filename once
+- [x] Perform documentation consistency review
+
+
+
 ## Project Status
 
 Core emulator:                ██████████ 100%

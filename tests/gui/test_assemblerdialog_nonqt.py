@@ -10,12 +10,10 @@ from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest.mock import Mock, patch
 
-from assembler.token import SourceLocation
-from controller.diagnostics import AssemblerDiagnostics
-
 from assembler.options import AssemblyOptions
 from assembler.target import Target
-
+from assembler.token import SourceLocation
+from controller.diagnostics import AssemblerDiagnostics
 
 SOURCE_FILE = Path(__file__).resolve().parents[2] / "src" / "gui" / "assemblerdialog.py"
 
@@ -45,6 +43,7 @@ def _load_assembler_dialog_without_qt() -> type:
     qt_gui.QTextCursor = Placeholder
     qt_widgets.QApplication = Placeholder
     qt_widgets.QDialog = QDialog
+    qt_widgets.QFileDialog = Placeholder
     qt_widgets.QListWidgetItem = Placeholder
     qt_widgets.QMessageBox = Placeholder
     qt_widgets.QWidget = Placeholder

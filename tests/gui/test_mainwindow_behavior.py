@@ -20,7 +20,6 @@ from PyQt6.QtWidgets import (
     QDialog,
     QListWidget,
     QMainWindow,
-    QMessageBox,
     QTableView,
 )
 

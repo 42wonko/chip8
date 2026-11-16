@@ -7,9 +7,13 @@ from __future__ import annotations
 import unittest
 from unittest.mock import Mock, call, patch
 
-from PyQt6.QtCore import Qt, QEvent, QModelIndex, QPoint
+from PyQt6.QtCore import QEvent, QModelIndex, QPoint, Qt
 from PyQt6.QtGui import QStandardItemModel
-from PyQt6.QtWidgets import QAbstractItemView, QApplication, QDialog, QListWidget, QTableView
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QDialog,
+)
 
 from gui.displaywidget import DisplayWidget
 from gui.mainwindow import MainWindow

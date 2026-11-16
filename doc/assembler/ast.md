@@ -20,10 +20,10 @@ The AST intentionally preserves the structure of the source program without perf
 
 The AST has the following objectives.
 
-- Represent every syntactically valid program.
+- Represent every syntactically valid expanded program.
 - Be independent of the parser implementation.
 - Be independent of code generation.
-- Preserve complete source location information.
+- Preserve expanded-source position and original source provenance.
 - Be easy to traverse.
 - Be easily extensible for future architectures.
 - Support detailed diagnostics.
@@ -33,13 +33,16 @@ The AST has the following objectives.
 # Position in the Compilation Pipeline
 
 ```
-Assembly Source
+Main Assembly Source
      │
      ▼
-Target Discovery
+Controller INCLUDE Preprocessing
      │
      ▼
-Effective Target
+Expanded Source + Source Provenance
+     │
+     ▼
+Target Discovery / Effective Target
      │
      ▼
 Lexer / Parser Hierarchy
@@ -73,6 +76,18 @@ It does **not** contain
 Those belong to later compilation stages.
 
 ---
+
+
+# Source Location and Included Files
+
+Every AST node retains its location in the expanded source stream and the location of the original source text. The source-location model distinguishes:
+
+- expanded-source line number, used to correlate statements with existing code-generation and listing records;
+- original source filename;
+- original physical source line number;
+- original source column.
+
+For statements originating in nested included files, the original filename and line identify the file that physically contains the statement. This information is carried from Controller-side preprocessing through tokenization and parsing. It allows diagnostics to point to included source without changing the expanded-source line numbering used downstream.
 
 # Root Node
 

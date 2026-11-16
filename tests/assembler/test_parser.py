@@ -16,7 +16,7 @@ from assembler.ast import (
     InstructionNode,
     LabelNode,
     LiteralExpression,
-    SourceLine
+    SourceLine,
 )
 from assembler.classicparser import ClassicParser
 from assembler.lexer import Lexer

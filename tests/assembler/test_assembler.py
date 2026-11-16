@@ -3,14 +3,16 @@
 
 @brief Unit tests for the assembler entry point.
 """
-
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from assembler.assembler import Assembler
 from assembler.ast import AssemblyNode
 from assembler.classicparser import ClassicParser
 from assembler.codegen import CodeGenerator
+from assembler.includeprocessor import IncludeProcessor
 from assembler.options import AssemblyOptions
 from assembler.parser import Parser
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
@@ -217,11 +219,8 @@ class TestAssembler(unittest.TestCase):
 
     def test_assemble_reports_progress(self) -> None:
         result = self._assembler.assemble("CLS")
-
         self.assertTrue(result.success)
-
         messages = [diagnostic.message for diagnostic in self._diagnostics]
-
         self.assertEqual(
             messages,
             [
@@ -344,7 +343,6 @@ class TestAssembler(unittest.TestCase):
             "CLS\n"
             "DT: EQU 42\n"
         )
-
         self.assertFalse(result.success)
         diagnostic = self._diagnostics[-1]
         self.assertEqual(
@@ -511,6 +509,29 @@ class TestAssembler(unittest.TestCase):
         assert diagnostic.location is not None
         self.assertEqual(diagnostic.location.line, 1)
         self.assertEqual(diagnostic.location.column, 12)
+
+    def test_parser_error_in_included_file_reports_original_location(self) -> None:
+        """
+        @brief Verify that parser errors in included files retain their
+        original source locations.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            main_file = root / "main.asm"
+            included_file = root / "parts" / "invalid.asm"
+            included_file.parent.mkdir()
+            included_file.write_text("LD V0,\n", encoding="utf-8")
+            expanded = IncludeProcessor().expand( 'INCLUDE "parts/invalid.asm"\n', main_file)
+            result = self._assembler.assemble( expanded.source, line_origins=expanded.line_origins)
+            self.assertFalse(result.success)
+            self.assertEqual(len(result.diagnostics), 1)
+            diagnostic = result.diagnostics[0]
+            self.assertIsNotNone(diagnostic.location)
+            assert diagnostic.location is not None
+            self.assertEqual(diagnostic.location.line, 1)
+            self.assertEqual(diagnostic.location.column, 7)
+            self.assertEqual( diagnostic.location.source_file, included_file.resolve())
+            self.assertEqual(diagnostic.location.source_line, 1)
 
     def test_forward_label_reference(self) -> None:
         """
@@ -853,6 +874,29 @@ class TestAssembler(unittest.TestCase):
         self.assertEqual(diagnostic.location.column, 1)
 
 
+    def test_db_range_error_included_file_reports_original_location(self) -> None:
+        """
+        @brief Verify that semantic errors in included files retain their
+        original source locations in the assembly result.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            main_file = root / "main.asm"
+            included_file = root / "parts" / "invalid.asm"
+            included_file.parent.mkdir()
+            included_file.write_text("DB 0x100\n", encoding="utf-8")
+            expanded = IncludeProcessor().expand( 'INCLUDE "parts/invalid.asm"\n', main_file)
+            result = self._assembler.assemble( expanded.source, line_origins=expanded.line_origins)
+            self.assertFalse(result.success)
+            self.assertEqual(len(result.diagnostics), 1)
+            diagnostic = result.diagnostics[0]
+            self.assertIsNotNone(diagnostic.location)
+            assert diagnostic.location is not None
+            self.assertEqual(diagnostic.location.line, 1)
+            self.assertEqual(diagnostic.location.source_file, included_file.resolve())
+            self.assertEqual(diagnostic.location.source_line, 1)
+
+
     def test_instruction_exceeding_address_space_is_reported_in_result( self,) -> None:
         """
         @brief Verify that an instruction address error reaches the result.
@@ -1034,6 +1078,31 @@ class TestAssembler(unittest.TestCase):
         self.assertEqual(successful_result.binary_image, b"\x00\xE0")
 
 
+    def test_parser_error_in_nested_include_reports_original_location(self) -> None:
+        """
+        @brief Verify that parser errors in nested included files retain their
+        original source locations.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            main_file = root / "main.asm"
+            first_include = root / "parts" / "first.asm"
+            nested_include = root / "parts" / "nested" / "invalid.asm"
+            first_include.parent.mkdir(parents=True)
+            nested_include.parent.mkdir(parents=True)
+            first_include.write_text( 'INCLUDE "nested/invalid.asm"\n', encoding="utf-8")
+            nested_include.write_text("LD V0,\n", encoding="utf-8")
+            expanded = IncludeProcessor().expand( 'INCLUDE "parts/first.asm"\n', main_file)
+            result = self._assembler.assemble( expanded.source, line_origins=expanded.line_origins)
+            self.assertFalse(result.success)
+            self.assertEqual(len(result.diagnostics), 1)
+            diagnostic = result.diagnostics[0]
+            self.assertIsNotNone(diagnostic.location)
+            assert diagnostic.location is not None
+            self.assertEqual(diagnostic.location.line, 1)
+            self.assertEqual(diagnostic.location.column, 7)
+            self.assertEqual( diagnostic.location.source_file, nested_include.resolve())
+            self.assertEqual(diagnostic.location.source_line, 1)
 
 if __name__ == "__main__":
     unittest.main()

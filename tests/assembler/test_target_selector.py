@@ -3,7 +3,6 @@
 
 @brief Unit tests for assembler target selection.
 """
-
 import unittest
 
 from assembler.target import Target

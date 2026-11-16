@@ -40,9 +40,10 @@ class TestAssemblerDialog(unittest.TestCase):
 
 
     def setUp(self) -> None:
-        self.controller = Mock(spec=Chip8Controller)
-        self.controller.assembler_source_file = None
-        self.dialog = AssemblerDialog(self.controller)
+        self.controller                         = Mock(spec=Chip8Controller)
+        self.controller.assembler_source_file   = None
+        self.controller.assembler_include_path  = ""
+        self.dialog                             = AssemblerDialog(self.controller)
 
 
     def tearDown(self) -> None:
@@ -524,19 +525,11 @@ class TestAssemblerDialog(unittest.TestCase):
             (self.dialog.asmDiagnosticsListWidget, QEvent(QEvent.Type.KeyPress)),
             (
                 self.dialog.asmDiagnosticsListWidget,
-                QKeyEvent(
-                    QEvent.Type.KeyPress,
-                    Qt.Key.Key_A,
-                    Qt.KeyboardModifier.ControlModifier
-                )
+                QKeyEvent( QEvent.Type.KeyPress, Qt.Key.Key_A, Qt.KeyboardModifier.ControlModifier)
             ),
             (
                 self.dialog.asmDiagnosticsListWidget,
-                QKeyEvent(
-                    QEvent.Type.KeyPress,
-                    Qt.Key.Key_C,
-                    Qt.KeyboardModifier.NoModifier
-                )
+                QKeyEvent( QEvent.Type.KeyPress, Qt.Key.Key_C, Qt.KeyboardModifier.NoModifier)
             )
         ]
 
@@ -561,4 +554,106 @@ class TestAssemblerDialog(unittest.TestCase):
         """
         event = QEvent(QEvent.Type.FocusIn)
         self.assertFalse( self.dialog.eventFilter( self.dialog.asmDiagnosticsListWidget, event))
+
+    def test_include_path_is_initialized_from_controller(self) -> None:
+        """
+        @brief Verify that the include path is initialized from the controller.
+        """
+        self.controller.assembler_include_path = "/tmp/includes"
+        dialog = AssemblerDialog(self.controller)
+
+        self.assertEqual(dialog.asmIncludesLineEdit.text(), "/tmp/includes")
+
+        dialog.close()
+        dialog.deleteLater()
+
+
+    def test_include_path_edit_updates_controller(self) -> None:
+        """
+        @brief Verify that editing the include path updates the controller.
+        """
+        self.dialog.asmIncludesLineEdit.setText("/tmp/new_includes")
+
+        self.assertEqual(
+            self.controller.assembler_include_path,
+            "/tmp/new_includes"
+        )
+
+
+    @patch("gui.assemblerdialog.QFileDialog.getExistingDirectory")
+    def test_browse_include_path_updates_controller(self, browse: Mock) -> None:
+        """
+        @brief Verify that selecting a directory updates the include path.
+
+        @param browse
+            Mocked directory selection dialog.
+        """
+        browse.return_value = "/tmp/selected_includes"
+        self.dialog._browse_include_path()
+        browse.assert_called_once()
+        self.assertEqual( self.dialog.asmIncludesLineEdit.text(), "/tmp/selected_includes")
+        self.assertEqual( self.controller.assembler_include_path, "/tmp/selected_includes")
+
+
+    @patch("gui.assemblerdialog.QFileDialog.getExistingDirectory")
+    def test_browse_include_path_cancel_preserves_current_path(self, browse: Mock) -> None:
+        """
+        @brief Verify that cancelling directory selection preserves the path.
+
+        @param browse
+            Mocked directory selection dialog.
+        """
+        self.dialog.asmIncludesLineEdit.setText("/tmp/current_includes")
+        browse.return_value = ""
+        self.dialog._browse_include_path()
+        self.assertEqual( self.dialog.asmIncludesLineEdit.text(), "/tmp/current_includes")
+        self.assertEqual( self.controller.assembler_include_path, "/tmp/current_includes")
+
+
+    def test_display_diagnostic_uses_original_include_location(self) -> None:
+        """
+        @brief Verify that diagnostics from included files display their
+        original filename, line and column.
+        """
+        diagnostics = AssemblerDiagnostics()
+        source_file = Path("/project/includes/sprites.asm")
+        diagnostics.reporter().error(
+            "Invalid instruction.",
+            SourceLocation(
+                line=15,
+                column=4,
+                source_file=source_file,
+                source_line=3
+            )
+        )
+
+        self.dialog.set_diagnostics(diagnostics)
+        self.dialog._display_diagnostics()
+
+        self.assertEqual(self.dialog.asmDiagnosticsListWidget.count(), 1)
+        self.assertEqual(
+            self.dialog.asmDiagnosticsListWidget.item(0).text(),
+            "ERR  /project/includes/sprites.asm:3:4: Invalid instruction."
+        )
+
+    def test_activating_include_diagnostic_does_not_navigate_main_source(self) -> None:
+        """
+        @brief Verify that an included-file diagnostic does not navigate
+        to an unrelated line in the main source editor.
+        """
+        diagnostics = AssemblerDiagnostics()
+        diagnostics.reporter().error(
+            "Invalid instruction.",
+            SourceLocation(
+                line=15,
+                column=4,
+                source_file=Path("/project/includes/sprites.asm"),
+                source_line=3
+            )
+        )
+        self.dialog.set_diagnostics(diagnostics)
+        self.dialog._display_diagnostics()
+        item = self.dialog.asmDiagnosticsListWidget.item(0)
+        self.dialog._diagnostic_activated(item)
+        self.assertFalse(self.dialog.asmSourceCodeTextEdit.hasFocus())
 

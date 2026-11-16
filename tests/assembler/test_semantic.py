@@ -4,8 +4,8 @@
 @brief Tests for assembler semantic expression evaluation.
 """
 
-from typing import cast
 import unittest
+from typing import cast
 
 from assembler.ast import (
     AssemblyNode,

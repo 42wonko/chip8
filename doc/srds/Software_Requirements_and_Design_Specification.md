@@ -6,7 +6,7 @@
 
 **Document ID:** SRDS-CHIP8
 
-**Version:** 1.0 (Draft)
+**Version:** 1.1 (Draft)
 
 **Status:** Draft
 
@@ -42,6 +42,7 @@ defined herein.
 |----------|------------|--------|-------------|
 | 0.1 | 2026-07-01 | Michael Dlubatz | Initial document structure |
 | 1.0 | TBD | Michael Dlubatz | Initial approved specification |
+| 1.1 | 2026-11-05 | Michael Dlubatz | Proposed requirements and design for architecture-independent INCLUDE processing; associated with proposed ADR-015 |
 
 <div style="page-break-after: always;"></div>
 
@@ -135,6 +136,7 @@ The following references are informative.
 | Python Documentation | Python Language Reference |
 | PyQt6 Documentation | Qt for Python Documentation |
 | NumPy Documentation | NumPy Reference Manual |
+| ADR-015 | Proposed architecture-independent INCLUDE preprocessing decision |
 
 Where multiple references disagree, this SRDS shall take precedence.
 
@@ -2186,10 +2188,10 @@ The initial implementation targets the original COSMAC CHIP-8 architecture. The 
 
 ## 7.2 Responsibilities
 
-The assembler subsystem shall provide the following functionality.
+The assembler subsystem and its Controller integration shall provide the following functionality.
 
-- Target discovery
-- Target selection
+- Controller-owned source preprocessing and recursive INCLUDE expansion
+- Target discovery and target selection across the expanded source
 - Lexical analysis
 - Syntax analysis
 - Semantic analysis
@@ -2205,15 +2207,22 @@ The assembler shall be implemented as a reusable software component. It shall no
 
 ## 7.3 Overall Architecture
 
-The assembler follows a sequence of distinct processing stages. The Controller determines the effective assembler target before constructing the assembler. A source `TARGET` declaration takes precedence over an externally supplied target; without a source declaration, the external target is used.
+The assembler follows a sequence of distinct processing stages. The Controller first expands source-level INCLUDE directives and preserves the origin of every expanded line. Target discovery then examines the complete expanded source. Exactly one source `TARGET` declaration is permitted; a second declaration is an error even if it names the same target. A single source declaration takes precedence over an externally supplied target; without a source declaration, the existing external-target selection behaviour applies.
 
-The selected target determines both the ISA and the concrete parser supplied to the `Assembler`. The parser and assembler share the same ISA instance. This target-specific assembler pair is independent of the ISA configured on `Chip8Machine`.
+The selected target determines both the ISA and the concrete parser supplied to the `Assembler`. The parser and assembler share the same ISA instance. This target-specific assembler pair is independent of the ISA configured on `Chip8Machine`. Source preprocessing and target discovery are architecture-independent and occur before construction of the target-specific assembler.
 
 ```text
-                    Assembly Source
+                    Main Assembly Source
                            │
                            ▼
-                   TargetSelector
+                  Controller Preprocessing
+                           │
+                  Recursive INCLUDE expansion
+                  and source-origin mapping
+                           │
+                           ▼
+                 TargetSelector / validation
+                 (at most one TARGET declaration)
                            │
                            ▼
                      Effective Target
@@ -2265,7 +2274,7 @@ Chip8Controller
     └── Assembler
 ```
 
-The controller coordinates interactions between the graphical user interface, the emulator and the assembler.
+The controller coordinates interactions between the graphical user interface, the emulator and the assembler. It also owns the main assembly source-file association, the configured include path, recursive INCLUDE expansion, and target discovery. The assembler itself shall not open source files.
 
 The assembler shall not directly communicate with the emulator. Both subsystems remain independent and interact only through the controller.
 
@@ -2275,16 +2284,47 @@ The assembler shall not directly communicate with the emulator. Both subsystems 
 
 Assembly is performed in the following phases:
 
-1. Target selection in the Controller.
-2. Construction of the matching ISA and concrete parser.
-3. Lexical analysis.
-4. Parsing and AST construction.
-5. Semantic analysis.
-6. Code generation and optional listing generation.
+1. Identify and save the main source file in the Controller.
+2. Expand INCLUDE directives recursively and build source-origin mapping.
+3. Discover and validate TARGET declarations across the complete expanded source.
+4. Select the effective target.
+5. Construct the matching ISA and concrete parser.
+6. Perform lexical analysis.
+7. Parse and construct the AST.
+8. Perform semantic analysis.
+9. Generate code and optional listing output.
 
-The Controller uses `TargetSelector` to determine the effective target before creating the assembler. The assembler receives the selected ISA and parser through dependency injection. The source `TARGET` declaration, when present, takes precedence over the externally supplied target.
+The Controller performs source preprocessing and uses `TargetSelector` to determine the effective target before creating the assembler. Exactly one source `TARGET` declaration is permitted across the expanded source. If none is present, the existing external-target selection behaviour applies. The assembler receives the selected ISA and parser through dependency injection.
 
-Each phase shall have a clear responsibility and shall not take over work belonging to another phase.
+Each phase shall have a clear responsibility and shall not take over work belonging to another phase. INCLUDE processing shall not be implemented in architecture-specific parsers or in `Assembler`.
+
+## 7.5.1 Source Inclusion
+
+The Controller shall support the source-level directive:
+
+```asm
+INCLUDE "graphics/sprites.asm"
+```
+
+The filename shall be enclosed in double quotes, and the directive shall occupy its own source line. INCLUDE may appear wherever a source-level directive may appear. The contents of the referenced file shall replace the INCLUDE directive at that position. Included files may contain further INCLUDE directives, which shall be expanded recursively while preserving source order.
+
+The Controller shall resolve include paths as follows:
+
+- An absolute filename in an INCLUDE directive shall be used directly, regardless of the configured include path.
+- If the configured `IncludePath` is absolute, it shall be used as the include root for relative filenames.
+- If `IncludePath` is relative, it shall be resolved relative to the directory containing the main assembly source file.
+- If `IncludePath` is empty, each relative included filename shall be resolved relative to the directory containing the file with the corresponding INCLUDE directive.
+- When `IncludePath` is non-empty, all relative include filenames, including those in nested files, shall be resolved against that configured include root. The implementation shall not fall back to the including file's directory.
+
+A missing include file, malformed INCLUDE directive, or circular inclusion shall produce an assembly diagnostic and prevent successful assembly. The diagnostic shall identify the originating source location and, for recursive inclusion errors, provide sufficient information to identify the inclusion chain.
+
+Target discovery shall inspect the complete expanded source. At most one `TARGET` declaration is permitted across the main source and all included files. Any second declaration shall be reported as an error, even if it names the same target as the first declaration. The diagnostic shall identify both original declaration locations.
+
+The `IncludePath` setting shall be stored in `EmulatorConfiguration` and persisted using the settings key `assembler/include_path`. The assembler dialog shall provide a directory field and a browse control for this setting.
+
+The proposed architectural decision is recorded in ADR-015. ADR-015 remains Proposed until formally accepted.
+
+---
 
 ## 7.6 Lexical Analysis
 
@@ -2343,7 +2383,10 @@ The AST represents the complete source program independently of machine code gen
 
 Each AST node shall preserve
 
-- source location
+- expanded-source line number
+- original source filename
+- original source line number
+- source column
 - labels
 - directives
 - mnemonics
@@ -2400,10 +2443,12 @@ All compilation stages shall report diagnostics through the existing diagnostics
 Each diagnostic shall contain
 
 - severity
-- source file
-- source line
+- originating source file
+- original source line
 - source column
 - descriptive message
+
+For expanded source, the implementation shall retain the expanded-source line number separately where required by code generation and listing generation. User-facing diagnostics shall identify the original file and line containing the source construct, including constructs originating in nested included files.
 
 Compilation should continue after recoverable errors whenever practical to maximise the number of diagnostics presented to the user. For parser errors, this means continuing within the parsing stage at statement boundaries to collect further parser diagnostics; it does not mean passing a syntax-invalid partial AST to semantic analysis or code generation.
 
@@ -2411,7 +2456,7 @@ Compilation should continue after recoverable errors whenever practical to maxim
 
 ## 7.13 Summary
 
-The assembler separates target selection, lexical analysis, parsing, semantic analysis, and code generation. The Controller selects the target and constructs a matching ISA/parser pair. The shared parser provides common grammar machinery, and the concrete parser recognizes target-specific instruction mnemonics through the ISA interface.
+The assembler separates source preprocessing, target selection, lexical analysis, parsing, semantic analysis, and code generation. The Controller expands INCLUDE directives, preserves source provenance, validates the single-TARGET rule across expanded source, selects the target, and constructs a matching ISA/parser pair. The shared parser provides common grammar machinery, and the concrete parser recognizes target-specific instruction mnemonics through the ISA interface.
 
 Semantic analysis validates operand signatures and types, resolves symbols, evaluates expressions, and checks ranges. The assembler's target and dependencies remain independent of the ISA configured on `Chip8Machine`. ADR-014 records this accepted design and supersedes ADR-010; the older ADR remains unchanged.
 

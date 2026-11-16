@@ -5,8 +5,10 @@
 """
 
 import unittest
+from pathlib import Path
 
 from assembler.codegen import CodeGenerationRecord
+from assembler.includeprocessor import SourceOrigin
 from assembler.listing import ListingGenerator
 from assembler.semantic import Reference
 from assembler.symbol import SymbolTable
@@ -257,4 +259,172 @@ class ListingGeneratorTest(unittest.TestCase):
         self.assertIn( "V3            Resource    read_write    --          2, 3", listing)
         self.assertIn( "V2            Resource    read          --          2, 3", listing)
         self.assertIn( "VF            Resource    write         --          2, 3", listing)
+
+
+    def test_listing_displays_original_source_locations(self) -> None:
+        """
+        @brief Verify that every expanded source line displays its
+        original filename and line number.
+        """
+        source = (
+            "ORG 0x200\n"
+            "Sprite: DB 0xFF\n"
+            "CLS\n"
+        )
+        origins = (
+            SourceOrigin(Path("main.asm"), 1),
+            SourceOrigin(Path("sprites.asm"), 4),
+            SourceOrigin(Path("main.asm"), 3)
+        )
+        records = ( CodeGenerationRecord(line=3, address=0x0200, data=b"\x00\xE0"),)
+        listing = self._generator.generate(
+            source,
+            records,
+            SymbolTable(),
+            (),
+            False,
+            origins
+        )
+        lines = listing.splitlines()
+        self.assertIn("main.asm:1", lines[0])
+        self.assertIn("sprites.asm:4", lines[1])
+        self.assertIn("main.asm:3", lines[2])
+        self.assertIn("CLS", lines[2])
+
+    def test_cross_reference_uses_original_source_locations(self) -> None:
+        """
+        @brief Verify that symbol and resource references use their
+        original source locations in the cross-reference.
+        """
+        source = (
+            "Start: CLS\n"
+            "JP Start\n"
+        )
+        symbols = SymbolTable()
+        symbols.define(
+            "Start",
+            0x0200,
+            SourceLocation(
+                line=1,
+                column=1,
+                source_file=Path("sprites.asm"),
+                source_line=4
+            )
+        )
+        symbols.add_reference(
+            "Start",
+            SourceLocation(
+                line=2,
+                column=4,
+                source_file=Path("main.asm"),
+                source_line=8
+            )
+        )
+        references = (
+            Reference(
+                name="V2",
+                access=ReferenceAccess.READ,
+                location=SourceLocation(
+                    line=2,
+                    column=4,
+                    source_file=Path("sprites.asm"),
+                    source_line=5
+                )
+            ),
+        )
+        listing = self._generator.generate(
+            source,
+            (),
+            symbols,
+            references,
+            True
+        )
+        self.assertIn( "sprites.asm:4", listing)
+        self.assertIn( "main.asm:8", listing)
+        self.assertIn( "sprites.asm:5", listing)
+
+
+    def test_listing_displays_configured_include_path_and_filename_only(self) -> None:
+        """Verify configured INCLUDE path is shown once and filenames are shortened."""
+        source = "CLS\nDB 0xFF\n"
+        origins = (
+            SourceOrigin(Path("/project/source/main.asm"), 1),
+            SourceOrigin(Path("/project/includes/sprites.asm"), 4)
+        )
+        records = (
+            CodeGenerationRecord(line=1, address=0x0200, data=b"\x00\xE0"),
+        )
+
+        listing = self._generator.generate(
+            source,
+            records,
+            SymbolTable(),
+            (),
+            False,
+            origins,
+            "/project/includes"
+        )
+
+        lines = listing.splitlines()
+        self.assertEqual(lines[0], "INCLUDE = /project/includes")
+        self.assertEqual(lines[2].split()[1], "main.asm:1")
+        self.assertEqual(lines[3].split()[1], "sprites.asm:4")
+        self.assertNotIn("/project/source/", listing)
+        self.assertNotIn("/project/includes/", listing)
+
+
+    def test_listing_infers_common_include_path(self) -> None:
+        """Verify the common parent directory is used when IncludePath is empty."""
+        source = "CLS\nDB 0xFF\n"
+        origins = (
+            SourceOrigin(Path("/project/main.asm"), 1),
+            SourceOrigin(Path("/project/includes/sprites.asm"), 4)
+        )
+
+        listing = self._generator.generate(
+            source,
+            (),
+            SymbolTable(),
+            (),
+            False,
+            origins
+        )
+
+        self.assertTrue(listing.startswith("INCLUDE = /project\n\n"))
+        self.assertIn("main.asm:1", listing)
+        self.assertIn("sprites.asm:4", listing)
+
+
+    def test_cross_reference_displays_filename_only(self) -> None:
+        """Verify cross-reference locations do not contain directory paths."""
+        symbols = SymbolTable()
+        symbols.define(
+            "Start",
+            0x0200,
+            SourceLocation(
+                line=1,
+                column=1,
+                source_file=Path("/project/includes/main.asm"),
+                source_line=3
+            )
+        )
+        symbols.add_reference(
+            "Start",
+            SourceLocation(
+                line=2,
+                column=4,
+                source_file=Path("/project/includes/other.asm"),
+                source_line=7
+            )
+        )
+        listing = self._generator.generate(
+            "Start: CLS\nJP Start\n",
+            (),
+            symbols,
+            (),
+            True
+        )
+        self.assertIn("main.asm:3", listing)
+        self.assertIn("other.asm:7", listing)
+        self.assertNotIn("/project/includes/", listing)
 

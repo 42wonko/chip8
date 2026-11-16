@@ -10,6 +10,8 @@
 
 ## 1. Purpose
 
+The INCLUDE preprocessing and source-provenance sections describe implemented behaviour. ADR-015 documents the architectural decision and remains Proposed pending formal acceptance.
+
 This document defines the overall architecture of the CHIP-8 assembler. The parser design in the original proposal is superseded by ADR-014; the current parser direction is a shared `Parser` base with concrete architecture-specific subclasses.
 
 The assembler is designed as an independent subsystem of the existing CHIP-8 emulator project while remaining suitable for later integration into the existing emulator and debugger GUI.
@@ -81,13 +83,19 @@ The assembler is integrated through the existing Controller architecture.
 
 ## 4. Overall Architecture
 
-The assembler is divided into the following major processing stages:
+The assembler is divided into the following major processing stages. The Controller performs architecture-independent source preprocessing before target discovery. INCLUDE expansion is therefore common to all assembler variants and does not belong to a concrete parser or to `Assembler`.
 
 ```text
-Assembly Source
+Main Assembly Source
       │
       ▼
-Target Discovery
+Controller: INCLUDE Expansion
+      │
+      ▼
+Expanded Source + Source Provenance
+      │
+      ▼
+Target Discovery and Validation
       │
       ▼
 Target Selection
@@ -160,11 +168,29 @@ The effective target is determined as follows:
                  Effective Target
 ```
 
-The source target takes precedence when present.
+The source target takes precedence when present. The complete expanded source may contain at most one `TARGET` declaration. A second declaration is an error even when it names the same target; the diagnostic identifies both original source locations. This is the existing single-declaration language rule applied to the complete expanded source, not a relaxation that permits repeated identical declarations.
 
 If neither a source target nor an external target is available, assembly cannot proceed.
 
 ---
+
+## 5.3 Source Preprocessing and INCLUDE Resolution
+
+The Controller owns source-file access and performs recursive INCLUDE expansion before target discovery. The accepted directive is `INCLUDE "filename"`, with the filename enclosed in double quotes and the directive occupying its own source line. The included text replaces the directive at its position. INCLUDE may appear wherever a source-level directive may appear, and included files may contain further INCLUDE directives.
+
+Resolution rules:
+
+- An absolute filename in an INCLUDE directive is used directly, regardless of the configured setting.
+- An absolute `assembler_include_path` is used as the include root for relative filenames.
+- A relative `assembler_include_path` is resolved relative to the main source file's directory.
+- An empty `assembler_include_path` resolves each relative include against the directory of the file containing that directive.
+- A non-empty configured path is authoritative for every relative include, including nested includes; there is no fallback to the including file's directory.
+
+Malformed directives, missing/unreadable files, and circular inclusion are errors. Circular inclusion is detected against the active resolved-path chain; repeated inclusion after a previous expansion has completed is allowed. The expansion result retains expanded-source line numbers and maps each line to its original filename and physical line. Tokens and diagnostics retain the original filename and line alongside their expanded-source line and column. The persistent setting is `EmulatorConfiguration.assembler_include_path`, stored under `assembler/include_path`.
+
+The source preprocessor is architecture-independent. It does not parse target-specific instructions and does not replace the lexer's or parser's responsibilities.
+
+
 
 ## 6. Architecture-Specific Parser and ISA
 
@@ -341,6 +367,15 @@ This mapping is useful for:
 
 Source mapping should therefore be treated as assembler metadata rather than as a GUI-specific feature.
 
+With INCLUDE expansion, source mapping shall distinguish two coordinate systems:
+
+- **Expanded-source line:** the line number in the flattened source stream. Existing code-generation records and listing generation may continue to use this line number.
+- **Original source location:** the filename, physical line number, and column in the file where the source text originated.
+
+The preprocessing result shall provide a mapping from each expanded source line to its original source location. Tokens and subsequent AST/diagnostic locations shall retain this provenance. For nested includes, the origin is the file containing the actual source line, not the file that first included it.
+
+The initial GUI may continue to show diagnostics for included files without automatically opening those files in a separate editor. The diagnostic text must nevertheless identify the correct filename and original line.
+
 ---
 
 ## 14. Code Generation
@@ -464,13 +499,12 @@ Listing generation is configurable.
 
 The listing generator uses:
 
-- AST information
-- source locations
-- generated addresses
-- machine-code bytes
-- symbol information
+- source text and generated code records;
+- original source locations when INCLUDE provenance is available;
+- generated addresses and machine-code bytes; and
+- symbol and architectural-resource references.
 
-The listing is an assembler output product and is not generated by the GUI.
+When provenance is available, listing source locations display the originating filename and physical line. The listing header displays the configured INCLUDE path, or an inferred common source directory when all mapped source filenames are absolute. Otherwise no INCLUDE header is emitted. The listing is an assembler output product and is not generated by the GUI.
 
 ---
 
@@ -495,12 +529,7 @@ LOOP         020A       line 10       lines 14, 17
 DRAW         0220       line 22       line 30
 ```
 
-Cross-reference information may be:
-
-- included in the listing
-- generated as a separate output product
-
-The implementation should support both possibilities without requiring the semantic-analysis subsystem to change.
+The current implementation appends cross-reference information to the listing when cross-reference generation is enabled. The Name and Definition column widths expand to fit their longest values while retaining minimum widths. References are grouped by source file: the filename is printed once, followed by the line numbers for that file. For example, `module.asm:18, 21, 24` represents three references in the same file. The current API does not generate a separate cross-reference file.
 
 ---
 

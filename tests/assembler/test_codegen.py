@@ -7,8 +7,13 @@
 import unittest
 from unittest.mock import Mock
 
-
-from assembler.ast import AssemblyNode, DirectiveNode, InstructionNode, LiteralExpression, SourceLine
+from assembler.ast import (
+    AssemblyNode,
+    DirectiveNode,
+    InstructionNode,
+    LiteralExpression,
+    SourceLine,
+)
 from assembler.codegen import CodeGenerator
 from assembler.semantic import SemanticAnalysisError
 from assembler.symbol import SymbolTable

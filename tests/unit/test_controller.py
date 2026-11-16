@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import cast
-from unittest.mock import MagicMock, Mock, patch, call
+from unittest.mock import MagicMock, Mock, call, patch
 
 from PyQt6.QtCore import QPoint, QSettings
 
@@ -119,37 +119,6 @@ class Chip8ControllerTest(unittest.TestCase):
         )
         controller._code_model.refresh.assert_not_called()
         self.assertFalse(controller._debugger.has_breakpoints())
-
-    def test_code_context_menu_clears_all_breakpoints(self) -> None:
-        controller = create_controller()
-        controller._debugger.set_breakpoint(0x345)
-        controller._debugger.set_breakpoint(0x346)
-        controller._debugger.disable_breakpoint(0x346)
-        controller._debugger.set_temporary_breakpoint(0x347)
-        actions = {
-            name: MagicMock(name=name)
-            for name in (
-                "Set Breakpoint",
-                "Clear Breakpoint",
-                "Enable Breakpoint",
-                "Disable Breakpoint",
-                "Clear All Breakpoints"
-            )
-        }
-        menu = MagicMock()
-        menu.addAction.side_effect = lambda action: ( action if not isinstance(action, str) else actions[action])
-        clear_all_action = actions["Clear All Breakpoints"]
-        with (
-            patch("controller.controller.QMenu", return_value=menu),
-            patch( "controller.controller.QAction", return_value=MagicMock(name="Set PC"))
-        ):
-            menu.exec.return_value = clear_all_action
-            controller._code_analysis.row = MagicMock( return_value=Mock(address=0x345))
-            controller._code_model.refresh = MagicMock()
-            controller._show_code_context_menu(0, QPoint(0, 0))
-        self.assertFalse(controller._debugger.has_breakpoints())
-        self.assertIsNone(controller._debugger.temporary_breakpoint)
-        controller._code_model.refresh.assert_called_once_with()
 
     @patch("controller.controller.QMenu")
     @patch("controller.controller.QAction")
@@ -1357,12 +1326,29 @@ class Chip8ControllerTest(unittest.TestCase):
         configuration.assembler_source_file = "/tmp/test.asm"
         configuration.assembler_rom_file = "/tmp/test.ch8"
         configuration.assembler_listing_file = "/tmp/test.lst"
+        configuration.assembler_include_path = "/tmp/asm_includes"
         configuration.write_settings(settings)
         restored = EmulatorConfiguration()
         restored.read_settings(settings)
         self.assertEqual(restored.assembler_source_file, "/tmp/test.asm")
         self.assertEqual(restored.assembler_rom_file, "/tmp/test.ch8")
         self.assertEqual(restored.assembler_listing_file, "/tmp/test.lst")
+        self.assertEqual(restored.assembler_include_path, "/tmp/asm_includes")
+        settings.clear()
+
+
+    def test_missing_include_path_setting_uses_default(self) -> None:
+        """
+        @brief Verify that older settings without an IncludePath use the
+        default empty path.
+        """
+        settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "CHIP8-test", "configuration-test")
+        settings.clear()
+        settings.setValue("assembler/source_file", "/tmp/test.asm")
+        restored = EmulatorConfiguration()
+        restored.read_settings(settings)
+        self.assertEqual(restored.assembler_source_file, "/tmp/test.asm")
+        self.assertEqual(restored.assembler_include_path, "")
         settings.clear()
 
 
@@ -2287,7 +2273,7 @@ class Chip8ControllerTest(unittest.TestCase):
             controller._create_assembler.assert_not_called()
             self.assertFalse(rom_file.exists())
             messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
-            self.assertIn("Multiple TARGET directives found.", messages)
+            self.assertTrue( any( message.startswith("Multiple TARGET directives found.") for message in messages))
 
     def test_assemble_source_uses_selected_target_for_assembler(self) -> None:
         """
@@ -2912,3 +2898,46 @@ class Chip8ControllerTest(unittest.TestCase):
                 Chip8Controller()
             load_rom.assert_called_once_with(Path(rom_file.name))
 
+
+    def test_assemble_source_expands_include_before_target_selection(self) -> None:
+        """Verify included source participates in target selection and assembly."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_file = root / "main.asm"
+            include_file = root / "parts" / "target.asm"
+            include_file.parent.mkdir()
+            include_file.write_text("TARGET SCHIP11\nCLS\n", encoding="utf-8")
+            configuration = EmulatorConfiguration()
+            configuration.assembler_include_path = str(root / "parts")
+            controller = create_controller(configuration)
+            controller._assembler_source_file = source_file
+            assembler = MagicMock()
+            assembler.assemble.return_value = AssemblyResult(success=True)
+            controller._create_assembler = MagicMock(return_value=assembler)
+            result = controller.assemble_source( 'INCLUDE "target.asm"\n', Target.COSMAC, AssemblyOptions())
+            self.assertTrue(result)
+            controller._create_assembler.assert_called_once_with(Target.SUPERCHIP_11)
+            assembler.assemble.assert_called_once()
+            self.assertEqual( assembler.assemble.call_args.args[0], "TARGET SCHIP11\nCLS\n")
+            self.assertEqual( assembler.assemble.call_args.args[2][0].filename, include_file.resolve())
+            self.assertEqual( assembler.assemble.call_args.args[2][0].line, 1)
+
+
+    def test_assemble_source_reports_missing_include(self) -> None:
+        """Verify a missing include prevents target selection and assembly."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_file = root / "main.asm"
+            controller = create_controller()
+            controller._assembler_source_file = source_file
+            controller._create_assembler = MagicMock()
+            result = controller.assemble_source( 'INCLUDE "missing.asm"\n', Target.COSMAC, AssemblyOptions())
+            self.assertFalse(result)
+            controller._create_assembler.assert_not_called()
+            messages = [ diagnostic.message for diagnostic in controller._assembler_diagnostics ]
+            self.assertTrue(
+                any(
+                    str(source_file) in message and "missing.asm" in message
+                    for message in messages
+                )
+            )

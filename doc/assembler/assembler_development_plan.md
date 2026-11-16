@@ -1303,6 +1303,26 @@ Implementation details should normally be documented in the assembler design and
 
 ---
 
+## 27.1 INCLUDE Directive — Implementation Record
+
+The INCLUDE feature is implemented in the Controller-side assembly workflow. The implementation and regression coverage establish the following behaviour:
+
+1. `IncludeProcessor` performs architecture-independent preprocessing before target selection and before construction of the target-specific ISA/parser pair.
+2. The accepted directive is `INCLUDE "filename"`; it occupies its own line and is removed as included text is inserted at that exact source position.
+3. Includes expand recursively in source order. Repeated inclusion is permitted after an earlier expansion completes; circular inclusion in the active expansion chain is rejected.
+4. Absolute include filenames are used directly. Relative filenames use the configured include root when non-empty; otherwise they are resolved relative to the file containing the directive. A relative configured include root is anchored at the main source file's directory. A configured root is authoritative for nested relative includes.
+5. Malformed directives and missing or unreadable files produce include errors with the originating file and line.
+6. Expanded-source line numbers are retained separately from original filename and physical line provenance. Diagnostics and listings use the original source location where available.
+7. `TargetSelector` examines the complete expanded source. A second `TARGET` declaration is rejected even if it repeats the first target, and the diagnostic identifies both locations.
+8. The setting is `EmulatorConfiguration.assembler_include_path`, persisted under `assembler/include_path`.
+9. The assembler dialog uses `asmIncludeGroupBox`, `asmIncludesLineEdit`, and `asmIncludesPushButton`; directory selection uses `QFileDialog.getExistingDirectory()`.
+10. `Assembler` and concrete parsers remain independent of file I/O and INCLUDE processing.
+11. Regression tests cover recursive and repeated includes, path resolution, malformed/missing/circular includes, provenance, duplicate TARGET declarations, controller integration, and listing/cross-reference output.
+
+ADR-015 records the architectural decision and remains Proposed pending formal acceptance. The implementation does not depend on an `ArchitectureDefinition` abstraction.
+
+
+
 ## 28. Definition of Completion
 
 The assembler implementation is complete when all of the following are true:
@@ -1377,7 +1397,11 @@ The complete sequence is:
         │
 17  Full application integration
         │
-18  Final cleanup and documentation
+18  INCLUDE preprocessing, path resolution, and source provenance
+        │
+19  INCLUDE/target-selection integration and regression tests
+        │
+20  Final cleanup and documentation
 ```
 
 At every point:

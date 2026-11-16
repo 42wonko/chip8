@@ -10,7 +10,7 @@ import unittest
 
 import numpy as np
 from PyQt6.QtCore import QRect, QSize, Qt
-from PyQt6.QtGui import QColor, QImage, QPainter
+from PyQt6.QtGui import QColor, QImage
 from PyQt6.QtWidgets import QApplication
 
 from emulator.constants import DISPLAY_HEIGHT, DISPLAY_WIDTH

@@ -14,14 +14,15 @@ The architecture-specific language is considered only after the target architect
 This document defines the intended assembler language. The current implementation does not yet implement every construct described here. The following points are authoritative for the current implementation audit:
 
 - The current assembler has one implemented target architecture: COSMAC.
-- Target selection is performed by `TargetSelector` in the Controller before `Assembler.assemble()` is called. A `TARGET` declaration in source takes precedence over the externally supplied target.
+- Target selection is performed by `TargetSelector` in the Controller before `Assembler.assemble()` is called. A single `TARGET` declaration in the complete expanded source takes precedence over the externally supplied target. More than one declaration is an error, including repeated declarations of the same target.
+- INCLUDE expansion is implemented by Controller-side, architecture-independent preprocessing before target selection and assembler construction. The syntax and path-resolution rules are specified below.
 - The current lexer is a hand-written lexer. It accepts identifiers using Python's `isalpha()`/`isalnum()` behavior plus underscore; this is broader than the ASCII-only identifier grammar specified below.
 - The current parser is a hand-written parser hierarchy (`Parser` and `ClassicParser`); it is not driven by an external architecture-definition grammar.
 - `ClassicParser` accepts only instruction mnemonics exposed by the selected ISA. Operand legality is resolved later during semantic analysis.
 - The lexer collects multiple lexical diagnostics by recovering at source-line boundaries. If lexical errors occur, the assembler returns an unsuccessful result before parsing, semantic analysis, or code generation. The parser separately recovers from `ParserError` at statement boundaries and collects multiple parser diagnostics in one source file; parser errors also stop semantic analysis and code generation.
 - `ORG`, `DB`, `DW`, and `EQU` are implemented. `DW` accepts one or more numeric expressions, each in the range `0x0000` through `0xFFFF`; each value is emitted as a 16-bit big-endian word. The required label denotes the first byte, and each operand advances the address by two bytes. Forward label references in `DW` expressions are supported.
 - The lexer supports `\n`, `\r`, `\t`, `\\`, `\'`, `\"`, and `\xNN` escapes in character and string literals. The `\xNN` escape requires exactly two hexadecimal digits.
-- `SourceLocation` currently contains line and column only; it does not contain a filename.
+- `SourceLocation` retains the expanded-source line and column and, when preprocessing supplied provenance, the original source filename and line. The preprocessor separately maps every expanded source line to its originating file and physical line.
 
 These are implementation-status notes, not changes to the intended language requirements. The accepted parser architecture is documented in ADR-014 and `parser_framework.md`; `architecture_definitions.md` is a superseded proposal.
 
@@ -419,6 +420,42 @@ Expressions are evaluated during Pass 2.
 
 ---
 
+# Target Declaration
+
+A source program may contain at most one `TARGET` declaration across its complete expanded source. The rule applies to the main source file and every file included directly or indirectly. A second declaration is an error even if it names the same target as the first declaration. The diagnostic shall identify both declaration locations, including original filenames and line numbers.
+
+When exactly one source `TARGET` declaration is present, it takes precedence over an externally supplied target. When no source declaration is present, the existing external-target selection behaviour applies.
+
+
+
+# Source-Level INCLUDE Directive
+
+`INCLUDE` is a source-preprocessing directive handled by the Controller before target discovery, lexing, and architecture-specific parsing. It is not an architecture-specific instruction or parser directive.
+
+The accepted form is:
+
+```asm
+INCLUDE "graphics/sprites.asm"
+```
+
+The directive is recognized by the source preprocessor, not by the lexer or architecture-specific parser. The preprocessor removes the directive line and inserts the included file's text before normal target discovery and lexical analysis.
+
+The filename must be enclosed in double quotes. The directive occupies its own source line. It may appear wherever a source-level directive may appear. The referenced file's contents replace the directive at that exact position in the expanded source. Included files may contain further INCLUDE directives.
+
+Path resolution follows these rules:
+
+1. An absolute filename in an INCLUDE directive is used directly, regardless of the configured `IncludePath`.
+2. If `IncludePath` is absolute, it is used as the include root for relative filenames.
+3. If `IncludePath` is relative, it is resolved relative to the directory of the main assembly source file.
+4. If `IncludePath` is empty, each relative filename is resolved against the directory of the file containing that INCLUDE directive.
+5. A non-empty `IncludePath` is authoritative for all relative includes, including nested includes. There is no fallback to the including file's directory.
+
+Malformed directives, missing/unreadable files, and circular inclusion are errors. Circular inclusion is detected using resolved paths in the active inclusion chain; a file may be included again after an earlier inclusion has completed. Expansion preserves source order and maps each expanded line to its original filename and physical line.
+
+`INCLUDE` does not create a separate assembler language for each target. The same preprocessing rules apply to all assembler variants. The Controller expands all files before target selection.
+
+
+
 # Directives
 
 The COSMAC architecture defines the following architecture-specific directives.
@@ -450,7 +487,7 @@ The target-discovery phase examines the source for this declaration. It does not
 
 If a target declaration is present, its architecture is used. If no target declaration is present, the externally supplied target is used. A source target takes precedence over the external target.
 
-Only one target declaration may be present in a source file. Multiple target declarations are reported as a target-selection error during target discovery.
+Only one target declaration may be present in the complete expanded source, including the main source file and every directly or indirectly included file. A second declaration is a target-selection error even when it repeats the same target. The diagnostic identifies both original source locations.
 
 The selected target determines
 

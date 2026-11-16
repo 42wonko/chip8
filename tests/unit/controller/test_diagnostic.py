@@ -5,7 +5,7 @@ from controller.diagnostic import (
     DiagnosticSeverity,
     DiagnosticSource,
     format_severity,
-    format_source
+    format_source,
 )
 
 

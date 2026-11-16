@@ -30,8 +30,12 @@ The current API shall:
 - return generated binary data and diagnostics through a stable result object
 - remain independently testable
 
-Target discovery and target selection are application-level responsibilities of
-`Chip8Controller`. The `Assembler` receives the already selected ISA.
+Source-file access, INCLUDE preprocessing, target discovery, and target selection are
+application-level responsibilities of `Chip8Controller`. The Controller expands the
+main source and included files, preserves source provenance, and validates TARGET
+declarations before constructing the target-specific ISA/parser pair. The `Assembler`
+receives the already selected ISA and parser and continues to receive source text; it
+does not open source files or process INCLUDE directives. The Controller obtains the persistent include directory from `EmulatorConfiguration.assembler_include_path` (`assembler/include_path`).
 
 ---
 
@@ -189,8 +193,10 @@ message
 location
 ```
 
-The `location` is a source line/column location; a filename is not currently stored in
-`AssemblerDiagnostic` because the Controller owns the current assembler source file.
+The diagnostic location retains the expanded-source line and column. When the Controller
+has expanded included files, the location also carries the original filename and physical
+line. This preserves the assembler's expanded-source coordinate system while allowing
+diagnostics to identify the file in which the source construct was written.
 
 ---
 
@@ -204,8 +210,10 @@ Assembler GUI
      ▼
 Chip8Controller
      │
-     ├── select target
-     ├── create Assembler with selected ISA
+     ├── save/identify main source file
+     ├── expand INCLUDE directives and preserve source provenance
+     ├── validate/select target from expanded source
+     ├── create Assembler with selected ISA/parser
      │
      ▼
 Assembler

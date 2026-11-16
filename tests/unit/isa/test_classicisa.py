@@ -4,18 +4,17 @@
 @brief Unit tests for the Classic CHIP-8 Instruction Set Architecture.
 """
 
-from typing import cast
 import unittest
+from typing import cast
 
 from assembler.instruction import AssemblerInstruction
 from assembler.operand import AssemblerOperand, AssemblerOperandType
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
+from chip8.isa.instruction import Instruction
 from chip8.isa.instructionid import InstructionId
 from chip8.isa.reference import ReferenceAccess
-from chip8.isa.instruction import Instruction
 
 #from src.assembler import instruction instruction
-
 from emulator.constants import FONT_CHARACTER_SIZE, FONT_START, INSTRUCTION_SIZE
 from tests.helpers import create_machine
 

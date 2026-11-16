@@ -10,7 +10,7 @@ from __future__ import annotations
 import unittest
 
 from PyQt6.QtCore import QEvent, QRect, Qt
-from PyQt6.QtGui import QKeyEvent, QPainter, QPixmap, QPaintEvent, QTextCursor
+from PyQt6.QtGui import QKeyEvent, QPainter, QPixmap, QTextCursor
 from PyQt6.QtWidgets import QApplication
 
 from emulator.constants import (

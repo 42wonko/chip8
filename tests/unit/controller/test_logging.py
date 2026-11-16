@@ -1,6 +1,6 @@
-from datetime import datetime
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from chip8.isa.classicisa import ClassicInstructionSetArchitecture
@@ -8,11 +8,15 @@ from chip8.isa.instruction import Instruction
 from chip8.isa.instructionid import InstructionId
 from controller.diagnostic import DiagnosticSource
 from controller.emulatorconfiguration import EmulatorConfiguration, TraceLevel
-from controller.logging import ApplicationLogger, ExecutionTracer, LogManager, SessionHeader
+from controller.logging import (
+    ApplicationLogger,
+    ExecutionTracer,
+    LogManager,
+)
 from controller.sessionheader import SessionHeader
-from emulator.tracerecord import TraceRecord, KeyExecutionEvent
-
+from emulator.tracerecord import KeyExecutionEvent, TraceRecord
 from tests.helpers import create_registers
+
 
 class ApplicationLoggerTest(unittest.TestCase):
     def setUp(self) -> None:
